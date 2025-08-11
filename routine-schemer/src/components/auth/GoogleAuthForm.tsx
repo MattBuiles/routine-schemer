@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Dumbbell, Chrome } from 'lucide-react';
+import { Dumbbell, Chrome, Star, Zap, Shield, Trophy } from 'lucide-react';
 
 export default function GoogleAuthForm() {
   const { signInWithGoogle, loading } = useAuth();
@@ -16,65 +16,127 @@ export default function GoogleAuthForm() {
     }
   };
 
+  const features = [
+    { icon: Zap, text: "1000+ Premium Exercises", color: "text-yellow-400" },
+    { icon: Trophy, text: "Elite Performance Tracking", color: "text-orange-400" },
+    { icon: Shield, text: "Secure Cloud Sync", color: "text-purple-400" },
+    { icon: Star, text: "Personalized AI Coaching", color: "text-pink-400" }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-2xl border-0">
-          <CardHeader className="space-y-1 text-center pb-8">
-            <div className="flex justify-center mb-4">
-              <div className="h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-                <Dumbbell className="h-8 w-8 text-white" />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 gradient-animated"></div>
+      
+      {/* Floating Orbs */}
+      <div className="absolute top-20 left-20 w-32 h-32 bg-yellow-400/20 rounded-full blur-xl float"></div>
+      <div className="absolute top-40 right-32 w-24 h-24 bg-purple-400/20 rounded-full blur-xl float" style={{animationDelay: '1s'}}></div>
+      <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-pink-400/20 rounded-full blur-xl float" style={{animationDelay: '2s'}}></div>
+      
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          {/* Logo Section */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 mb-6 pulse-glow">
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-2xl">
+                <Dumbbell className="h-8 w-8 text-black" />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold text-gray-900">
+            <h1 className="text-5xl font-black text-luxury mb-3">
               Routine Schemer
-            </CardTitle>
-            <p className="text-gray-600 text-lg">
-              Your personal fitness companion
+            </h1>
+            <p className="text-xl text-gray-300 font-medium">
+              Elite Fitness Experience
             </p>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            <div className="text-center space-y-4">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Welcome to your fitness journey
-              </h2>
-              <p className="text-gray-600">
-                Create, track, and achieve your fitness goals with personalized workout routines.
+          </div>
+
+          {/* Main Card */}
+          <Card className="card-premium card-glow border-0 backdrop-blur-2xl">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-2xl font-bold text-white mb-4">
+                Join the Elite
+              </CardTitle>
+              <p className="text-gray-300 text-lg leading-relaxed">
+                Transform your fitness journey with our premium platform designed for champions
               </p>
-            </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-8">
+              {/* Google Sign In Button */}
+              <Button
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="btn-premium w-full h-14 text-lg font-bold relative group"
+              >
+                {loading ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-3 border-black border-t-transparent"></div>
+                    <span>Accessing Elite Platform...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-3">
+                    <Chrome className="h-6 w-6 text-black group-hover:scale-110 transition-transform" />
+                    <span>Continue with Google</span>
+                  </div>
+                )}
+              </Button>
 
-            <Button
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full h-12 text-lg font-medium bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm"
-              variant="outline"
-            >
-              {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span>Signing in...</span>
+              {/* Features Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {features.map((feature, index) => (
+                  <div 
+                    key={index}
+                    className="glass p-4 rounded-xl text-center group hover:scale-105 transition-all duration-300"
+                    style={{animationDelay: `${index * 0.1}s`}}
+                  >
+                    <feature.icon className={`h-6 w-6 ${feature.color} mx-auto mb-2 group-hover:scale-110 transition-transform`} />
+                    <p className="text-sm font-medium text-gray-300">
+                      {feature.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Premium Stats */}
+              <div className="text-center space-y-4 pt-4 border-t border-gray-700/50">
+                <div className="flex justify-center space-x-8">
+                  <div className="text-center">
+                    <div className="counter">1000+</div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Exercises</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="counter">50K+</div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Users</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="counter">99.9%</div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Uptime</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <Chrome className="h-5 w-5 text-blue-600" />
-                  <span>Continue with Google</span>
+                
+                <div className="flex items-center justify-center space-x-1 text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" />
+                  ))}
+                  <span className="ml-2 text-sm text-gray-300">Rated by 10K+ athletes</span>
                 </div>
-              )}
-            </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="text-center text-sm text-gray-500 space-y-2">
-              <p>Secure authentication powered by Google</p>
-              <p>• Create unlimited workout programs</p>
-              <p>• Access 1000+ exercise database</p>
-              <p>• Track your fitness progress</p>
-              <p>• Plan workouts with calendar</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
+          {/* Bottom Text */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-400 leading-relaxed">
+              By continuing, you agree to our 
+              <span className="text-yellow-400 hover:text-yellow-300 cursor-pointer"> Terms of Service </span>
+              and 
+              <span className="text-yellow-400 hover:text-yellow-300 cursor-pointer"> Privacy Policy</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Secure • Encrypted • World-Class
+            </p>
+          </div>
         </div>
       </div>
     </div>

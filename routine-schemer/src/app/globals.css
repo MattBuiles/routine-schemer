@@ -2,191 +2,379 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-  }
+/* Variables de colores premium */
+:root {
+  --luxury-gold: #d4af37;
+  --luxury-gold-light: #f4e478;
+  --luxury-gold-dark: #b8941f;
+  --luxury-orange: #ff6b35;
+  --luxury-orange-light: #ff8c69;
+  --luxury-orange-dark: #e55a2b;
+  --dark-bg: #0a0a0a;
+  --dark-surface: #1a1a1a;
+  --dark-elevated: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
 }
 
-@layer base {
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-@layer components {
-  .fitness-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-  
-  .workout-card-hover {
-    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
-  }
-  
-  .exercise-card {
-    @apply bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200;
-  }
-  
-  .calendar-day {
-    @apply h-24 border border-gray-200 p-1 text-sm relative cursor-pointer hover:bg-gray-50 transition-colors;
-  }
-  
-  .calendar-day.today {
-    @apply bg-blue-50 border-blue-200;
-  }
-  
-  .calendar-day.has-workout {
-    @apply bg-green-50 border-green-200;
-  }
-  
-  .calendar-event {
-    @apply text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate mb-1;
-  }
-}
-
-/* React Calendar Styles */
-.react-calendar {
-  @apply w-full bg-white border border-gray-300 font-sans;
-}
-
-.react-calendar,
-.react-calendar *,
-.react-calendar *:before,
-.react-calendar *:after {
-  -moz-box-sizing: border-box;
-  -webkit-box-sizing: border-box;
+/* Reset y base */
+* {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
 
-.react-calendar button {
-  @apply m-0 border-0 outline-none;
+html {
+  scroll-behavior: smooth;
 }
 
-.react-calendar button:enabled:hover,
-.react-calendar button:enabled:focus {
-  @apply bg-gray-100;
+body {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
 }
 
-.react-calendar__navigation {
-  @apply flex h-11 mb-4;
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 107, 53, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(212, 175, 55, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
 }
 
-.react-calendar__navigation button {
-  @apply min-w-11 bg-none text-base;
+/* Efectos glassmorphism */
+.glass {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.react-calendar__navigation button:disabled {
-  @apply bg-gray-100;
+.glass-strong {
+  background: rgba(42, 42, 42, 0.9);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.react-calendar__navigation button:enabled:hover,
-.react-calendar__navigation button:enabled:focus {
-  @apply bg-gray-100;
+/* Tipografía de lujo */
+.text-luxury {
+  background: linear-gradient(135deg, var(--luxury-gold) 0%, var(--luxury-orange) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.react-calendar__month-view__weekdays {
-  @apply text-center text-sm font-bold;
+.text-luxury-subtitle {
+  background: linear-gradient(135deg, var(--luxury-gold-light) 0%, var(--text-secondary) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 500;
 }
 
-.react-calendar__month-view__weekdays__weekday {
-  @apply p-2;
+/* Gradientes animados */
+.gradient-animated {
+  background: linear-gradient(270deg, var(--luxury-gold), var(--luxury-orange), var(--luxury-gold-light));
+  background-size: 400% 400%;
+  animation: gradientShift 4s ease infinite;
 }
 
-.react-calendar__month-view__weekdays__weekday abbr {
-  @apply no-underline;
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
-.react-calendar__month-view__days__day--weekend {
-  @apply text-red-600;
+/* Animaciones flotantes */
+.float {
+  animation: float 6s ease-in-out infinite;
 }
 
-.react-calendar__month-view__days__day--neighboringMonth {
-  @apply text-gray-400;
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
-.react-calendar__year-view .react-calendar__tile,
-.react-calendar__decade-view .react-calendar__tile,
-.react-calendar__century-view .react-calendar__tile {
-  @apply p-8 text-base;
+/* Efectos de resplandor */
+.glow {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  transition: box-shadow 0.3s ease;
 }
 
-.react-calendar__tile {
-  @apply max-w-full p-2 bg-none text-center leading-4 text-base;
+.glow:hover {
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
 }
 
-.react-calendar__tile:disabled {
-  @apply bg-gray-100;
+.pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
 }
 
-.react-calendar__tile:enabled:hover,
-.react-calendar__tile:enabled:focus {
-  @apply bg-gray-100;
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(212, 175, 55, 0.6); }
 }
 
-.react-calendar__tile--now {
-  @apply bg-yellow-100;
+/* Efectos de ondas (ripple) */
+.ripple {
+  position: relative;
+  overflow: hidden;
 }
 
-.react-calendar__tile--now:enabled:hover,
-.react-calendar__tile--now:enabled:focus {
-  @apply bg-yellow-200;
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
 }
 
-.react-calendar__tile--hasActive {
-  @apply bg-blue-100;
+.ripple:active::before {
+  width: 300px;
+  height: 300px;
 }
 
-.react-calendar__tile--hasActive:enabled:hover,
-.react-calendar__tile--hasActive:enabled:focus {
-  @apply bg-blue-200;
+/* Efectos neón */
+.neon-glow {
+  text-shadow: 
+    0 0 5px var(--luxury-gold),
+    0 0 10px var(--luxury-gold),
+    0 0 15px var(--luxury-gold);
 }
 
-.react-calendar__tile--active {
-  @apply bg-blue-600 text-white;
+/* Escalas elásticas */
+.elastic-scale {
+  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.react-calendar__tile--active:enabled:hover,
-.react-calendar__tile--active:enabled:focus {
-  @apply bg-blue-700;
+.elastic-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Efectos magnéticos */
+.magnetic {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.magnetic:hover {
+  transform: translateY(-2px);
+}
+
+/* Tarjetas premium */
+.premium-card {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--luxury-gold), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.premium-card:hover::before {
+  opacity: 1;
+}
+
+.premium-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(212, 175, 55, 0.2);
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+/* Botones premium */
+.btn-premium {
+  background: linear-gradient(135deg, var(--luxury-gold) 0%, var(--luxury-orange) 100%);
+  border: none;
+  border-radius: 12px;
+  color: var(--dark-bg);
+  font-weight: 600;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-premium:hover::before {
+  left: 100%;
+}
+
+.btn-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4);
+}
+
+/* Divisores con gradiente */
+.gradient-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--luxury-gold), transparent);
+  margin: 20px 0;
+}
+
+/* Efectos de partículas de fondo */
+.particle-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--luxury-gold), var(--luxury-orange));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--luxury-gold-light), var(--luxury-orange-light));
+}
+
+/* Utilidades responsive */
+@media (max-width: 768px) {
+  .premium-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .btn-premium {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+
+/* Animaciones de entrada */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+/* Estados de loading */
+.loading-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0.1) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Clases adicionales para compatibilidad */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.bg-background {
+  background-color: var(--dark-bg);
+}
+
+.bg-surface {
+  background-color: var(--dark-surface);
+}
+
+.bg-elevated {
+  background-color: var(--dark-elevated);
+}
+
+/* Efectos adicionales para elementos interactivos */
+.interactive-element {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.interactive-element:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+/* Mejoras de accesibilidad */
+.focus-visible:focus-visible {
+  outline: 2px solid var(--luxury-gold);
+  outline-offset: 2px;
+}
+
+/* Animación para iconos */
+.icon-hover {
+  transition: transform 0.2s ease;
+}
+
+.icon-hover:hover {
+  transform: scale(1.1);
 }
