@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .fitness-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .workout-card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .exercise-card {
+    @apply bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200;
+  }
+  
+  .calendar-day {
+    @apply h-24 border border-gray-200 p-1 text-sm relative cursor-pointer hover:bg-gray-50 transition-colors;
+  }
+  
+  .calendar-day.today {
+    @apply bg-blue-50 border-blue-200;
+  }
+  
+  .calendar-day.has-workout {
+    @apply bg-green-50 border-green-200;
+  }
+  
+  .calendar-event {
+    @apply text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded truncate mb-1;
+  }
+}
+
+/* React Calendar Styles */
+.react-calendar {
+  @apply w-full bg-white border border-gray-300 font-sans;
+}
+
+.react-calendar,
+.react-calendar *,
+.react-calendar *:before,
+.react-calendar *:after {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+.react-calendar button {
+  @apply m-0 border-0 outline-none;
+}
+
+.react-calendar button:enabled:hover,
+.react-calendar button:enabled:focus {
+  @apply bg-gray-100;
+}
+
+.react-calendar__navigation {
+  @apply flex h-11 mb-4;
+}
+
+.react-calendar__navigation button {
+  @apply min-w-11 bg-none text-base;
+}
+
+.react-calendar__navigation button:disabled {
+  @apply bg-gray-100;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  @apply bg-gray-100;
+}
+
+.react-calendar__month-view__weekdays {
+  @apply text-center text-sm font-bold;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  @apply p-2;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  @apply no-underline;
+}
+
+.react-calendar__month-view__days__day--weekend {
+  @apply text-red-600;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  @apply text-gray-400;
+}
+
+.react-calendar__year-view .react-calendar__tile,
+.react-calendar__decade-view .react-calendar__tile,
+.react-calendar__century-view .react-calendar__tile {
+  @apply p-8 text-base;
+}
+
+.react-calendar__tile {
+  @apply max-w-full p-2 bg-none text-center leading-4 text-base;
+}
+
+.react-calendar__tile:disabled {
+  @apply bg-gray-100;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  @apply bg-gray-100;
+}
+
+.react-calendar__tile--now {
+  @apply bg-yellow-100;
+}
+
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  @apply bg-yellow-200;
+}
+
+.react-calendar__tile--hasActive {
+  @apply bg-blue-100;
+}
+
+.react-calendar__tile--hasActive:enabled:hover,
+.react-calendar__tile--hasActive:enabled:focus {
+  @apply bg-blue-200;
+}
+
+.react-calendar__tile--active {
+  @apply bg-blue-600 text-white;
+}
+
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+  @apply bg-blue-700;
+}
