@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Counter } from '@/components/ui/counter';
 import { ParticleBackground } from '@/components/ui/particle-background';
 import { Tooltip } from '@/components/ui/tooltip';
 import ExerciseLibrary from '@/components/routine/ExerciseLibrary';
@@ -14,19 +13,14 @@ import {
   Calendar, 
   Dumbbell, 
   Target, 
-  TrendingUp, 
-  User, 
   LogOut,
   ArrowLeft,
   Plus,
   Crown,
   Award,
   Zap,
-  Flame,
   Activity,
-  BarChart3,
-  Clock,
-  Star
+  Clock
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -60,75 +54,88 @@ export default function Dashboard() {
     setCurrentView('dashboard');
   };
 
-  const stats = [
+  const programCategories = [
     {
-      title: 'Active Programs',
-      value: 2,
-      suffix: '',
-      icon: Target,
-      color: 'text-blue-400'
-    },
-    {
-      title: 'Workouts This Week',
-      value: 4,
-      suffix: '',
+      title: 'Strength Programs',
+      description: 'Powerlifting, Olympic lifting, strength development',
       icon: Dumbbell,
-      color: 'text-green-400'
+      color: 'text-red-400',
+      count: 3
     },
     {
-      title: 'Total Sessions',
-      value: 128,
-      suffix: '',
-      icon: TrendingUp,
-      color: 'text-purple-400'
+      title: 'Hypertrophy Routines',
+      description: 'Muscle building, bodybuilding programs',
+      icon: Target,
+      color: 'text-blue-400',
+      count: 5
     },
     {
-      title: 'Current Streak',
-      value: 7,
-      suffix: ' days',
-      icon: Calendar,
-      color: 'text-orange-400'
+      title: 'Rehabilitation Plans',
+      description: 'Recovery, injury rehabilitation programs',
+      icon: Activity,
+      color: 'text-green-400',
+      count: 2
+    },
+    {
+      title: 'Cardio Programs',
+      description: 'HIIT, LISS, endurance training',
+      icon: Zap,
+      color: 'text-purple-400',
+      count: 4
     }
   ];
 
-  const recentPrograms = [
+  const activePrograms = [
     {
       id: '1',
-      name: 'Upper/Lower Split',
-      description: ' 4-day strength focused program',
-      lastWorkout: '2 days ago',
-      progress: 75
+      name: 'Advanced Powerlifting Protocol',
+      description: 'Strength-focused program with linear progression',
+      type: 'Strength',
+      duration: '12 weeks',
+      status: 'Active',
+      lastModified: '2 days ago'
     },
     {
       id: '2',
-      name: 'Full Body Routine',
-      description: '3-day beginner program',
-      lastWorkout: '1 week ago',
-      progress: 45
-    }
-  ];
-
-  const upcomingWorkouts = [
-    {
-      id: '1',
-      name: 'Upper Body Strength',
-      date: 'Today',
-      time: '6:00 PM',
-      type: 'Strength'
-    },
-    {
-      id: '2',
-      name: 'Lower Body Hypertrophy',
-      date: 'Tomorrow',
-      time: '7:00 AM',
-      type: 'Hypertrophy'
+      name: 'Shoulder Rehabilitation Plan',
+      description: 'Post-injury recovery and strengthening',
+      type: 'Rehabilitation',
+      duration: '8 weeks',
+      status: 'In Progress',
+      lastModified: '1 day ago'
     },
     {
       id: '3',
-      name: 'Push Day',
-      date: 'Friday',
-      time: '6:00 PM',
-      type: 'Strength'
+      name: 'Hypertrophy Block',
+      description: 'Volume-based muscle building program',
+      type: 'Hypertrophy',
+      duration: '16 weeks',
+      status: 'Draft',
+      lastModified: '1 week ago'
+    }
+  ];
+
+  const programTemplates = [
+    {
+      id: '1',
+      name: 'Beginner Full Body',
+      description: 'Complete starter program',
+      category: 'Strength',
+      exercises: 12
+    },
+    {
+      id: '2',
+      name: 'HIIT Cardio Circuits',
+      description: 'High-intensity interval training',
+      category: 'Cardio',
+      exercises: 8
+    },
+    {
+      id: '3',
+      name: 'Knee Injury Prevention',
+      description: 'Preventive strengthening protocol',
+      category: 'Prevention',
+      exercises: 15
     }
   ];
 
@@ -348,36 +355,35 @@ export default function Dashboard() {
         {/* Welcome Hero Section */}
         <div className="text-center mb-12">
           <h2 className="text-5xl font-black text-luxury mb-4">
-            Welcome back, {user?.displayName?.split(' ')[0] || 'Champion'}!
+            Welcome back, {user?.displayName?.split(' ')[0] || 'Trainer'}!
           </h2>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-            Your elite fitness journey continues. Today is the day to break new boundaries and achieve greatness.
+            Design, organize and manage your training programs. Create structured routines, plan rehabilitation protocols, and build comprehensive fitness solutions.
           </p>
         </div>
 
-        {/* Elite Stats Grid */}
+        {/* Program Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {stats.map((stat, index) => {
-            const IconComponent = stat.icon;
+          {programCategories.map((category, index) => {
+            const IconComponent = category.icon;
             return (
-              <Tooltip key={stat.title} content={`Track your ${stat.title.toLowerCase()} progress`}>
+              <Tooltip key={category.title} content={`Manage your ${category.title.toLowerCase()}`}>
                 <Card className="card-premium card-glow group cursor-pointer hover-lift elastic-scale magnetic" style={{animationDelay: `${index * 0.1}s`}}>
                   <CardContent className="p-8 text-center">
                     <div className="mb-4 flex justify-center">
                       <div className="p-3 rounded-2xl bg-gradient-to-r from-yellow-400/20 to-orange-500/20 group-hover:scale-110 transition-transform duration-300 neon-glow">
-                        <IconComponent className={`h-8 w-8 ${stat.color} group-hover:drop-shadow-lg`} />
+                        <IconComponent className={`h-8 w-8 ${category.color} group-hover:drop-shadow-lg`} />
                       </div>
                     </div>
                     <p className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">
-                      {stat.title}
+                      {category.title}
                     </p>
-                    <div className="counter text-4xl font-black">
-                      <Counter 
-                        end={stat.value} 
-                        duration={2000 + index * 300}
-                        suffix={stat.suffix}
-                      />
+                    <div className="counter text-4xl font-black text-luxury mb-2">
+                      {category.count}
                     </div>
+                    <p className="text-xs text-gray-500">
+                      {category.description}
+                    </p>
                   </CardContent>
                 </Card>
               </Tooltip>
@@ -403,9 +409,9 @@ export default function Dashboard() {
                 </Button>
               </CardHeader>
               <CardContent className="p-8 pt-0">
-                {recentPrograms.length > 0 ? (
+                {activePrograms.length > 0 ? (
                   <div className="space-y-6">
-                    {recentPrograms.map((program, index) => (
+                    {activePrograms.map((program, index) => (
                       <div
                         key={program.id}
                         className="glass p-6 rounded-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
@@ -416,21 +422,24 @@ export default function Dashboard() {
                             {program.name}
                           </h3>
                           <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-400">{program.lastWorkout}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              program.status === 'Active' ? 'bg-green-500/20 text-green-400' :
+                              program.status === 'In Progress' ? 'bg-blue-500/20 text-blue-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {program.status}
+                            </span>
                           </div>
                         </div>
                         <p className="text-gray-300 mb-4">{program.description}</p>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-400">Progress</span>
-                            <span className="text-sm font-bold text-yellow-400">{program.progress}%</span>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-4">
+                            <span className="text-gray-400">Type: <span className="text-yellow-400">{program.type}</span></span>
+                            <span className="text-gray-400">Duration: <span className="text-white">{program.duration}</span></span>
                           </div>
-                          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                            <div
-                              className="bg-gradient-to-r from-yellow-400 to-orange-500 h-full rounded-full transition-all duration-1000 ease-out"
-                              style={{ width: `${program.progress}%` }}
-                            ></div>
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-400">Modified {program.lastModified}</span>
                           </div>
                         </div>
                       </div>
@@ -459,35 +468,36 @@ export default function Dashboard() {
           <div>
             <Card className="card-premium card-glow">
               <CardHeader className="p-8">
-                <CardTitle className="text-xl font-bold text-luxury">Elite Sessions</CardTitle>
-                <p className="text-gray-400">Your championship schedule</p>
+                <CardTitle className="text-xl font-bold text-luxury">Program Templates</CardTitle>
+                <p className="text-gray-400">Ready-to-use training blueprints</p>
               </CardHeader>
               <CardContent className="p-8 pt-0">
-                {upcomingWorkouts.length > 0 ? (
+                {programTemplates.length > 0 ? (
                   <div className="space-y-4">
-                    {upcomingWorkouts.map((workout, index) => (
+                    {programTemplates.map((template, index) => (
                       <div
-                        key={workout.id}
+                        key={template.id}
                         className="glass p-4 rounded-xl hover:scale-105 transition-all duration-300 cursor-pointer group"
                         style={{animationDelay: `${index * 0.1}s`}}
                       >
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-bold text-white group-hover:text-yellow-400 transition-colors">
-                            {workout.name}
+                            {template.name}
                           </h4>
-                          <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full font-medium">
-                            {workout.type}
+                          <span className="text-xs px-2 py-1 bg-yellow-400/20 text-yellow-400 rounded-full">
+                            {template.category}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-300">{workout.date}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-300">{workout.time}</span>
-                          </div>
+                        <p className="text-gray-300 text-sm mb-3">{template.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">{template.exercises} exercises</span>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
+                          >
+                            Use Template
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -495,7 +505,7 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <Activity className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-                    <p className="text-gray-400 text-sm">No elite sessions scheduled</p>
+                    <p className="text-gray-400 text-sm">No templates available</p>
                   </div>
                 )}
               </CardContent>
@@ -503,15 +513,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Elite Command Center */}
+        {/* Program Management Center */}
         <Card className="card-premium card-glow">
           <CardHeader className="p-8">
-            <CardTitle className="text-2xl font-bold text-luxury">Elite Command Center</CardTitle>
-            <p className="text-gray-400">Your championship tools await</p>
+            <CardTitle className="text-2xl font-bold text-luxury">Program Management Center</CardTitle>
+            <p className="text-gray-400">Design, organize and manage your training programs</p>
           </CardHeader>
           <CardContent className="p-8 pt-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <Tooltip content="Create a new elite training program">
+              <Tooltip content="Create a new training program">
                 <Button 
                   className="h-24 glass hover:scale-105 transition-all duration-300 flex flex-col items-center justify-center space-y-3 text-white border-white/20 hover:border-yellow-400/50 group ripple elastic-scale hover-glow"
                   onClick={() => handleViewChange('create-program')}
@@ -520,28 +530,28 @@ export default function Dashboard() {
                   <span className="font-medium">New Program</span>
                 </Button>
               </Tooltip>
-              <Tooltip content="View your elite training calendar">
+              <Tooltip content="Manage training schedules and planning">
                 <Button 
                   className="h-24 glass hover:scale-105 transition-all duration-300 flex flex-col items-center justify-center space-y-3 text-white border-white/20 hover:border-purple-400/50 group ripple elastic-scale hover-glow"
                   onClick={() => handleViewChange('calendar')}
                 >
                   <Calendar className="h-8 w-8 text-purple-400 group-hover:scale-110 transition-transform neon-glow" />
-                  <span className="font-medium">Elite Calendar</span>
+                  <span className="font-medium">Training Calendar</span>
                 </Button>
               </Tooltip>
-              <Tooltip content="Access 1000+ premium exercises">
+              <Tooltip content="Browse exercise library and movements">
                 <Button 
                   className="h-24 glass hover:scale-105 transition-all duration-300 flex flex-col items-center justify-center space-y-3 text-white border-white/20 hover:border-pink-400/50 group ripple elastic-scale hover-glow"
                   onClick={() => handleViewChange('exercises')}
                 >
                   <Dumbbell className="h-8 w-8 text-pink-400 group-hover:scale-110 transition-transform neon-glow" />
-                  <span className="font-medium">Exercise Arsenal</span>
+                  <span className="font-medium">Exercise Library</span>
                 </Button>
               </Tooltip>
-              <Tooltip content="Track your championship progress">
+              <Tooltip content="Program templates and notes">
                 <Button className="h-24 glass hover:scale-105 transition-all duration-300 flex flex-col items-center justify-center space-y-3 text-white border-white/20 hover:border-blue-400/50 group ripple elastic-scale hover-glow">
-                  <BarChart3 className="h-8 w-8 text-blue-400 group-hover:scale-110 transition-transform neon-glow" />
-                  <span className="font-medium">Elite Analytics</span>
+                  <Award className="h-8 w-8 text-blue-400 group-hover:scale-110 transition-transform neon-glow" />
+                  <span className="font-medium">Templates & Notes</span>
                 </Button>
               </Tooltip>
             </div>
