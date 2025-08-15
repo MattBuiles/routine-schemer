@@ -78,7 +78,10 @@ export type WorkoutType =
   | 'power'
   | 'flexibility'
   | 'cardio'
-  | 'recovery';
+  | 'recovery'
+  | 'mobility'
+  | 'stretching'
+  | 'conditioning';
 
 export type TrainingGoal = 
   | 'muscle_gain'
@@ -111,3 +114,104 @@ export interface ExerciseFilter {
   target?: string;
   search?: string;
 }
+
+// Nuevos tipos para hábitos y notas
+export interface Habit {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  type: HabitType;
+  target: number; // objetivo diario (ej: 8 vasos de agua, 8 horas de sueño)
+  unit: string; // unidad de medida (vasos, horas, gramos, etc.)
+  color: string; // color para la UI
+  icon: string; // nombre del icono
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+}
+
+export interface HabitRecord {
+  id: string;
+  habitId: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  value: number; // valor registrado
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  type: NoteType;
+  tags: string[];
+  workoutSessionId?: string; // si está relacionada con un entrenamiento específico
+  createdAt: Date;
+  updatedAt: Date;
+  isPinned: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  age?: number;
+  weight?: number;
+  height?: number;
+  bodyFat?: number;
+  activityLevel: ActivityLevel;
+  goals: TrainingGoal[];
+  experience: ExperienceLevel;
+  preferences: UserPreferences;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  notifications: NotificationSettings;
+  defaultRestTime: number; // segundos
+  units: 'metric' | 'imperial';
+  weekStartDay: 'monday' | 'sunday';
+}
+
+export interface NotificationSettings {
+  workoutReminders: boolean;
+  habitReminders: boolean;
+  progressUpdates: boolean;
+  emailNotifications: boolean;
+}
+
+export type HabitType = 
+  | 'water_intake'
+  | 'sleep'
+  | 'nutrition'
+  | 'supplements'
+  | 'meditation'
+  | 'steps'
+  | 'weight'
+  | 'custom';
+
+export type NoteType = 
+  | 'general'
+  | 'workout'
+  | 'nutrition'
+  | 'progress'
+  | 'idea'
+  | 'reminder';
+
+export type ActivityLevel = 
+  | 'sedentary'
+  | 'lightly_active'
+  | 'moderately_active'
+  | 'very_active'
+  | 'extremely_active';
+
+export type ExperienceLevel = 
+  | 'beginner'
+  | 'intermediate'
+  | 'advanced'
+  | 'expert';

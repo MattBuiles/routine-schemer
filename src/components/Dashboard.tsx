@@ -16,17 +16,54 @@ import {
   Crown,
   Zap,
   Activity,
-  FileText
+  FileText,
+  TrendingUp
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import '@/styles/dashboard.css';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'exercises' | 'create-program'>('dashboard');
   const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleViewChange = (view: 'dashboard' | 'calendar' | 'exercises' | 'create-program') => {
     setCurrentView(view);
+    const viewNames = {
+      'dashboard': 'Dashboard',
+      'calendar': 'Training Calendar',
+      'exercises': 'Exercise Library',
+      'create-program': 'Create Program'
+    };
+    toast.success(`Switched to ${viewNames[view]}`);
+  };
+
+  const handleCategorySelect = (categoryTitle: string) => {
+    if (selectedCategory === categoryTitle) {
+      setSelectedCategory(null);
+      toast(`Cleared ${categoryTitle} selection`);
+    } else {
+      setSelectedCategory(categoryTitle);
+      toast.success(`Selected ${categoryTitle} programs`);
+    }
+  };
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'new-program':
+        handleViewChange('create-program');
+        break;
+      case 'calendar':
+        handleViewChange('calendar');
+        break;
+      case 'exercises':
+        handleViewChange('exercises');
+        break;
+      case 'templates':
+        toast('Templates feature coming soon!', { icon: '📝' });
+        break;
+    }
   };
 
   const handleAddCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => {
@@ -88,6 +125,14 @@ export default function Dashboard() {
       borderColor: 'border-gray-500/20 hover:border-gray-400/30',
       shadowColor: 'hover:shadow-gray-500/10',
     }
+  ];
+
+  // Recent activity data
+  const recentActivity = [
+    { action: 'Created program', item: 'Upper Body Strength', time: '2 hours ago', type: 'create' },
+    { action: 'Completed session', item: 'Leg Day', time: '1 day ago', type: 'complete' },
+    { action: 'Modified program', item: 'Cardio Intensive', time: '2 days ago', type: 'modify' },
+    { action: 'Added exercise', item: 'Bulgarian Split Squats', time: '3 days ago', type: 'add' }
   ];
 
   // Different Views
@@ -261,6 +306,18 @@ export default function Dashboard() {
           </div>
 
           <div className="dashboard-user-section">
+            {/* Quick Stats */}
+            <div className="dashboard-stats-mini">
+              <div className="dashboard-stat-mini">
+                <span className="dashboard-stat-mini-number">24</span>
+                <span className="dashboard-stat-mini-label">Programs</span>
+              </div>
+              <div className="dashboard-stat-mini">
+                <span className="dashboard-stat-mini-number">156</span>
+                <span className="dashboard-stat-mini-label">Sessions</span>
+              </div>
+            </div>
+
             <div className="dashboard-user-info">
               <div className="dashboard-user-avatar">
                 {(user?.displayName || 'T')[0].toUpperCase()}
@@ -296,16 +353,66 @@ export default function Dashboard() {
           <div className="dashboard-categories-grid">
             {programCategories.map((category) => {
               const IconComponent = category.icon;
+              const isSelected = selectedCategory === category.title;
+              const categoryStats = {
+                'Strength': { programs: 12, active: 3 },
+                'Hypertrophy': { programs: 8, active: 2 },
+                'Rehabilitation': { programs: 15, active: 4 },
+                'Conditioning': { programs: 6, active: 1 }
+              };
+              
               return (
-                <div key={category.title} className="dashboard-category-card">
+                <div 
+                  key={category.title} 
+                  className={`dashboard-category-card ${isSelected ? 'dashboard-category-card-selected' : ''}`}
+                  onClick={() => handleCategorySelect(category.title)}
+                >
                   <div className="dashboard-category-icon">
                     <IconComponent size={28} color="#94a3b8" />
                   </div>
                   <h4 className="dashboard-category-title">{category.title}</h4>
                   <p className="dashboard-category-description">{category.description}</p>
+                  
+                  {/* Category Statistics */}
+                  <div className="dashboard-category-stats">
+                    <div className="dashboard-category-stat">
+                      <span className="dashboard-category-stat-number">
+                        {categoryStats[category.title as keyof typeof categoryStats].programs}
+                      </span>
+                      <span className="dashboard-category-stat-label">Programs</span>
+                    </div>
+                    <div className="dashboard-category-stat">
+                      <TrendingUp size={16} color="#10b981" />
+                      <span className="dashboard-category-stat-label">
+                        {categoryStats[category.title as keyof typeof categoryStats].active} Active
+                      </span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="dashboard-quick-actions">
+          <h3 className="dashboard-quick-actions-title">Recent Activity</h3>
+          <div className="dashboard-activity-list">
+            {recentActivity.map((activity, index) => (
+              <div key={index} className="dashboard-activity-item">
+                <div className="dashboard-activity-icon">
+                  {activity.type === 'create' && <Plus size={16} color="#10b981" />}
+                  {activity.type === 'complete' && <Target size={16} color="#3b82f6" />}
+                  {activity.type === 'modify' && <Activity size={16} color="#f59e0b" />}
+                  {activity.type === 'add' && <Dumbbell size={16} color="#8b5cf6" />}
+                </div>
+                <div className="dashboard-activity-content">
+                  <span className="dashboard-activity-action">{activity.action}</span>
+                  <span className="dashboard-activity-item-name">{activity.item}</span>
+                </div>
+                <span className="dashboard-activity-time">{activity.time}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -314,7 +421,7 @@ export default function Dashboard() {
           <h3 className="dashboard-quick-actions-title">Professional Tools</h3>
           <div className="dashboard-actions-grid">
             <button 
-              onClick={() => handleViewChange('create-program')}
+              onClick={() => handleQuickAction('new-program')}
               className="dashboard-action-btn"
             >
               <div className="dashboard-action-icon">
@@ -323,7 +430,7 @@ export default function Dashboard() {
               <span className="dashboard-action-label">New Program</span>
             </button>
             <button 
-              onClick={() => handleViewChange('calendar')}
+              onClick={() => handleQuickAction('calendar')}
               className="dashboard-action-btn"
             >
               <div className="dashboard-action-icon">
@@ -332,7 +439,7 @@ export default function Dashboard() {
               <span className="dashboard-action-label">Training Calendar</span>
             </button>
             <button 
-              onClick={() => handleViewChange('exercises')}
+              onClick={() => handleQuickAction('exercises')}
               className="dashboard-action-btn"
             >
               <div className="dashboard-action-icon">
@@ -340,7 +447,10 @@ export default function Dashboard() {
               </div>
               <span className="dashboard-action-label">Exercise Library</span>
             </button>
-            <button className="dashboard-action-btn">
+            <button 
+              onClick={() => handleQuickAction('templates')}
+              className="dashboard-action-btn"
+            >
               <div className="dashboard-action-icon">
                 <FileText size={20} color="#94a3b8" />
               </div>
