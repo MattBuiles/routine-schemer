@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import auth specific styles */
+@import '../styles/auth.css';
+
+/* Import dashboard specific styles */
+@import '../styles/dashboard.css';
+
 /* Variables de colores premium */
 :root {
   --luxury-gold: #d4af37;
