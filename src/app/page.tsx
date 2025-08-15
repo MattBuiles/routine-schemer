@@ -4,7 +4,6 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import GoogleAuthForm from '@/components/auth/GoogleAuthForm';
 import Dashboard from '@/components/Dashboard';
-import AuthDebug from '@/components/AuthDebug';
 import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
@@ -23,9 +22,6 @@ export default function Home() {
 
   return (
     <>
-      {/* Debug info - remove in production */}
-      <AuthDebug />
-      
       <main className="min-h-screen">
         {user ? <Dashboard /> : <GoogleAuthForm />}
       </main>
