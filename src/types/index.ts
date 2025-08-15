@@ -100,12 +100,21 @@ export type TrainingSplit =
 
 export interface CalendarEvent {
   id: string;
+  userId: string;
   date: string; // YYYY-MM-DD
-  sessionId: string;
-  session: WorkoutSession;
+  time?: string; // HH:MM format
+  title: string;
+  type: 'routine' | 'habit' | 'note' | 'workout' | 'nutrition' | 'other';
+  duration?: number; // in minutes
+  description?: string;
+  sessionId?: string;
+  session?: WorkoutSession;
   completed?: boolean;
   actualDuration?: number;
   notes?: string;
+  category?: 'workout' | 'nutrition' | 'habit' | 'other';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ExerciseFilter {
@@ -129,6 +138,7 @@ export interface Habit {
   createdAt: Date;
   updatedAt: Date;
   isActive: boolean;
+  isFavorite?: boolean;
 }
 
 export interface HabitRecord {
@@ -165,6 +175,7 @@ export interface UserProfile {
   goals: TrainingGoal[];
   experience: ExperienceLevel;
   preferences: UserPreferences;
+  weeklyGoal?: number; // target workout sessions per week
   createdAt: Date;
   updatedAt: Date;
 }

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { NavigationView } from '@/components/ui/navigation';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { 
   Plus,
   Calendar,
@@ -12,120 +13,50 @@ import {
   BookOpen,
   Activity,
   CheckCircle,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 
 interface DashboardHomeProps {
   onViewChange: (view: NavigationView) => void;
 }
 
-// Datos de ejemplo para el dashboard
-const dashboardStats = {
-  totalRoutines: 12,
-  activeRoutines: 3,
-  totalSessions: 156,
-  weekSessions: 4,
-  currentStreak: 5,
-  weeklyGoal: 5,
-  completionRate: 94
-};
+function DashboardHome({ onViewChange }: DashboardHomeProps) {
+  const { stats, recentActivity, todaySchedule, loading, error } = useDashboardData();
 
-const recentActivity = [
-  { 
-    action: 'Completó', 
-    item: 'Push Day - Hipertrofia', 
-    time: '2 horas', 
-    type: 'complete', 
-    icon: CheckCircle, 
-    color: 'text-green-400' 
-  },
-  { 
-    action: 'Creó rutina', 
-    item: 'Movilidad Matutina', 
-    time: '1 día', 
-    type: 'create', 
-    icon: Plus, 
-    color: 'text-blue-400' 
-  },
-  { 
-    action: 'Hábito registrado', 
-    item: 'Hidratación: 8/8 vasos', 
-    time: '5 horas', 
-    type: 'habit', 
-    icon: Heart, 
-    color: 'text-pink-400' 
-  },
-  { 
-    action: 'Modificó', 
-    item: 'Leg Day - Fuerza', 
-    time: '2 días', 
-    type: 'modify', 
-    icon: Target, 
-    color: 'text-orange-400' 
+  if (loading) {
+    return (
+      <div className="dashboard-page">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Dashboard</h1>
+        </div>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+            <span className="text-lg">Cargando datos...</span>
+          </div>
+        </div>
+      </div>
+    );
   }
-];
 
-const quickActions = [
-  {
-    id: 'new-session',
-    title: 'Entrenar Ahora',
-    description: 'Comenzar sesión rápida',
-    icon: Zap,
-    view: 'exercises' as NavigationView
-  },
-  {
-    id: 'calendar',
-    title: 'Ver Calendario',
-    description: 'Planificar semana',
-    icon: Calendar,
-    view: 'calendar' as NavigationView
-  },
-  {
-    id: 'exercises',
-    title: 'Ejercicios',
-    description: 'Explorar biblioteca',
-    icon: BookOpen,
-    view: 'exercises' as NavigationView
-  },
-  {
-    id: 'create',
-    title: 'Crear Rutina',
-    description: 'Nueva rutina',
-    icon: Plus,
-    view: 'create-routine' as NavigationView
+  if (error) {
+    return (
+      <div className="dashboard-page">
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Dashboard</h1>
+        </div>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <p className="text-red-500 text-lg mb-2">Error al cargar los datos</p>
+            <p className="text-gray-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
-];
 
-const todaySchedule = [
-  {
-    id: '1',
-    time: '07:00',
-    title: 'Movilidad Matutina',
-    type: 'mobility',
-    duration: 15,
-    completed: true
-  },
-  {
-    id: '2',
-    time: '18:00',
-    title: 'Push Day - Hipertrofia',
-    type: 'hypertrophy',
-    duration: 75,
-    completed: false,
-    isNext: true
-  },
-  {
-    id: '3',
-    time: '21:00',
-    title: 'Estiramientos',
-    type: 'stretching',
-    duration: 20,
-    completed: false
-  }
-];
-
-export function DashboardHome({ onViewChange }: DashboardHomeProps) {
-  const progressPercentage = (dashboardStats.weekSessions / dashboardStats.weeklyGoal) * 100;
+  const progressPercentage = stats.weeklyGoal > 0 ? (stats.weekSessions / stats.weeklyGoal) * 100 : 0;
 
   return (
     <div className="dashboard-main">
@@ -145,11 +76,11 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
           <h3 className="dashboard-category-title">Rutinas Activas</h3>
           <div className="dashboard-category-stats">
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.activeRoutines}</span>
+              <span className="dashboard-category-stat-number">{stats.activeRoutines}</span>
               <span className="dashboard-category-stat-label">Activas</span>
             </div>
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.totalRoutines}</span>
+              <span className="dashboard-category-stat-number">{stats.totalRoutines}</span>
               <span className="dashboard-category-stat-label">Total</span>
             </div>
           </div>
@@ -162,11 +93,11 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
           <h3 className="dashboard-category-title">Esta Semana</h3>
           <div className="dashboard-category-stats">
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.weekSessions}</span>
+              <span className="dashboard-category-stat-number">{stats.weekSessions}</span>
               <span className="dashboard-category-stat-label">Sesiones</span>
             </div>
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.weeklyGoal}</span>
+              <span className="dashboard-category-stat-number">{stats.weeklyGoal}</span>
               <span className="dashboard-category-stat-label">Meta</span>
             </div>
           </div>
@@ -179,7 +110,7 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
           <h3 className="dashboard-category-title">Racha Actual</h3>
           <div className="dashboard-category-stats">
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.currentStreak}</span>
+              <span className="dashboard-category-stat-number">{stats.currentStreak}</span>
               <span className="dashboard-category-stat-label">Días</span>
             </div>
             <div className="dashboard-category-stat">
@@ -196,11 +127,11 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
           <h3 className="dashboard-category-title">Cumplimiento</h3>
           <div className="dashboard-category-stats">
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.completionRate}%</span>
+              <span className="dashboard-category-stat-number">{stats.completionRate}%</span>
               <span className="dashboard-category-stat-label">Éxito</span>
             </div>
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.totalSessions}</span>
+              <span className="dashboard-category-stat-number">{stats.totalSessions}</span>
               <span className="dashboard-category-stat-label">Total</span>
             </div>
           </div>
@@ -211,22 +142,43 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
       <div className="dashboard-quick-actions">
         <h2 className="dashboard-quick-actions-title">Acciones Rápidas</h2>
         <div className="dashboard-actions-grid">
-          {quickActions.map((action) => {
-            const IconComponent = action.icon;
-            return (
-              <button
-                key={action.id}
-                onClick={() => action.view && onViewChange(action.view)}
-                className="dashboard-action-btn"
-              >
-                <div className="dashboard-action-icon">
-                  <IconComponent className="h-6 w-6 text-slate-300" />
-                </div>
-                <div className="dashboard-action-label">{action.title}</div>
-                <div className="text-xs text-slate-400">{action.description}</div>
-              </button>
-            );
-          })}
+          <button
+            onClick={() => onViewChange('create-routine')}
+            className="dashboard-action-btn"
+          >
+            <div className="dashboard-action-icon">
+              <Plus className="h-6 w-6 text-slate-300" />
+            </div>
+            <div className="dashboard-action-label">Crear Rutina</div>
+            <div className="text-xs text-slate-400">Nueva rutina</div>
+          </button>
+          <button
+            onClick={() => onViewChange('calendar')}
+            className="dashboard-action-btn"
+          >
+            <div className="dashboard-action-icon">
+              <Calendar className="h-6 w-6 text-slate-300" />
+            </div>
+            <div className="dashboard-action-label">Ver Calendario</div>
+            <div className="text-xs text-slate-400">Planificar semana</div>
+          </button>
+          <button
+            onClick={() => onViewChange('exercises')}
+            className="dashboard-action-btn"
+          >
+            <div className="dashboard-action-icon">
+              <BookOpen className="h-6 w-6 text-slate-300" />
+            </div>
+            <div className="dashboard-action-label">Ejercicios</div>
+            <div className="text-xs text-slate-400">Explorar biblioteca</div>
+          </button>
+          <button className="dashboard-action-btn">
+            <div className="dashboard-action-icon">
+              <Zap className="h-6 w-6 text-slate-300" />
+            </div>
+            <div className="dashboard-action-label">Entrenar Ahora</div>
+            <div className="text-xs text-slate-400">Comenzar sesión rápida</div>
+          </button>
         </div>
       </div>
 
@@ -239,7 +191,7 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
           </div>
           <h3 className="dashboard-category-title">Progreso Semanal</h3>
           <p className="dashboard-category-description mb-4">
-            {dashboardStats.weekSessions} / {dashboardStats.weeklyGoal} sesiones completadas
+            {stats.weekSessions} / {stats.weeklyGoal} sesiones completadas
           </p>
           <div className="w-full bg-slate-600/30 rounded-full h-2 mb-4">
             <div 
@@ -253,7 +205,7 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
               <span className="dashboard-category-stat-label">Completado</span>
             </div>
             <div className="dashboard-category-stat">
-              <span className="dashboard-category-stat-number">{dashboardStats.weeklyGoal - dashboardStats.weekSessions}</span>
+              <span className="dashboard-category-stat-number">{stats.weeklyGoal - stats.weekSessions}</span>
               <span className="dashboard-category-stat-label">Restantes</span>
             </div>
           </div>
@@ -293,30 +245,46 @@ export function DashboardHome({ onViewChange }: DashboardHomeProps) {
         </div>
 
         {/* Recent Activity */}
-        <div className="dashboard-category-card lg:col-span-2">
-          <div className="dashboard-category-icon">
-            <Activity className="h-8 w-8 text-slate-300" />
-          </div>
-          <h3 className="dashboard-category-title">Actividad Reciente</h3>
-          <div className="dashboard-activity-list mt-4">
-            {recentActivity.map((activity, index) => {
-              const IconComponent = activity.icon;
-              return (
-                <div key={index} className="dashboard-activity-item">
+        {recentActivity.length > 0 && (
+          <div className="dashboard-category-card lg:col-span-2">
+            <div className="dashboard-category-icon">
+              <Activity className="h-8 w-8 text-slate-300" />
+            </div>
+            <h3 className="dashboard-category-title">Actividad Reciente</h3>
+            <div className="dashboard-activity-list mt-4">
+              {recentActivity.slice(0, 5).map((activity) => (
+                <div key={activity.id} className="dashboard-activity-item">
                   <div className="dashboard-activity-icon">
-                    <IconComponent className="h-4 w-4 text-slate-300" />
+                    <CheckCircle className="h-4 w-4 text-green-400" />
                   </div>
                   <div className="dashboard-activity-content">
                     <div className="dashboard-activity-action">
                       {activity.action} <span className="text-white">{activity.item}</span>
                     </div>
-                    <div className="dashboard-activity-item-name">hace {activity.time}</div>
+                    <div className="dashboard-activity-item-name">
+                      {new Date(activity.timestamp).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Empty state when no activity */}
+        {recentActivity.length === 0 && (
+          <div className="dashboard-category-card lg:col-span-2">
+            <div className="dashboard-category-icon">
+              <Activity className="h-8 w-8 text-slate-300" />
+            </div>
+            <h3 className="dashboard-category-title">Actividad Reciente</h3>
+            <div className="text-center py-8">
+              <Heart className="h-12 w-12 text-slate-400 mx-auto mb-2" />
+              <p className="text-slate-400">¡Comienza tu journey fitness!</p>
+              <p className="text-sm text-slate-500 mt-1">Tu actividad aparecerá aquí</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
