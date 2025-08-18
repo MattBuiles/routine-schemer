@@ -66,9 +66,18 @@ export interface TrainingProgram {
   description?: string;
   mesocycles: Mesocycle[];
   split: TrainingSplit;
+  goal: TrainingGoal;
+  duration: number; // weeks
+  sessionsPerWeek: number;
+  estimatedDuration: number; // minutes per session
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  isPublic: boolean;
+  isActive: boolean;
+  tags: string[];
+  workoutSessions: WorkoutSession[];
+  microcycles: Microcycle[];
   createdAt: Date;
   updatedAt: Date;
-  isActive: boolean;
 }
 
 export type WorkoutType = 

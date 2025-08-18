@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import ExerciseLibrary from '@/components/routine/ExerciseLibrary';
 import WorkoutCalendar from '@/components/routine/WorkoutCalendar';
-import CreateProgram from '@/components/routine/CreateProgram';
+import RoutineManager from '@/components/routine/RoutineManager';
 import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
 import { CalendarEvent } from '@/types';
 import { 
@@ -17,24 +17,25 @@ import {
   Zap,
   Activity,
   FileText,
-  TrendingUp
+  TrendingUp,
+  List
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import '@/styles/dashboard.css';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'exercises' | 'create-program'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'exercises' | 'routines'>('dashboard');
   const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const handleViewChange = (view: 'dashboard' | 'calendar' | 'exercises' | 'create-program') => {
+  const handleViewChange = (view: 'dashboard' | 'calendar' | 'exercises' | 'routines') => {
     setCurrentView(view);
     const viewNames = {
       'dashboard': 'Dashboard',
       'calendar': 'Training Calendar',
       'exercises': 'Exercise Library',
-      'create-program': 'Create Program'
+      'routines': 'My Routines'
     };
     toast.success(`Switched to ${viewNames[view]}`);
   };
@@ -51,8 +52,11 @@ export default function Dashboard() {
 
   const handleQuickAction = (action: string) => {
     switch (action) {
+      case 'my-routines':
+        handleViewChange('routines');
+        break;
       case 'new-program':
-        handleViewChange('create-program');
+        handleViewChange('routines');
         break;
       case 'calendar':
         handleViewChange('calendar');
@@ -80,11 +84,6 @@ export default function Dashboard() {
 
   const handleDeleteCalendarEvent = (eventId: string) => {
     setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
-  };
-
-  const handleProgramCreated = () => {
-    // Program successfully created, returning to dashboard
-    setCurrentView('dashboard');
   };
 
   // Program Categories Data
@@ -238,7 +237,7 @@ export default function Dashboard() {
     );
   }
 
-  if (currentView === 'create-program') {
+  if (currentView === 'routines') {
     return (
       <div className="min-h-screen relative overflow-hidden">
         <div className="absolute inset-0 gradient-animated"></div>
@@ -255,8 +254,8 @@ export default function Dashboard() {
                   Back to Dashboard
                 </Button>
                 <div>
-                  <h1 className="text-2xl font-bold text-luxury">Create Program</h1>
-                  <p className="text-sm text-gray-400">Design your training program</p>
+                  <h1 className="text-2xl font-bold text-luxury">My Routines</h1>
+                  <p className="text-sm text-gray-400">Manage your training programs</p>
                 </div>
               </div>
               <div className="flex items-center space-x-6">
@@ -280,10 +279,7 @@ export default function Dashboard() {
           </div>
         </header>
         <div className="relative z-10">
-          <CreateProgram 
-            onProgramCreated={handleProgramCreated} 
-            onCancel={() => handleViewChange('dashboard')}
-          />
+          <RoutineManager />
         </div>
       </div>
     );
@@ -420,6 +416,15 @@ export default function Dashboard() {
         <div className="dashboard-quick-actions">
           <h3 className="dashboard-quick-actions-title">Professional Tools</h3>
           <div className="dashboard-actions-grid">
+            <button 
+              onClick={() => handleQuickAction('my-routines')}
+              className="dashboard-action-btn"
+            >
+              <div className="dashboard-action-icon">
+                <List size={20} color="#94a3b8" />
+              </div>
+              <span className="dashboard-action-label">My Routines</span>
+            </button>
             <button 
               onClick={() => handleQuickAction('new-program')}
               className="dashboard-action-btn"

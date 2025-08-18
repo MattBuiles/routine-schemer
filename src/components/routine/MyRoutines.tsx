@@ -14,8 +14,8 @@ import {
   Target,
   Clock,
   TrendingUp,
-  MoreVertical,
-  Dumbbell
+  Dumbbell,
+  Play
 } from 'lucide-react';
 import { TrainingProgram } from '@/types';
 
@@ -32,9 +32,18 @@ const sampleRoutines: (TrainingProgram & { stats: { sessions: number; avgDuratio
     description: 'Programa de 12 semanas enfocado en ganancia muscular con periodización ondulante',
     mesocycles: [],
     split: 'push_pull_legs',
+    goal: 'muscle_gain',
+    duration: 12,
+    sessionsPerWeek: 6,
+    estimatedDuration: 75,
+    difficulty: 'advanced',
+    isPublic: false,
+    isActive: true,
+    tags: ['muscle_gain', 'push_pull_legs', 'advanced'],
+    workoutSessions: [],
+    microcycles: [],
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-01-20'),
-    isActive: true,
     stats: {
       sessions: 36,
       avgDuration: 75,
@@ -48,56 +57,50 @@ const sampleRoutines: (TrainingProgram & { stats: { sessions: number; avgDuratio
     description: 'Rutina de alta intensidad para mejorar resistencia cardiovascular y fuerza funcional',
     mesocycles: [],
     split: 'full_body',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-18'),
+    goal: 'endurance',
+    duration: 8,
+    sessionsPerWeek: 4,
+    estimatedDuration: 45,
+    difficulty: 'intermediate',
+    isPublic: true,
     isActive: false,
+    tags: ['endurance', 'full_body', 'intermediate'],
+    workoutSessions: [],
+    microcycles: [],
+    createdAt: new Date('2023-11-10'),
+    updatedAt: new Date('2023-12-05'),
     stats: {
       sessions: 24,
       avgDuration: 45,
-      lastUsed: '2024-01-18'
+      lastUsed: '2023-12-05'
     }
   },
   {
     id: '3',
     userId: 'user1',
-    name: 'Movilidad y Recuperación',
-    description: 'Sesiones de estiramiento dinámico y movilidad articular para atletas',
+    name: 'Fuerza Básica 5x5',
+    description: 'Programa de iniciación enfocado en desarrollar fuerza base con ejercicios compuestos',
     mesocycles: [],
-    split: 'custom',
-    createdAt: new Date('2024-01-05'),
-    updatedAt: new Date('2024-01-19'),
+    split: 'full_body',
+    goal: 'strength',
+    duration: 16,
+    sessionsPerWeek: 3,
+    estimatedDuration: 60,
+    difficulty: 'beginner',
+    isPublic: false,
     isActive: true,
-    stats: {
-      sessions: 15,
-      avgDuration: 30,
-      lastUsed: '2024-01-19'
-    }
-  },
-  {
-    id: '4',
-    userId: 'user1',
-    name: 'Fuerza Powerlifting',
-    description: 'Programa especializado en los tres levantamientos básicos del powerlifting',
-    mesocycles: [],
-    split: 'upper_lower',
-    createdAt: new Date('2023-12-01'),
+    tags: ['strength', 'full_body', 'beginner'],
+    workoutSessions: [],
+    microcycles: [],
+    createdAt: new Date('2023-09-01'),
     updatedAt: new Date('2024-01-15'),
-    isActive: false,
     stats: {
       sessions: 48,
-      avgDuration: 90,
+      avgDuration: 60,
       lastUsed: '2024-01-15'
     }
   }
 ];
-
-const splitTypeLabels = {
-  full_body: 'Cuerpo Completo',
-  upper_lower: 'Tren Superior/Inferior',
-  push_pull_legs: 'Empuje/Tirón/Piernas',
-  body_part: 'Por Grupos Musculares',
-  custom: 'Personalizado'
-};
 
 export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,14 +116,6 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     
     return matchesSearch && matchesFilter;
   });
-
-  const handleToggleActive = (routineId: string) => {
-    setRoutines(prev => prev.map(routine => 
-      routine.id === routineId 
-        ? { ...routine, isActive: !routine.isActive }
-        : routine
-    ));
-  };
 
   const handleDuplicate = (routine: TrainingProgram & { stats: { sessions: number; avgDuration: number; lastUsed: string; }}) => {
     const newRoutine = {
@@ -140,213 +135,262 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     }
   };
 
+  const getSplitLabel = (split: string) => {
+    const labels = {
+      'full_body': 'Cuerpo Completo',
+      'upper_lower': 'Tren Superior/Inferior', 
+      'push_pull_legs': 'Push/Pull/Piernas',
+      'body_part': 'División por Grupos',
+      'custom': 'Personalizado'
+    };
+    return labels[split as keyof typeof labels] || split;
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    const colors = {
+      'beginner': 'bg-green-500/20 text-green-400 border-green-500/30',
+      'intermediate': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      'advanced': 'bg-red-500/20 text-red-400 border-red-500/30'
+    };
+    return colors[difficulty as keyof typeof colors] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  };
+
   return (
-    <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/20 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-luxury mb-2">Mis Rutinas</h1>
-          <p className="text-gray-400">Gestiona y organiza tus programas de entrenamiento</p>
+        <div className="text-center mb-12">
+          <div className="relative inline-block mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+              Mis Rutinas
+            </h1>
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg blur opacity-75"></div>
+          </div>
+          <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+            Gestiona y organiza tus programas de entrenamiento personalizados
+          </p>
         </div>
 
         {/* Controls */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+        <div className="mb-8 flex flex-col lg:flex-row gap-6 justify-between items-center">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full lg:w-auto">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Buscar rutinas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 glass rounded-lg text-white placeholder-gray-400 border border-white/20 focus:border-white/40 focus:outline-none"
+                className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm rounded-xl text-white placeholder-gray-400 border border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all"
               />
             </div>
 
             {/* Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative min-w-[140px]">
+              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <select
                 value={selectedFilter}
                 onChange={(e) => setSelectedFilter(e.target.value as 'all' | 'active' | 'inactive')}
-                className="pl-10 pr-8 py-2 glass rounded-lg text-white border border-white/20 focus:border-white/40 focus:outline-none appearance-none bg-transparent"
+                className="w-full pl-12 pr-10 py-3 bg-white/10 backdrop-blur-sm rounded-xl text-white border border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 appearance-none transition-all cursor-pointer"
               >
-                <option value="all" className="bg-gray-800">Todas</option>
-                <option value="active" className="bg-gray-800">Activas</option>
-                <option value="inactive" className="bg-gray-800">Inactivas</option>
+                <option value="all" className="bg-gray-800 text-white">Todas</option>
+                <option value="active" className="bg-gray-800 text-white">Activas</option>
+                <option value="inactive" className="bg-gray-800 text-white">Inactivas</option>
               </select>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
           {/* Create Button */}
           <Button
             onClick={onCreateNew}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Nueva Rutina
           </Button>
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="glass border-white/20 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Rutinas</p>
-                <p className="text-2xl font-bold text-white">{routines.length}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Dumbbell className="h-5 w-5 text-blue-400" />
               </div>
-              <Target className="h-8 w-8 text-blue-400" />
+              <span className="text-2xl font-bold text-white">{routines.length}</span>
             </div>
-          </Card>
+            <p className="text-gray-400 text-sm font-medium">Total Rutinas</p>
+          </div>
           
-          <Card className="glass border-white/20 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Rutinas Activas</p>
-                <p className="text-2xl font-bold text-white">{routines.filter(r => r.isActive).length}</p>
+          <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <Target className="h-5 w-5 text-green-400" />
               </div>
-              <TrendingUp className="h-8 w-8 text-green-400" />
+              <span className="text-2xl font-bold text-white">{routines.filter(r => r.isActive).length}</span>
             </div>
-          </Card>
+            <p className="text-gray-400 text-sm font-medium">Activas</p>
+          </div>
           
-          <Card className="glass border-white/20 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Sesiones</p>
-                <p className="text-2xl font-bold text-white">{routines.reduce((acc, r) => acc + r.stats.sessions, 0)}</p>
+          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Calendar className="h-5 w-5 text-purple-400" />
               </div>
-              <Calendar className="h-8 w-8 text-purple-400" />
+              <span className="text-2xl font-bold text-white">
+                {Math.round(routines.reduce((acc, r) => acc + (r.stats?.sessions || 0), 0) / routines.length) || 0}
+              </span>
             </div>
-          </Card>
+            <p className="text-gray-400 text-sm font-medium">Sesiones Promedio</p>
+          </div>
           
-          <Card className="glass border-white/20 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Duración Promedio</p>
-                <p className="text-2xl font-bold text-white">
-                  {Math.round(routines.reduce((acc, r) => acc + r.stats.avgDuration, 0) / routines.length)}min
-                </p>
+          <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Clock className="h-5 w-5 text-orange-400" />
               </div>
-              <Clock className="h-8 w-8 text-orange-400" />
+              <span className="text-2xl font-bold text-white">
+                {Math.round(routines.reduce((acc, r) => acc + (r.stats?.avgDuration || 0), 0) / routines.length) || 0}m
+              </span>
             </div>
-          </Card>
+            <p className="text-gray-400 text-sm font-medium">Duración Promedio</p>
+          </div>
         </div>
 
         {/* Routines Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRoutines.map((routine) => (
-            <Card key={routine.id} className="glass border-white/20 p-6 hover:border-white/30 transition-all duration-200">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-white">{routine.name}</h3>
-                    {routine.isActive && (
-                      <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                        Activa
-                      </span>
-                    )}
+        {filteredRoutines.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRoutines.map((routine) => (
+              <div key={routine.id} className="group relative">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/30 to-purple-600/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 blur-sm"></div>
+                <Card className="relative bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-all duration-300">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${routine.isActive 
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                        }`}>
+                          {routine.isActive ? 'Activa' : 'Inactiva'}
+                        </div>
+                        <div className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                          {getSplitLabel(routine.split)}
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(routine.difficulty)}`}>
+                          {routine.difficulty === 'beginner' ? 'Principiante' : 
+                           routine.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-300 transition-colors line-clamp-1">
+                        {routine.name}
+                      </h3>
+                      <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">
+                        {routine.description || 'Sin descripción disponible'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-400 line-clamp-2">{routine.description}</p>
-                </div>
-                
-                {/* Menu */}
-                <div className="relative group">
-                  <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                    <MoreVertical className="h-4 w-4 text-gray-400" />
-                  </button>
-                  <div className="absolute right-0 top-full mt-2 w-48 glass border border-white/20 rounded-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                    <button className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2">
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="text-center p-3 bg-white/5 rounded-lg border border-white/5">
+                      <div className="flex items-center justify-center mb-1">
+                        <Calendar className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <p className="text-sm font-bold text-white">{routine.stats?.sessions || 0}</p>
+                      <p className="text-xs text-gray-400">Sesiones</p>
+                    </div>
+                    <div className="text-center p-3 bg-white/5 rounded-lg border border-white/5">
+                      <div className="flex items-center justify-center mb-1">
+                        <Clock className="h-4 w-4 text-orange-400" />
+                      </div>
+                      <p className="text-sm font-bold text-white">{routine.stats?.avgDuration || 0}m</p>
+                      <p className="text-xs text-gray-400">Duración</p>
+                    </div>
+                    <div className="text-center p-3 bg-white/5 rounded-lg border border-white/5">
+                      <div className="flex items-center justify-center mb-1">
+                        <TrendingUp className="h-4 w-4 text-green-400" />
+                      </div>
+                      <p className="text-sm font-bold text-white">{routine.duration}w</p>
+                      <p className="text-xs text-gray-400">Programa</p>
+                    </div>
+                  </div>
+
+                  {/* Last Used */}
+                  <div className="mb-6 p-3 bg-white/5 rounded-lg border border-white/5">
+                    <p className="text-xs text-gray-400 mb-1">Última sesión</p>
+                    <p className="text-sm text-gray-300">{routine.stats?.lastUsed || 'Nunca utilizada'}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-sm py-2.5"
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Iniciar
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-white/20 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/40"
+                    >
                       <Edit3 className="h-4 w-4" />
-                      Editar
-                    </button>
-                    <button 
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-white/20 text-gray-300 hover:bg-white/10 hover:text-white hover:border-white/40"
                       onClick={() => handleDuplicate(routine)}
-                      className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
                     >
                       <Copy className="h-4 w-4" />
-                      Duplicar
-                    </button>
-                    <button 
-                      onClick={() => handleToggleActive(routine.id)}
-                      className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
-                    >
-                      <Target className="h-4 w-4" />
-                      {routine.isActive ? 'Desactivar' : 'Activar'}
-                    </button>
-                    <hr className="my-2 border-white/10" />
-                    <button 
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/40"
                       onClick={() => handleDelete(routine.id)}
-                      className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               </div>
-
-              {/* Split Type */}
-              <div className="mb-4">
-                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
-                  {splitTypeLabels[routine.split]}
-                </span>
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="text-center py-16">
+            <div className="mb-6">
+              <div className="mx-auto w-24 h-24 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full flex items-center justify-center">
+                <Dumbbell className="h-12 w-12 text-blue-400" />
               </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-white/10">
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Sesiones</p>
-                  <p className="text-lg font-semibold text-white">{routine.stats.sessions}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Duración</p>
-                  <p className="text-lg font-semibold text-white">{routine.stats.avgDuration}min</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-400">Última</p>
-                  <p className="text-lg font-semibold text-white">
-                    {new Date(routine.stats.lastUsed).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1 glass hover:bg-white/10 text-white border border-white/20">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Programar
-                </Button>
-                <Button variant="ghost" className="flex-1 glass hover:bg-white/10 text-white border border-white/20">
-                  <Edit3 className="h-4 w-4 mr-2" />
-                  Editar
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Empty State */}
-        {filteredRoutines.length === 0 && (
-          <div className="text-center py-12">
-            <Dumbbell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
-              {searchTerm || selectedFilter !== 'all' ? 'No se encontraron rutinas' : 'No tienes rutinas aún'}
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-4">
+              {searchTerm || selectedFilter !== 'all' ? 'No se encontraron rutinas' : '¡Crea tu primera rutina!'}
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-gray-400 mb-8 max-w-md mx-auto">
               {searchTerm || selectedFilter !== 'all' 
-                ? 'Intenta cambiar los filtros de búsqueda'
-                : 'Crea tu primera rutina para comenzar a planificar tus entrenamientos'
+                ? 'Intenta ajustar tus filtros de búsqueda para encontrar las rutinas que buscas.'
+                : 'Comienza tu viaje de entrenamiento creando una rutina personalizada que se adapte a tus objetivos.'
               }
             </p>
             {(!searchTerm && selectedFilter === 'all') && (
               <Button
                 onClick={onCreateNew}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-8 py-3"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-5 w-5 mr-2" />
                 Crear Primera Rutina
               </Button>
             )}

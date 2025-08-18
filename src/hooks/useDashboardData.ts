@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { TrainingProgram, CalendarEvent, Habit, Note, UserProfile } from '@/types';
 
@@ -37,6 +37,13 @@ interface TodaySchedule {
   duration?: number;
   completed: boolean;
   isNext?: boolean;
+}
+
+// Temporary interface for session data
+interface SessionData {
+  completedAt?: {
+    toDate(): Date;
+  };
 }
 
 export interface DashboardData {
@@ -97,11 +104,13 @@ export function useDashboardData() {
         // Fetch routines
         const routinesQuery = query(
           collection(db, 'routines'),
-          where('userId', '==', user.id),
-          orderBy('updatedAt', 'desc')
+          where('userId', '==', user.id)
         );
         const routinesSnap = await getDocs(routinesQuery);
-        const allRoutines = routinesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TrainingProgram[];
+        const allRoutines = routinesSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() })) as TrainingProgram[];
+        // Sort by updatedAt on client side
+        allRoutines.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
         const activeRoutines = allRoutines.filter(routine => routine.isActive);
 
         // Fetch recent sessions (from this week)
@@ -110,64 +119,81 @@ export function useDashboardData() {
         
         const sessionsQuery = query(
           collection(db, 'workoutSessions'),
-          where('userId', '==', user.id),
-          where('completedAt', '>=', oneWeekAgo),
-          orderBy('completedAt', 'desc')
+          where('userId', '==', user.id)
         );
         const sessionsSnap = await getDocs(sessionsQuery);
-        const weekSessions = sessionsSnap.docs.length;
+        
+        // Filter by week on client side
+        const weekSessionsData = sessionsSnap.docs
+          .filter(doc => {
+            const data = doc.data() as SessionData;
+            return data.completedAt && data.completedAt.toDate() >= oneWeekAgo;
+          });
+        const weekSessions = weekSessionsData.length;
 
         // Fetch habits
         const habitsQuery = query(
           collection(db, 'habits'),
-          where('userId', '==', user.id),
-          orderBy('createdAt', 'desc')
+          where('userId', '==', user.id)
         );
         const habitsSnap = await getDocs(habitsQuery);
         const allHabits = habitsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Habit[];
+        // Sort by createdAt on client side
+        allHabits.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         const activeHabits = allHabits.filter(habit => habit.isActive);
         const favoriteHabits = allHabits.filter(habit => habit.isFavorite).slice(0, 3);
 
         // Fetch notes
         const notesQuery = query(
           collection(db, 'notes'),
-          where('userId', '==', user.id),
-          orderBy('createdAt', 'desc'),
-          limit(5)
+          where('userId', '==', user.id)
         );
         const notesSnap = await getDocs(notesQuery);
-        const recentNotes = notesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Note[];
+        const allNotes = notesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Note[];
+        // Sort and limit on client side
+        allNotes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        const recentNotes = allNotes.slice(0, 5);
 
         // Fetch calendar events (next 7 days)
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
+        const todayStr = new Date().toISOString().split('T')[0];
         
         const eventsQuery = query(
           collection(db, 'calendarEvents'),
-          where('userId', '==', user.id),
-          where('date', '>=', new Date().toISOString().split('T')[0]),
-          orderBy('date', 'asc')
+          where('userId', '==', user.id)
         );
         const eventsSnap = await getDocs(eventsQuery);
-        const upcomingEvents = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as CalendarEvent[];
+        
+        // Filter and sort by date on client side
+        const allEvents = eventsSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() })) as CalendarEvent[];
+        
+        const filteredEvents = allEvents.filter(event => event.date >= todayStr);
+        filteredEvents.sort((a, b) => a.date.localeCompare(b.date));
+        const upcomingEvents = filteredEvents;
 
-        // Calculate streak and completion rate
+        // Calculate total sessions
         const totalSessionsQuery = query(
           collection(db, 'workoutSessions'),
-          where('userId', '==', user.id),
-          orderBy('completedAt', 'desc')
+          where('userId', '==', user.id)
         );
         const totalSessionsSnap = await getDocs(totalSessionsQuery);
         const totalSessions = totalSessionsSnap.docs.length;
+
+        // Sort sessions by completedAt for streak calculation
+        const totalSessionsData = totalSessionsSnap.docs
+          .map(doc => doc.data())
+          .filter((session: unknown) => (session as SessionData).completedAt)
+          .map((session: unknown) => (session as SessionData).completedAt!.toDate())
+          .sort((a: Date, b: Date) => b.getTime() - a.getTime());
 
         // Calculate current streak
         let currentStreak = 0;
         const today = new Date();
         const checkDate = new Date(today);
         
-        const sortedSessions = totalSessionsSnap.docs
-          .map(doc => doc.data().completedAt.toDate())
-          .sort((a, b) => b.getTime() - a.getTime());
+        const sortedSessions = totalSessionsData;
 
         for (let i = 0; i < sortedSessions.length; i++) {
           const sessionDate = new Date(sortedSessions[i]);
@@ -263,12 +289,17 @@ export function useDashboardData() {
         thisMonth.setDate(1);
         const monthlySessionsQuery = query(
           collection(db, 'workoutSessions'),
-          where('userId', '==', user.id),
-          where('completedAt', '>=', thisMonth),
-          orderBy('completedAt', 'desc')
+          where('userId', '==', user.id)
         );
         const monthlySessionsSnap = await getDocs(monthlySessionsQuery);
-        const monthlySessions = monthlySessionsSnap.docs.length;
+        
+        // Filter by month on client side
+        const monthlySessions = monthlySessionsSnap.docs
+          .map(doc => doc.data())
+          .filter((session: unknown) => {
+            const s = session as SessionData;
+            return s.completedAt && s.completedAt.toDate() >= thisMonth;
+          }).length;
         const daysInMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getDate();
         const monthlyGoal = Math.round((weeklyGoal * daysInMonth) / 7);
         const monthlyProgress = monthlyGoal > 0 ? Math.round((monthlySessions / monthlyGoal) * 100) : 0;
