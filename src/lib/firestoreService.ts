@@ -13,7 +13,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { TrainingProgram, WorkoutSession, CalendarEvent, User } from '@/types';
+import { TrainingProgram, WorkoutSession, CalendarEvent, User, UserProfile } from '@/types';
 
 export class FirestoreService {
   // Users Collection
@@ -56,6 +56,92 @@ export class FirestoreService {
     await updateDoc(docRef, {
       ...updates,
       updatedAt: Timestamp.fromDate(new Date()),
+    });
+  }
+
+  // User Profiles Collection
+  async createUserProfile(profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserProfile> {
+    const now = new Date();
+    const profileData = {
+      ...profile,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    };
+
+    const docRef = await addDoc(collection(db, 'userProfiles'), profileData);
+    return {
+      ...profile,
+      id: docRef.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async getUserProfilesByUserId(userId: string): Promise<UserProfile[]> {
+    const q = query(
+      collection(db, 'userProfiles'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        age: data.age,
+        weight: data.weight,
+        height: data.height,
+        bodyFat: data.bodyFat,
+        activityLevel: data.activityLevel,
+        goals: data.goals,
+        experience: data.experience,
+        preferences: data.preferences,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+      };
+    });
+  }
+
+  async updateUserProfile(profileId: string, updates: Partial<UserProfile>): Promise<void> {
+    const docRef = doc(db, 'userProfiles', profileId);
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: Timestamp.fromDate(new Date()),
+    });
+  }
+
+  async deleteUserProfile(profileId: string): Promise<void> {
+    const docRef = doc(db, 'userProfiles', profileId);
+    await deleteDoc(docRef);
+  }
+
+  // Listen to real-time updates for user profiles
+  onUserProfilesChange(userId: string, callback: (profiles: UserProfile[]) => void) {
+    const q = query(
+      collection(db, 'userProfiles'),
+      where('userId', '==', userId)
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const profiles = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          userId: data.userId,
+          age: data.age,
+          weight: data.weight,
+          height: data.height,
+          bodyFat: data.bodyFat,
+          activityLevel: data.activityLevel,
+          goals: data.goals,
+          experience: data.experience,
+          preferences: data.preferences,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        } as UserProfile;
+      });
+      callback(profiles);
     });
   }
 

@@ -1,21 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
   User,
   Edit3,
-  Save,
   Camera,
   Target,
   Activity,
   TrendingUp,
   Weight,
   Heart,
-  Crown
+  Crown,
+  Check,
+  X
 } from 'lucide-react';
 import { UserProfile, ActivityLevel, ExperienceLevel, TrainingGoal } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { firestoreService } from '@/lib/firestoreService';
+import toast from 'react-hot-toast';
 
 // Datos de ejemplo del perfil
 const sampleProfile: UserProfile = {
@@ -70,34 +74,105 @@ const trainingGoalLabels = {
 };
 
 export function Profile() {
-  const [profile, setProfile] = useState(sampleProfile);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<'personal' | 'goals' | 'preferences'>('personal');
 
-  const handleSave = () => {
-    // Aquí iría la lógica para guardar en Firebase
-    setIsEditing(false);
+  // Load profile data from Firebase
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        // Try to get existing profile
+        const profiles = await firestoreService.getUserProfilesByUserId(user.id);
+        if (profiles.length > 0) {
+          setProfile(profiles[0]);
+        } else {
+          // Create default profile if none exists
+          const defaultProfile = {
+            ...sampleProfile,
+            id: `profile-${user.id}`,
+            userId: user.id,
+          };
+          setProfile(defaultProfile);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        // Fallback to sample data
+        setProfile({
+          ...sampleProfile,
+          id: `profile-${user.id}`,
+          userId: user.id,
+        });
+        toast.error('Could not load profile data, using defaults');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!profile || !user) return;
+    
+    setIsSaving(true);
+    try {
+      // Check if profile exists
+      const existingProfiles = await firestoreService.getUserProfilesByUserId(user.id);
+      
+      if (existingProfiles.length > 0) {
+        // Update existing profile
+        await firestoreService.updateUserProfile(profile.id, {
+          ...profile,
+          updatedAt: new Date()
+        });
+        toast.success('Profile updated successfully!');
+      } else {
+        // Create new profile
+        const { createdAt, updatedAt, ...profileData } = profile;
+        const newProfile = await firestoreService.createUserProfile(profileData);
+        setProfile(newProfile);
+        toast.success('Profile created successfully!');
+      }
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile. Changes saved locally.');
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string | number) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       [field]: value
-    }));
+    }) : null);
   };
 
   const handlePreferencesChange = (field: string, value: string | number) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       preferences: {
         ...prev.preferences,
         [field]: value
       }
-    }));
+    }) : null);
   };
 
   const handleNotificationChange = (field: string, value: boolean) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       preferences: {
         ...prev.preferences,
@@ -106,58 +181,85 @@ export function Profile() {
           [field]: value
         }
       }
-    }));
+    }) : null);
   };
 
   const toggleGoal = (goal: TrainingGoal) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       goals: prev.goals.includes(goal)
         ? prev.goals.filter(g => g !== goal)
         : [...prev.goals, goal]
-    }));
+    }) : null);
   };
 
   const calculateBMI = () => {
-    if (profile.weight && profile.height) {
-      const heightInMeters = profile.height / 100;
-      return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1);
+    if (!profile || !profile.weight || !profile.height) {
+      return 'N/A';
     }
-    return 'N/A';
+    const heightInMeters = profile.height / 100;
+    return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1);
   };
 
+  // Loading state
+  if (isLoading || !profile) {
+    return (
+      <div className="relative z-10 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-700 rounded mb-4 w-48"></div>
+            <div className="h-4 bg-gray-700 rounded mb-8 w-64"></div>
+            <div className="card-modern h-64 bg-gray-800/50"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative z-10 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="relative z-10 p-6 animate-fade-in">
+      <div className="max-w-4xl mx-auto space-y-lg">
+        {/* Enhanced Header */}
+        <div className="card-modern">
           <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-luxury mb-2">Mi Perfil</h1>
-              <p className="text-gray-400">Gestiona tu información personal y preferencias</p>
+            <div className="space-y-sm">
+              <h1 className="typography-display-2 text-luxury">Mi Perfil</h1>
+              <p className="typography-body text-secondary">Gestiona tu información personal y preferencias</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex space-x-md">
               {isEditing ? (
                 <>
                   <Button
                     onClick={() => setIsEditing(false)}
-                    variant="ghost"
-                    className="glass hover:bg-white/10 text-white border border-white/20"
+                    disabled={isSaving}
+                    className="btn-secondary interactive-hover"
                   >
+                    <X className="h-4 w-4 mr-2" />
                     Cancelar
                   </Button>
                   <Button
                     onClick={handleSave}
-                    className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white border-0"
+                    disabled={isSaving}
+                    className="btn-primary interactive-scale"
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Guardar
+                      </>
+                    )}
                   </Button>
                 </>
               ) : (
                 <Button
                   onClick={() => setIsEditing(true)}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                  className="btn-luxury interactive-hover"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   Editar Perfil
