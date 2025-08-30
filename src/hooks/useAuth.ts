@@ -10,6 +10,22 @@ export const useAuth = () => {
 
   // Real Firebase auth with fallback to mock for development
   useEffect(() => {
+    // If Firebase auth is not available, use mock user
+    if (!auth) {
+      const mockUser = {
+        id: 'demo-user-123',
+        email: 'demo@example.com',
+        displayName: 'Demo User',
+        provider: 'google' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      setUser(mockUser);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       
@@ -59,6 +75,22 @@ export const useAuth = () => {
   }, [setUser, setLoading]);
 
   const signInWithGoogle = async () => {
+    // If Firebase auth is not available, use mock user
+    if (!auth) {
+      const mockUser = {
+        id: 'demo-user-123',
+        email: 'demo@example.com',
+        displayName: 'Demo User',
+        provider: 'google' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      setUser(mockUser);
+      toast.success('Demo mode activated - using mock authentication');
+      return;
+    }
+
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
@@ -93,7 +125,9 @@ export const useAuth = () => {
 
   const signOutUser = async () => {
     try {
-      await signOut(auth);
+      if (auth) {
+        await signOut(auth);
+      }
       logout();
       toast.success('Successfully signed out!');
     } catch (error) {

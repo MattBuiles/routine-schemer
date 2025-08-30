@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings as SettingsIcon,
   Shield,
@@ -16,32 +14,18 @@ import {
   Key,
   AlertTriangle,
   Save,
-  RotateCcw
+  RotateCcw,
+  Check,
+  X
 } from 'lucide-react';
+import { AppSettings } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { firestoreService } from '@/lib/firestoreService';
+import toast from 'react-hot-toast';
 
-interface AppSettings {
-  theme: 'light' | 'dark' | 'auto';
-  language: 'es' | 'en';
-  weekStartDay: 'monday' | 'sunday';
-  units: 'metric' | 'imperial';
-  autoSave: boolean;
-  backupFrequency: 'daily' | 'weekly' | 'manual';
-  dataRetention: '1year' | '2years' | '5years' | 'forever';
-  notifications: {
-    workoutReminders: boolean;
-    habitReminders: boolean;
-    progressUpdates: boolean;
-    emailNotifications: boolean;
-    pushNotifications: boolean;
-  };
-  privacy: {
-    shareData: boolean;
-    analytics: boolean;
-    crashReports: boolean;
-  };
-}
-
-const defaultSettings: AppSettings = {
+// Default settings that match the AppSettings interface
+const createDefaultSettings = (userId: string): Omit<AppSettings, 'id' | 'createdAt' | 'updatedAt'> => ({
+  userId,
   theme: 'dark',
   language: 'es',
   weekStartDay: 'monday',
@@ -54,48 +38,180 @@ const defaultSettings: AppSettings = {
     habitReminders: true,
     progressUpdates: true,
     emailNotifications: false,
-    pushNotifications: true
+    pushNotifications: true,
   },
   privacy: {
     shareData: false,
     analytics: true,
-    crashReports: true
-  }
-};
+    crashReports: true,
+  },
+});
 
 export function Settings() {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const { user } = useAuth();
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<'general' | 'notifications' | 'privacy' | 'data'>('general');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const handleSettingChange = (section: keyof AppSettings, key: string, value: string | number | boolean) => {
-    setSettings(prev => ({
+  // Load settings from Firebase
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!user) return;
+      
+      setIsLoading(true);
+      try {
+        const settingsArray = await firestoreService.getAppSettingsByUserId(user.id);
+        if (settingsArray.length > 0) {
+          setSettings(settingsArray[0]);
+        } else {
+          // Create default settings if none exist
+          const defaultSettingsData = createDefaultSettings(user.id);
+          setSettings({
+            ...defaultSettingsData,
+            id: 'temp-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        // Fallback to default settings
+        const defaultSettingsData = createDefaultSettings(user.id);
+        setSettings({
+          ...defaultSettingsData,
+          id: 'temp-id',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        toast.error('Could not load settings, using defaults');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [user]);
+
+  const handleSettingChange = (section: keyof Omit<AppSettings, 'id' | 'userId' | 'createdAt' | 'updatedAt'>, key: string, value: string | number | boolean) => {
+    if (!settings) return;
+    setSettings(prev => prev ? ({
       ...prev,
       [section]: typeof prev[section] === 'object' 
         ? { ...prev[section] as object, [key]: value }
         : value
-    }));
+    }) : null);
   };
 
-  const handleSaveSettings = () => {
-    // Aquí iría la lógica para guardar en Firebase/localStorage
-    console.log('Guardando configuración:', settings);
+  const handleSaveSettings = async () => {
+    if (!settings || !user) return;
+    
+    setIsSaving(true);
+    try {
+      // Check if settings exist
+      const existingSettings = await firestoreService.getAppSettingsByUserId(user.id);
+      
+      if (existingSettings.length > 0) {
+        // Update existing settings
+        await firestoreService.updateAppSettings(settings.id, {
+          ...settings,
+          updatedAt: new Date()
+        });
+        toast.success('Settings updated successfully!');
+      } else {
+        // Create new settings
+        const { id, createdAt, updatedAt, ...settingsData } = settings;
+        const newSettings = await firestoreService.createAppSettings(settingsData);
+        setSettings(newSettings);
+        toast.success('Settings saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings. Changes saved locally.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleResetSettings = () => {
-    setSettings(defaultSettings);
+  const handleResetSettings = async () => {
+    if (!user) return;
+    
+    const defaultSettingsData = createDefaultSettings(user.id);
+    const resetSettings = {
+      ...defaultSettingsData,
+      id: settings?.id || 'temp-id',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    setSettings(resetSettings);
     setShowResetConfirm(false);
+    toast.success('Settings reset to defaults');
   };
 
   const handleExportData = () => {
-    // Lógica para exportar datos
-    console.log('Exportando datos...');
+    if (!settings) return;
+    
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `routine-schemer-settings-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    toast.success('Settings exported successfully');
   };
 
   const handleImportData = () => {
-    // Lógica para importar datos
-    console.log('Importando datos...');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedSettings = JSON.parse(e.target?.result as string);
+          if (importedSettings && user) {
+            setSettings({
+              ...importedSettings,
+              userId: user.id,
+              id: settings?.id || 'temp-id',
+              updatedAt: new Date(),
+            });
+            toast.success('Settings imported successfully');
+          }
+        } catch (error) {
+          toast.error('Invalid settings file');
+        }
+      };
+      reader.readAsText(file);
+    };
+    
+    input.click();
   };
+
+  // Loading state
+  if (isLoading || !settings) {
+    return (
+      <div className="relative z-10 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-700 rounded mb-4 w-48"></div>
+            <div className="h-4 bg-gray-700 rounded mb-8 w-64"></div>
+            <div className="card-modern h-64 bg-gray-800/50"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-container">

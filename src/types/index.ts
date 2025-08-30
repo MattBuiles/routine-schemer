@@ -205,6 +205,28 @@ export interface NotificationSettings {
   habitReminders: boolean;
   progressUpdates: boolean;
   emailNotifications: boolean;
+  pushNotifications?: boolean;
+}
+
+// App Settings Interface for Firebase
+export interface AppSettings {
+  id: string;
+  userId: string;
+  theme: 'light' | 'dark' | 'auto';
+  language: 'es' | 'en';
+  weekStartDay: 'monday' | 'sunday';
+  units: 'metric' | 'imperial';
+  autoSave: boolean;
+  backupFrequency: 'daily' | 'weekly' | 'manual';
+  dataRetention: '1year' | '2years' | '5years' | 'forever';
+  notifications: NotificationSettings;
+  privacy: {
+    shareData: boolean;
+    analytics: boolean;
+    crashReports: boolean;
+  };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export type HabitType = 

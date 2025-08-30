@@ -13,7 +13,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { TrainingProgram, WorkoutSession, CalendarEvent, User, UserProfile } from '@/types';
+import { TrainingProgram, WorkoutSession, CalendarEvent, User, UserProfile, AppSettings } from '@/types';
 
 export class FirestoreService {
   // Users Collection
@@ -145,7 +145,93 @@ export class FirestoreService {
     });
   }
 
-  // Training Programs Collection
+  // App Settings Collection (for user-specific settings)
+  async createAppSettings(settings: Omit<AppSettings, 'id' | 'createdAt' | 'updatedAt'>): Promise<AppSettings> {
+    const now = new Date();
+    const settingsData = {
+      ...settings,
+      createdAt: Timestamp.fromDate(now),
+      updatedAt: Timestamp.fromDate(now),
+    };
+
+    const docRef = await addDoc(collection(db, 'appSettings'), settingsData);
+    return {
+      ...settings,
+      id: docRef.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async getAppSettingsByUserId(userId: string): Promise<AppSettings[]> {
+    const q = query(
+      collection(db, 'appSettings'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        theme: data.theme,
+        language: data.language,
+        weekStartDay: data.weekStartDay,
+        units: data.units,
+        autoSave: data.autoSave,
+        backupFrequency: data.backupFrequency,
+        dataRetention: data.dataRetention,
+        notifications: data.notifications,
+        privacy: data.privacy,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+      };
+    });
+  }
+
+  async updateAppSettings(settingsId: string, updates: Partial<AppSettings>): Promise<void> {
+    const docRef = doc(db, 'appSettings', settingsId);
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: Timestamp.fromDate(new Date()),
+    });
+  }
+
+  async deleteAppSettings(settingsId: string): Promise<void> {
+    const docRef = doc(db, 'appSettings', settingsId);
+    await deleteDoc(docRef);
+  }
+
+  // Listen to real-time updates for app settings
+  onAppSettingsChange(userId: string, callback: (settings: AppSettings[]) => void) {
+    const q = query(
+      collection(db, 'appSettings'),
+      where('userId', '==', userId)
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const settings = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          userId: data.userId,
+          theme: data.theme,
+          language: data.language,
+          weekStartDay: data.weekStartDay,
+          units: data.units,
+          autoSave: data.autoSave,
+          backupFrequency: data.backupFrequency,
+          dataRetention: data.dataRetention,
+          notifications: data.notifications,
+          privacy: data.privacy,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        } as AppSettings;
+      });
+      callback(settings);
+    });
+  }
   async createTrainingProgram(program: Omit<TrainingProgram, 'id' | 'createdAt' | 'updatedAt'>): Promise<TrainingProgram> {
     const now = new Date();
     const programData = {
