@@ -5,6 +5,7 @@ import { useCreateProgram, CreateProgramData } from '@/hooks/useCreateProgram'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { TrainingProgram } from '@/types'
 
 const DIFFICULTY_OPTIONS = [
   { value: 'beginner' as const, label: 'Principiante', description: 'Para personas nuevas en el entrenamiento' },
@@ -389,9 +390,11 @@ function Step3Privacy({ data, updateData, onNext, onBack, isValid }: StepProps) 
 
 interface CreateProgramProps {
   onBack?: () => void;
+  onProgramCreated?: (program: TrainingProgram) => void;
+  onCancel?: () => void;
 }
 
-export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
+export default function CreateProgram({ onBack, onProgramCreated, onCancel }: CreateProgramProps = {}) {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<Partial<CreateProgramData>>({
     isPublic: false

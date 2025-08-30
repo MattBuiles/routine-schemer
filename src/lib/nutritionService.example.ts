@@ -38,23 +38,27 @@ export interface DailyNutrition {
 
 class NutritionService {
   // Spoonacular API
-  async searchFood(query: string): Promise<FoodItem[]> {
+  async searchFood(_query: string): Promise<FoodItem[]> {
     // API call implementation
+    return [] as FoodItem[];
   }
 
   // USDA FoodData Central
-  async getFoodDetails(foodId: string): Promise<FoodItem> {
+  async getFoodDetails(_foodId: string): Promise<FoodItem> {
     // API call implementation
+    return {} as FoodItem;
   }
 
   // Calculate daily nutrition
-  async calculateDailyNutrition(foods: any[]): Promise<DailyNutrition> {
+  async calculateDailyNutrition(_foods: FoodItem[]): Promise<DailyNutrition> {
     // Calculation logic
+    return {} as DailyNutrition;
   }
 
   // AI-powered meal suggestions
-  async getMealSuggestions(goals: NutritionGoals): Promise<FoodItem[]> {
+  async getMealSuggestions(_goals: NutritionGoals): Promise<FoodItem[]> {
     // AI API call (OpenAI, etc.)
+    return [] as FoodItem[];
   }
 }
 

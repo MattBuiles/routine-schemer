@@ -220,6 +220,16 @@ export const sampleTrainingProgram: TrainingProgram = {
   name: 'Strength & Power Program',
   description: 'A 4-week program focused on building strength and power',
   split: 'upper_lower',
+  goal: 'strength',
+  duration: 4, // weeks
+  sessionsPerWeek: 3,
+  estimatedDuration: 75, // minutes per session
+  difficulty: 'intermediate',
+  isPublic: false,
+  isActive: true,
+  tags: ['strength', 'power', 'upper-lower'],
+  workoutSessions: sampleWorkoutSessions,
+  microcycles: [], // Will be populated from mesocycle data
   mesocycles: [
     {
       id: '1',
@@ -257,49 +267,73 @@ export const sampleTrainingProgram: TrainingProgram = {
     }
   ],
   createdAt: new Date('2023-01-01'),
-  updatedAt: new Date('2023-01-01'),
-  isActive: true
+  updatedAt: new Date('2023-01-01')
 };
 
 // Sample calendar events
 export const sampleCalendarEvents: CalendarEvent[] = [
   {
     id: '1',
+    userId: 'sample-user',
     date: '2023-01-02',
+    title: 'Upper Body Strength',
+    type: 'workout',
     sessionId: '1',
     session: sampleWorkoutSessions[0],
     completed: true,
     actualDuration: 80,
-    notes: 'Great session, increased weight on bench press'
+    notes: 'Great session, increased weight on bench press',
+    createdAt: new Date('2023-01-02'),
+    updatedAt: new Date('2023-01-02')
   },
   {
     id: '2',
+    userId: 'sample-user',
     date: '2023-01-04',
+    title: 'Lower Body Strength',
+    type: 'workout',
     sessionId: '2',
     session: sampleWorkoutSessions[1],
     completed: true,
-    actualDuration: 65
+    actualDuration: 65,
+    createdAt: new Date('2023-01-04'),
+    updatedAt: new Date('2023-01-04')
   },
   {
     id: '3',
+    userId: 'sample-user',
     date: '2023-01-06',
+    title: 'Upper Body Strength',
+    type: 'workout',
     sessionId: '1',
     session: sampleWorkoutSessions[0],
-    completed: false
+    completed: false,
+    createdAt: new Date('2023-01-06'),
+    updatedAt: new Date('2023-01-06')
   },
   {
     id: '4',
+    userId: 'sample-user',
     date: '2023-01-09',
+    title: 'Upper Body Strength',
+    type: 'workout',
     sessionId: '1',
     session: sampleWorkoutSessions[0],
-    completed: false
+    completed: false,
+    createdAt: new Date('2023-01-09'),
+    updatedAt: new Date('2023-01-09')
   },
   {
     id: '5',
+    userId: 'sample-user',
     date: '2023-01-11',
+    title: 'Lower Body Strength',
+    type: 'workout',
     sessionId: '2',
     session: sampleWorkoutSessions[1],
-    completed: false
+    completed: false,
+    createdAt: new Date('2023-01-11'),
+    updatedAt: new Date('2023-01-11')
   }
 ];
 
@@ -326,11 +360,16 @@ export const generateCurrentMonthEvents = (): CalendarEvent[] => {
     
     events.push({
       id: `current-${day}`,
+      userId: 'demo-user-123',
       date: eventDate.toISOString().split('T')[0],
+      title: sampleWorkoutSessions[sessionIndex].name,
+      type: 'workout' as const,
       sessionId: sampleWorkoutSessions[sessionIndex].id,
       session: sampleWorkoutSessions[sessionIndex],
       completed: eventDate < today,
-      actualDuration: eventDate < today ? sampleWorkoutSessions[sessionIndex].estimatedDuration + (Math.random() * 20 - 10) : undefined
+      actualDuration: eventDate < today ? sampleWorkoutSessions[sessionIndex].estimatedDuration + (Math.random() * 20 - 10) : undefined,
+      createdAt: eventDate,
+      updatedAt: eventDate
     });
   }
   

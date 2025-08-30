@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import AuthForm from '@/components/auth/AuthForm';
+import AuthForm from '@/components/auth/GoogleAuthForm';
 import Dashboard from '@/components/Dashboard';
 import { Toaster } from 'react-hot-toast';
 

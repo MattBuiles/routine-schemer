@@ -50,10 +50,15 @@ export default function WorkoutCalendar({
       
       if (session) {
         const newEvent: Omit<CalendarEvent, 'id'> = {
+          userId: 'demo-user-123', // This will be replaced with real user ID when Firebase auth is integrated
           date: dateString,
+          title: session.name,
+          type: 'workout' as const,
           sessionId: session.id,
           session: session,
-          completed: false
+          completed: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
         };
         onEventAdd(newEvent);
       }
@@ -107,7 +112,7 @@ export default function WorkoutCalendar({
                       onClick={() => handleEventClick(event)}
                     >
                       <span className="text-xs truncate">
-                        {event.session.name}
+                        {event.session?.name || event.title}
                       </span>
                     </div>
                   )}
@@ -321,10 +326,10 @@ export default function WorkoutCalendar({
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-medium text-gray-900">
-                              {event.session.name}
+                              {event.session?.name || event.title}
                             </h4>
                             <p className="text-sm text-gray-600 mt-1">
-                              {event.session.exercises.length} exercises • {event.session.estimatedDuration} minutes
+                              {event.session ? `${event.session.exercises.length} exercises • ${event.session.estimatedDuration} minutes` : event.description || 'Event details'}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">

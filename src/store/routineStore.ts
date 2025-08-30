@@ -30,7 +30,7 @@ interface RoutineState {
   deleteProgram: (programId: string) => void;
   
   setExercises: (exercises: Exercise[]) => void;
-  setExerciseFilters: (filters: any) => void;
+  setExerciseFilters: (filters: Record<string, unknown>) => void;
   
   setCalendarEvents: (events: CalendarEvent[]) => void;
   addCalendarEvent: (event: CalendarEvent) => void;

@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Using system fonts as fallback to avoid network dependency
+const fontVars = {
+  "--font-geist-sans": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  "--font-geist-mono": "'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace"
+};
 
 export const metadata: Metadata = {
   title: "Routine Schemer - Planificación Integral de Entrenamientos",
@@ -25,7 +20,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
+        style={fontVars as React.CSSProperties}
       >
         {children}
       </body>
