@@ -10,8 +10,14 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  loading: true,
+  user: {
+    id: 'demo-user-123',
+    email: 'demo@example.com',
+    displayName: 'Demo User',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  loading: false,
   setUser: (user) => set({ user }),
   setLoading: (loading) => set({ loading }),
   logout: () => set({ user: null }),
