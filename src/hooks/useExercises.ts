@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { exerciseService } from '@/lib/exerciseService';
 import { useRoutineStore } from '@/store/routineStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Exercise, ExerciseFilter } from '@/types';
 
 export const useExercises = () => {
   const { exercises, exerciseFilters, setExercises, setExerciseFilters } = useRoutineStore();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +16,16 @@ export const useExercises = () => {
       setLoading(true);
       setError(null);
       try {
-        const exercisesData = await exerciseService.getAllExercises();
+        // Seed initial exercises if none exist
+        await exerciseService.seedInitialExercises();
+        
+        // Load exercises for user (global + user custom)
+        let exercisesData: Exercise[] = [];
+        if (user) {
+          exercisesData = await exerciseService.getAllUserExercises(user.id);
+        } else {
+          exercisesData = await exerciseService.getAllExercises();
+        }
         setExercises(exercisesData);
       } catch (err) {
         setError('Failed to load exercises');
@@ -25,13 +36,18 @@ export const useExercises = () => {
     };
     
     loadExercisesOnMount();
-  }, [setExercises]);
+  }, [setExercises, user]);
 
   const loadExercises = async () => {
     setLoading(true);
     setError(null);
     try {
-      const exercisesData = await exerciseService.getAllExercises();
+      let exercisesData: Exercise[] = [];
+      if (user) {
+        exercisesData = await exerciseService.getAllUserExercises(user.id);
+      } else {
+        exercisesData = await exerciseService.getAllExercises();
+      }
       setExercises(exercisesData);
     } catch (err) {
       setError('Failed to load exercises');
@@ -86,6 +102,65 @@ export const useExercises = () => {
     }
   };
 
+  const createUserExercise = async (exercise: Omit<Exercise, 'id'>) => {
+    if (!user) {
+      setError('User must be logged in to create exercises');
+      return null;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const newExercise = await exerciseService.createUserExercise(user.id, exercise);
+      await loadExercises(); // Reload exercises
+      return newExercise;
+    } catch (err) {
+      setError('Failed to create exercise');
+      console.error('Error creating exercise:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserExercise = async (exerciseId: string, updates: Partial<Exercise>) => {
+    if (!user) {
+      setError('User must be logged in to update exercises');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await exerciseService.updateUserExercise(exerciseId, updates);
+      await loadExercises(); // Reload exercises
+    } catch (err) {
+      setError('Failed to update exercise');
+      console.error('Error updating exercise:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteUserExercise = async (exerciseId: string) => {
+    if (!user) {
+      setError('User must be logged in to delete exercises');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await exerciseService.deleteUserExercise(exerciseId);
+      await loadExercises(); // Reload exercises
+    } catch (err) {
+      setError('Failed to delete exercise');
+      console.error('Error deleting exercise:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter exercises based on current filters
   const getFilteredExercises = (): Exercise[] => {
     let filteredExercises = [...exercises];
@@ -113,38 +188,37 @@ export const useExercises = () => {
       filteredExercises = filteredExercises.filter(
         exercise =>
           exercise.name.toLowerCase().includes(searchTerm) ||
+          exercise.bodyPart.toLowerCase().includes(searchTerm) ||
           exercise.target.toLowerCase().includes(searchTerm) ||
-          exercise.bodyPart.toLowerCase().includes(searchTerm)
+          exercise.equipment.toLowerCase().includes(searchTerm)
       );
     }
 
     return filteredExercises;
   };
 
-  const updateFilters = (newFilters: Partial<ExerciseFilter>) => {
-    setExerciseFilters(newFilters);
+  const updateFilters = (filters: Partial<ExerciseFilter>) => {
+    setExerciseFilters(filters);
   };
 
   const clearFilters = () => {
     setExerciseFilters({});
   };
 
-  const getBodyParts = () => exerciseService.getBodyParts();
-  const getEquipmentTypes = () => exerciseService.getEquipmentTypes();
-
   return {
     exercises: getFilteredExercises(),
     allExercises: exercises,
-    filters: exerciseFilters,
+    exerciseFilters,
     loading,
     error,
     loadExercises,
     searchExercises,
     getExercisesByBodyPart,
     getExercisesByEquipment,
+    createUserExercise,
+    updateUserExercise,
+    deleteUserExercise,
     updateFilters,
     clearFilters,
-    getBodyParts,
-    getEquipmentTypes,
   };
 };

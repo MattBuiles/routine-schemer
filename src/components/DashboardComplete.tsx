@@ -12,14 +12,14 @@ import { HabitsAndNotes } from '@/components/routine/HabitsAndNotes';
 import { History } from '@/components/routine/History';
 import { Profile } from '@/components/routine/Profile';
 import { Settings } from '@/components/routine/Settings';
-import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { CalendarEvent } from '@/types';
 import { toast } from 'react-hot-toast';
 
 export default function DashboardComplete() {
   const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<NavigationView>('dashboard');
-  const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const handleViewChange = (view: NavigationView) => {
     setCurrentView(view);
@@ -81,7 +81,7 @@ export default function DashboardComplete() {
             onEventAdd={handleAddCalendarEvent}
             onEventUpdate={handleUpdateCalendarEvent}
             onEventDelete={handleDeleteCalendarEvent}
-            availableSessions={sampleWorkoutSessions}
+            availableSessions={[]}
           />
         );
       

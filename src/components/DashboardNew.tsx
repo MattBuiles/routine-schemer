@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import ExerciseLibrary from '@/components/routine/ExerciseLibrary';
 import WorkoutCalendar from '@/components/routine/WorkoutCalendar';
 import CreateProgram from '@/components/routine/CreateProgram';
-import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { CalendarEvent, TrainingProgram } from '@/types';
 import { 
   Calendar, 
@@ -21,7 +21,7 @@ import {
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'exercises' | 'create-program'>('dashboard');
-  const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const handleViewChange = (view: 'dashboard' | 'calendar' | 'exercises' | 'create-program') => {
     setCurrentView(view);
@@ -198,7 +198,7 @@ export default function Dashboard() {
           onEventAdd={handleAddCalendarEvent}
           onEventUpdate={handleUpdateCalendarEvent}
           onEventDelete={handleDeleteCalendarEvent}
-          availableSessions={sampleWorkoutSessions}
+          availableSessions={[]}
         />
       </div>
     );

@@ -1,13 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import GoogleAuthForm from '@/components/auth/GoogleAuthForm';
 import DashboardComplete from '@/components/DashboardComplete';
 import { Toaster } from 'react-hot-toast';
+import { autoInitializeIfNeeded } from '@/lib/initializeFirebase';
 
 export default function Home() {
   const { user, loading } = useAuth();
+
+  // Auto-initialize Firebase data when app loads
+  useEffect(() => {
+    autoInitializeIfNeeded();
+  }, []);
 
   if (loading) {
     return (

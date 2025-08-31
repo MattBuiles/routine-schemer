@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-key',
@@ -11,28 +11,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:demo'
 };
 
-// Initialize Firebase with error handling
-let app;
-let auth;
-let db;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-try {
-  // Initialize Firebase
-  app = initializeApp(firebaseConfig);
-  
-  // Initialize Firebase Authentication and get a reference to the service
-  auth = getAuth(app);
-  
-  // Initialize Cloud Firestore and get a reference to the service
-  db = getFirestore(app);
-} catch (error) {
-  console.warn('Firebase initialization failed:', error);
-  console.warn('App will run in demo mode without Firebase functionality');
-  
-  // Create mock objects for development
-  auth = null as any;
-  db = null as any;
-}
+// Initialize Firebase Authentication and get a reference to the service
+const auth = getAuth(app);
+
+// Initialize Cloud Firestore and get a reference to the service
+const db: Firestore = getFirestore(app);
 
 export { auth, db };
 export default app;

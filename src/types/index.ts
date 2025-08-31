@@ -40,6 +40,9 @@ export interface WorkoutSession {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  completedAt?: Date; // when the session was completed
+  userId?: string; // user who owns this session
+  programId?: string; // associated training program
 }
 
 export interface Microcycle {
@@ -150,6 +153,7 @@ export interface Habit {
   updatedAt: Date;
   isActive: boolean;
   isFavorite?: boolean;
+  completedDates?: string[]; // Array of completed dates in YYYY-MM-DD format
 }
 
 export interface HabitRecord {

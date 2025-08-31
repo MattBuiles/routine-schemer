@@ -8,24 +8,8 @@ import toast from 'react-hot-toast';
 export const useAuth = () => {
   const { user, loading, setUser, setLoading, logout } = useAuthStore();
 
-  // Real Firebase auth with fallback to mock for development
+  // Firebase auth integration
   useEffect(() => {
-    // If Firebase auth is not available, use mock user
-    if (!auth) {
-      const mockUser = {
-        id: 'demo-user-123',
-        email: 'demo@example.com',
-        displayName: 'Demo User',
-        provider: 'google' as const,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      setUser(mockUser);
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       
@@ -49,20 +33,8 @@ export const useAuth = () => {
           setUser(userProfile);
         } catch (error) {
           console.error('Error fetching/creating user profile:', error);
-          
-          // Fallback to mock user for development
-          const mockUser = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || 'demo@example.com',
-            displayName: firebaseUser.displayName || 'Demo User',
-            photoURL: firebaseUser.photoURL || undefined,
-            provider: 'google' as const,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          
-          setUser(mockUser);
-          toast.success('Signed in successfully! (Using demo mode)');
+          toast.error('Failed to load user profile');
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -75,22 +47,6 @@ export const useAuth = () => {
   }, [setUser, setLoading]);
 
   const signInWithGoogle = async () => {
-    // If Firebase auth is not available, use mock user
-    if (!auth) {
-      const mockUser = {
-        id: 'demo-user-123',
-        email: 'demo@example.com',
-        displayName: 'Demo User',
-        provider: 'google' as const,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      setUser(mockUser);
-      toast.success('Demo mode activated - using mock authentication');
-      return;
-    }
-
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
@@ -104,19 +60,8 @@ export const useAuth = () => {
       console.error('Authentication error:', error);
       setLoading(false);
       
-      // Fallback to mock user for development
       if (firebaseError.code === 'auth/popup-blocked' || firebaseError.code === 'auth/cancelled-popup-request') {
-        const mockUser = {
-          id: 'demo-user-123',
-          email: 'demo@example.com',
-          displayName: 'Demo User',
-          provider: 'google' as const,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        setUser(mockUser);
-        toast.success('Demo mode activated - using mock authentication');
+        toast.error('Popup was blocked. Please allow popups and try again.');
       } else {
         toast.error('Authentication failed. Please try again.');
       }
@@ -125,9 +70,7 @@ export const useAuth = () => {
 
   const signOutUser = async () => {
     try {
-      if (auth) {
-        await signOut(auth);
-      }
+      await signOut(auth);
       logout();
       toast.success('Successfully signed out!');
     } catch (error) {

@@ -21,20 +21,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { firestoreService } from '@/lib/firestoreService';
 import toast from 'react-hot-toast';
 
-// Datos de ejemplo del perfil
-const sampleProfile: UserProfile = {
-  id: '1',
-  userId: 'user1',
+// Default profile template
+const defaultProfileData = {
   age: 28,
   weight: 75.5,
   height: 178,
   bodyFat: 12.5,
-  activityLevel: 'very_active',
-  goals: ['muscle_gain', 'strength'],
-  experience: 'intermediate',
+  activityLevel: 'very_active' as const,
+  goals: ['muscle_gain', 'strength'] as ('muscle_gain' | 'strength')[],
+  experience: 'intermediate' as const,
   preferences: {
-    theme: 'dark',
-    language: 'es',
+    theme: 'dark' as const,
+    language: 'es' as const,
     notifications: {
       workoutReminders: true,
       habitReminders: true,
@@ -42,11 +40,9 @@ const sampleProfile: UserProfile = {
       emailNotifications: false
     },
     defaultRestTime: 90,
-    units: 'metric',
-    weekStartDay: 'monday'
-  },
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-20')
+    units: 'metric' as const,
+    weekStartDay: 'monday' as const
+  }
 };
 
 const activityLevelLabels = {
@@ -92,22 +88,27 @@ export function Profile() {
         const profiles = await firestoreService.getUserProfilesByUserId(user.id);
         if (profiles.length > 0) {
           setProfile(profiles[0]);
-        } else {
           // Create default profile if none exists
-          const defaultProfile = {
-            ...sampleProfile,
+          const now = new Date();
+          const defaultProfile: UserProfile = {
             id: `profile-${user.id}`,
+            ...defaultProfileData,
             userId: user.id,
+            createdAt: now,
+            updatedAt: now,
           };
           setProfile(defaultProfile);
         }
       } catch (error) {
         console.error('Error loading profile:', error);
-        // Fallback to sample data
+        // Fallback to default profile
+        const now = new Date();
         setProfile({
-          ...sampleProfile,
           id: `profile-${user.id}`,
+          ...defaultProfileData,
           userId: user.id,
+          createdAt: now,
+          updatedAt: now,
         });
         toast.error('Could not load profile data, using defaults');
       } finally {

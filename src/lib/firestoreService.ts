@@ -9,6 +9,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   Timestamp,
 } from 'firebase/firestore';
@@ -326,9 +327,43 @@ export class FirestoreService {
         ...data,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate(),
+        completedAt: data.completedAt ? data.completedAt.toDate() : undefined,
       } as WorkoutSession;
     }
     return null;
+  }
+
+  async getWorkoutSessionsByUserId(userId: string): Promise<WorkoutSession[]> {
+    try {
+      // TEMPORARY: Return empty array until indexes are fully propagated
+      // This prevents quota exceeded errors
+      console.warn('getWorkoutSessionsByUserId: Temporarily disabled until Firebase indexes propagate');
+      return [];
+      
+      /* Original query - re-enable after indexes propagate:
+      const q = query(
+        collection(db, 'workoutSessions'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(10) // Limit to 10 most recent sessions to avoid quota issues
+      );
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+          completedAt: data.completedAt ? data.completedAt.toDate() : undefined,
+        } as WorkoutSession;
+      });
+      */
+    } catch (error) {
+      console.error('Error fetching workout sessions:', error);
+      return [];
+    }
   }
 
   async updateWorkoutSession(sessionId: string, updates: Partial<WorkoutSession>): Promise<void> {
@@ -357,7 +392,8 @@ export class FirestoreService {
     const q = query(
       collection(db, 'calendarEvents'),
       where('userId', '==', userId),
-      orderBy('date', 'asc')
+      orderBy('date', 'asc'),
+      limit(50) // Limit to 50 events to avoid quota issues
     );
 
     const querySnapshot = await getDocs(q);
@@ -382,7 +418,8 @@ export class FirestoreService {
     const q = query(
       collection(db, 'calendarEvents'),
       where('userId', '==', userId),
-      orderBy('date', 'asc')
+      orderBy('date', 'asc'),
+      limit(50) // Limit to 50 events to avoid quota issues
     );
 
     return onSnapshot(q, (querySnapshot) => {

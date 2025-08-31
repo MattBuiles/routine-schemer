@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import ExerciseLibrary from '@/components/routine/ExerciseLibrary';
 import WorkoutCalendar from '@/components/routine/WorkoutCalendar';
 import RoutineManager from '@/components/routine/RoutineManager';
-import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { CalendarEvent } from '@/types';
 import { 
   Calendar, 
@@ -25,8 +25,9 @@ import '@/styles/dashboard.css';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const { data: dashboardData, loading: dashboardLoading } = useDashboardData();
   const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'exercises' | 'routines'>('dashboard');
-  const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleViewChange = (view: 'dashboard' | 'calendar' | 'exercises' | 'routines') => {
@@ -230,7 +231,7 @@ export default function Dashboard() {
             onEventAdd={handleAddCalendarEvent}
             onEventUpdate={handleUpdateCalendarEvent}
             onEventDelete={handleDeleteCalendarEvent}
-            availableSessions={sampleWorkoutSessions}
+            availableSessions={[]}
           />
         </div>
       </div>

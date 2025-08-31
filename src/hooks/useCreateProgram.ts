@@ -1,31 +1,28 @@
-'use client';
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { TrainingProgram, TrainingSplit, TrainingGoal } from '@/types';
+import { firestoreService } from '@/lib/firestoreService';
+import { TrainingProgram, WorkoutSession, TrainingGoal, TrainingSplit } from '@/types';
+import toast from 'react-hot-toast';
 
-export interface CreateProgramData {
-  name: string;
-  description: string;
-  goal: TrainingGoal;
-  split: TrainingSplit;
-  duration: number; // weeks
-  sessionsPerWeek: number;
-  estimatedDuration: number; // minutes per session
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  isPublic: boolean;
-}
+type ProgramDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
-export function useCreateProgram() {
+export const useCreateProgram = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createProgram = async (data: CreateProgramData): Promise<string | null> => {
+  const createProgram = async (programData: {
+    name: string;
+    description?: string;
+    goal: TrainingGoal;
+    split: TrainingSplit;
+    duration: number; // weeks
+    sessionsPerWeek: number;
+    difficulty: ProgramDifficulty;
+    sessions: WorkoutSession[];
+  }): Promise<TrainingProgram | null> => {
     if (!user) {
-      setError('Usuario no autenticado');
+      toast.error('You must be logged in to create programs');
       return null;
     }
 
@@ -33,132 +30,151 @@ export function useCreateProgram() {
     setError(null);
 
     try {
-      const newProgram: Omit<TrainingProgram, 'id'> = {
+      const program: Omit<TrainingProgram, 'id' | 'createdAt' | 'updatedAt'> = {
         userId: user.id,
-        name: data.name,
-        description: data.description || '', // Ensure it's never undefined
-        goal: data.goal,
-        split: data.split,
-        duration: data.duration,
-        sessionsPerWeek: data.sessionsPerWeek,
-        estimatedDuration: data.estimatedDuration,
-        difficulty: data.difficulty,
-        isActive: true,
-        isPublic: data.isPublic ?? false, // Default to false if undefined
-        workoutSessions: [],
-        microcycles: [],
+        name: programData.name,
+        description: programData.description || '',
+        goal: programData.goal,
+        split: programData.split,
+        duration: programData.duration,
+        difficulty: programData.difficulty,
+        sessionsPerWeek: programData.sessionsPerWeek,
+        estimatedDuration: 60, // Default to 60 minutes
+        workoutSessions: programData.sessions,
         mesocycles: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tags: [data.goal, data.split, data.difficulty].filter(Boolean), // Remove any undefined values
+        microcycles: [],
+        isPublic: false,
+        isActive: true,
+        tags: [],
       };
 
-      const docRef = await addDoc(collection(db, 'routines'), {
-        ...newProgram,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      setLoading(false);
-      return docRef.id;
+      const createdProgram = await firestoreService.createTrainingProgram(program);
+      toast.success('Program created successfully!');
+      return createdProgram;
     } catch (err) {
+      const errorMessage = 'Failed to create program';
+      setError(errorMessage);
       console.error('Error creating program:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-      setLoading(false);
+      toast.error(errorMessage);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const validateStep = (data: Partial<CreateProgramData>, step: number): { isValid: boolean; errors: Record<string, string> } => {
-    const errorArray: string[] = [];
-    const errorObject: Record<string, string> = {};
-
-    switch (step) {
-      case 1: // Basic Info
-        if (!data.name || data.name.trim() === '') {
-          errorArray.push('El nombre de la rutina es obligatorio');
-          errorObject.name = 'El nombre de la rutina es obligatorio';
-        }
-        if (data.name && data.name.length < 3) {
-          errorArray.push('El nombre debe tener al menos 3 caracteres');
-          errorObject.name = 'El nombre debe tener al menos 3 caracteres';
-        }
-        if (data.name && data.name.length > 50) {
-          errorArray.push('El nombre no puede tener más de 50 caracteres');
-          errorObject.name = 'El nombre no puede tener más de 50 caracteres';
-        }
-        if (data.description && data.description.length > 200) {
-          errorArray.push('La descripción no puede tener más de 200 caracteres');
-          errorObject.description = 'La descripción no puede tener más de 200 caracteres';
-        }
-        if (!data.duration || data.duration < 1) {
-          errorArray.push('La duración debe ser al menos 1 semana');
-          errorObject.duration = 'La duración debe ser al menos 1 semana';
-        }
-        if (data.duration && data.duration > 52) {
-          errorArray.push('La duración no puede ser más de 52 semanas');
-          errorObject.duration = 'La duración no puede ser más de 52 semanas';
-        }
-        if (!data.sessionsPerWeek || data.sessionsPerWeek < 1) {
-          errorArray.push('Debe haber al menos 1 sesión por semana');
-          errorObject.sessionsPerWeek = 'Debe haber al menos 1 sesión por semana';
-        }
-        if (data.sessionsPerWeek && data.sessionsPerWeek > 7) {
-          errorArray.push('No puede haber más de 7 sesiones por semana');
-          errorObject.sessionsPerWeek = 'No puede haber más de 7 sesiones por semana';
-        }
-        if (!data.estimatedDuration || data.estimatedDuration < 15) {
-          errorArray.push('La duración mínima por sesión es 15 minutos');
-          errorObject.estimatedDuration = 'La duración mínima por sesión es 15 minutos';
-        }
-        if (data.estimatedDuration && data.estimatedDuration > 180) {
-          errorArray.push('La duración máxima por sesión es 180 minutos');
-          errorObject.estimatedDuration = 'La duración máxima por sesión es 180 minutos';
-        }
-        break;
-
-      case 2: // Configuration
-        if (!data.goal) {
-          errorArray.push('El objetivo de entrenamiento es obligatorio');
-          errorObject.goal = 'El objetivo de entrenamiento es obligatorio';
-        }
-        if (!data.split) {
-          errorArray.push('El tipo de división de entrenamiento es obligatorio');
-          errorObject.split = 'El tipo de división de entrenamiento es obligatorio';
-        }
-        if (!data.difficulty) {
-          errorArray.push('El nivel de dificultad es obligatorio');
-          errorObject.difficulty = 'El nivel de dificultad es obligatorio';
-        }
-        break;
-
-      case 3: // Privacy - all previous validations
-        // Validate all steps for final submission
-        const step1Validation = validateStep(data, 1);
-        const step2Validation = validateStep(data, 2);
-        
-        if (!step1Validation.isValid) {
-          Object.assign(errorObject, step1Validation.errors);
-          errorArray.push(...Object.values(step1Validation.errors));
-        }
-        if (!step2Validation.isValid) {
-          Object.assign(errorObject, step2Validation.errors);
-          errorArray.push(...Object.values(step2Validation.errors));
-        }
-        break;
+  const updateProgram = async (programId: string, updates: Partial<TrainingProgram>): Promise<void> => {
+    if (!user) {
+      toast.error('You must be logged in to update programs');
+      return;
     }
 
-    return {
-      isValid: errorArray.length === 0,
-      errors: errorObject
-    };
+    setLoading(true);
+    setError(null);
+
+    try {
+      await firestoreService.updateTrainingProgram(programId, updates);
+      toast.success('Program updated successfully!');
+    } catch (err) {
+      const errorMessage = 'Failed to update program';
+      setError(errorMessage);
+      console.error('Error updating program:', err);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteProgram = async (programId: string): Promise<void> => {
+    if (!user) {
+      toast.error('You must be logged in to delete programs');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await firestoreService.deleteTrainingProgram(programId);
+      toast.success('Program deleted successfully!');
+    } catch (err) {
+      const errorMessage = 'Failed to delete program';
+      setError(errorMessage);
+      console.error('Error deleting program:', err);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAllPrograms = async (): Promise<TrainingProgram[]> => {
+    if (!user) return [];
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const programs = await firestoreService.getTrainingProgramsByUserId(user.id);
+      return programs;
+    } catch (err) {
+      const errorMessage = 'Failed to load programs';
+      setError(errorMessage);
+      console.error('Error loading programs:', err);
+      toast.error(errorMessage);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const duplicateProgram = async (programId: string, newName: string): Promise<TrainingProgram | null> => {
+    if (!user) {
+      toast.error('You must be logged in to duplicate programs');
+      return null;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Get original program
+      const programs = await firestoreService.getTrainingProgramsByUserId(user.id);
+      const originalProgram = programs.find(p => p.id === programId);
+
+      if (!originalProgram) {
+        throw new Error('Program not found');
+      }
+
+      // Create duplicate
+      const duplicatedProgram = await createProgram({
+        name: newName,
+        description: originalProgram.description,
+        goal: originalProgram.goal,
+        split: originalProgram.split,
+        duration: originalProgram.duration,
+        sessionsPerWeek: originalProgram.sessionsPerWeek,
+        difficulty: originalProgram.difficulty,
+        sessions: originalProgram.workoutSessions,
+      });
+
+      return duplicatedProgram;
+    } catch (err) {
+      const errorMessage = 'Failed to duplicate program';
+      setError(errorMessage);
+      console.error('Error duplicating program:', err);
+      toast.error(errorMessage);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {
     createProgram,
-    validateStep,
-    isLoading: loading,
+    updateProgram,
+    deleteProgram,
+    getAllPrograms,
+    duplicateProgram,
+    loading,
     error,
-    clearError: () => setError(null)
   };
-}
+};
