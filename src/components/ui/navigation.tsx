@@ -91,78 +91,71 @@ const navigationItems = [
 
 export function Navigation({ currentView, onViewChange, userName, onSignOut }: NavigationProps) {
   return (
-    <div className="dashboard-header">
-      <div className="dashboard-header-content">
-        {/* Logo Section */}
-        <div className="dashboard-logo">
-          <div className="dashboard-logo-icon">
-            <div className="dashboard-logo-icon-inner"></div>
+    <div className="sticky top-0 z-50 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border-b border-white/10 backdrop-blur-xl shadow-xl">
+      <div className="max-w-[1600px] mx-auto px-6 py-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Routine Schemer</h1>
+              <p className="text-xs text-gray-400">Professional Training</p>
+            </div>
           </div>
-          <h1 className="dashboard-title">Routine Schemer</h1>
+
+          {/* User Section */}
+          <div className="flex items-center gap-4">
+            {/* User Info */}
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 font-bold text-white">
+                {userName ? userName.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="hidden md:block">
+                <p className="text-sm font-semibold text-white">{userName || 'Usuario'}</p>
+                <p className="text-xs text-gray-400">Atleta Premium</p>
+              </div>
+            </div>
+
+            {/* Sign Out */}
+            <button
+              onClick={onSignOut}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 rounded-xl transition-all duration-300 font-semibold"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
+          </div>
         </div>
 
-        {/* User Section */}
-        <div className="dashboard-user-section">
-          {/* Quick Stats */}
-          <div className="dashboard-stats-mini">
-            <div className="dashboard-stat-mini">
-              <div className="dashboard-stat-mini-number">5</div>
-              <div className="dashboard-stat-mini-label">Rutinas</div>
-            </div>
-            <div className="dashboard-stat-mini">
-              <div className="dashboard-stat-mini-number">3</div>
-              <div className="dashboard-stat-mini-label">Semana</div>
-            </div>
-          </div>
-
-          {/* User Info */}
-          <div className="dashboard-user-info">
-            <div className="dashboard-user-avatar">
-              {userName ? userName.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div className="dashboard-user-details">
-              <h3>{userName || 'Usuario'}</h3>
-              <p>Atleta Premium</p>
-            </div>
-          </div>
-
-          {/* Sign Out Button */}
-          <button onClick={onSignOut} className="dashboard-signout-btn">
-            <LogOut className="h-4 w-4" />
-            Salir
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Menu */}
-      <div style={{ background: 'rgba(15, 23, 42, 0.9)', padding: '1rem 0', borderTop: '1px solid rgba(71, 85, 105, 0.2)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {navigationItems.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = currentView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onViewChange(item.id)}
-                  className={`dashboard-action-btn ${isActive ? 'dashboard-category-card-selected' : ''}`}
-                  style={{ 
-                    minWidth: '120px',
-                    padding: '0.75rem 1rem',
-                    background: isActive ? 'rgba(94, 234, 212, 0.15)' : 'rgba(71, 85, 105, 0.2)',
-                    borderColor: isActive ? 'rgba(94, 234, 212, 0.5)' : 'rgba(71, 85, 105, 0.3)'
-                  }}
-                >
-                  <div className="dashboard-action-icon" style={{ marginBottom: '0.5rem' }}>
-                    <IconComponent className="h-4 w-4 text-slate-300" />
-                  </div>
-                  <div className="dashboard-action-label" style={{ fontSize: '0.75rem' }}>
-                    {item.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        {/* Navigation */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {navigationItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onViewChange(item.id)}
+                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-500/20 to-violet-500/20 border border-blue-500/50 shadow-lg shadow-blue-500/20'
+                    : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
+                }`}
+              >
+                <div className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+                  <IconComponent className={`w-5 h-5 ${isActive ? 'text-blue-400' : 'text-gray-400 group-hover:text-white'}`} strokeWidth={2} />
+                </div>
+                <span className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

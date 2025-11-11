@@ -1,13 +1,17 @@
 'use client';
 
-import React from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import GoogleAuthForm from '@/components/auth/GoogleAuthForm';
+import React, { useEffect } from 'react';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import SupabaseAuthForm from '@/components/auth/SupabaseAuthForm';
 import DashboardComplete from '@/components/DashboardComplete';
 import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, initialize } = useSupabaseAuth();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   if (loading) {
     return (
@@ -23,7 +27,7 @@ export default function Home() {
   return (
     <>
       <main className="min-h-screen">
-        {user ? <DashboardComplete /> : <GoogleAuthForm />}
+        {user ? <DashboardComplete /> : <SupabaseAuthForm />}
       </main>
       <Toaster 
         position="top-right"

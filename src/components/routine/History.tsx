@@ -187,59 +187,70 @@ export function History() {
   });
 
   return (
-    <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-luxury mb-2">Historial</h1>
-          <p className="text-gray-400">Analiza tu progreso y estadísticas de entrenamiento</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+            Historial
+          </h1>
+          <p className="text-gray-400 text-lg">Analiza tu progreso y estadísticas de entrenamiento</p>
+          <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
         </div>
 
         {/* Statistics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="glass border-white/20 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Total Sesiones</p>
-                <p className="text-3xl font-bold text-white">{statistics.totalSessions}</p>
-                <p className="text-xs text-green-400">+8 este mes</p>
+                <p className="text-sm text-gray-400 mb-2">Total Sesiones</p>
+                <p className="text-4xl font-bold text-white mb-1">{statistics.totalSessions}</p>
+                <p className="text-xs text-emerald-400">+8 este mes</p>
               </div>
-              <Target className="h-8 w-8 text-blue-400" />
+              <div className="p-4 bg-blue-500/20 rounded-full">
+                <Target className="h-8 w-8 text-blue-400" />
+              </div>
             </div>
-          </Card>
+          </div>
 
-          <Card className="glass border-white/20 p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Tiempo Total</p>
-                <p className="text-3xl font-bold text-white">{Math.round(statistics.totalTime / 60)}h</p>
+                <p className="text-sm text-gray-400 mb-2">Tiempo Total</p>
+                <p className="text-4xl font-bold text-white mb-1">{Math.round(statistics.totalTime / 60)}h</p>
                 <p className="text-xs text-gray-400">{statistics.totalTime % 60}min</p>
               </div>
-              <Clock className="h-8 w-8 text-purple-400" />
+              <div className="p-4 bg-violet-500/20 rounded-full">
+                <Clock className="h-8 w-8 text-violet-400" />
+              </div>
             </div>
-          </Card>
+          </div>
 
-          <Card className="glass border-white/20 p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Racha Actual</p>
-                <p className="text-3xl font-bold text-white">{statistics.currentStreak}</p>
+                <p className="text-sm text-gray-400 mb-2">Racha Actual</p>
+                <p className="text-4xl font-bold text-white mb-1">{statistics.currentStreak}</p>
                 <p className="text-xs text-orange-400">días consecutivos</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-400" />
+              <div className="p-4 bg-emerald-500/20 rounded-full">
+                <TrendingUp className="h-8 w-8 text-emerald-400" />
+              </div>
             </div>
-          </Card>
+          </div>
 
-          <Card className="glass border-white/20 p-6">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Tasa de Éxito</p>
-                <p className="text-3xl font-bold text-white">{statistics.completionRate}%</p>
-                <p className="text-xs text-green-400">sesiones completadas</p>
+                <p className="text-sm text-gray-400 mb-2">Tasa de Éxito</p>
+                <p className="text-4xl font-bold text-white mb-1">{statistics.completionRate}%</p>
+                <p className="text-xs text-emerald-400">sesiones completadas</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-400" />
+              <div className="p-4 bg-emerald-500/20 rounded-full">
+                <CheckCircle className="h-8 w-8 text-emerald-400" />
+              </div>
             </div>
-          </Card>
+          </div>
         </div>
 
         {/* Charts Section */}

@@ -212,36 +212,39 @@ export function HabitsAndNotes() {
   };
 
   return (
-    <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-luxury mb-2">Hábitos y Notas</h1>
-          <p className="text-gray-400">Seguimiento de hábitos saludables y notas personales</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+            Hábitos y Notas
+          </h1>
+          <p className="text-gray-400 text-lg">Seguimiento de hábitos saludables y notas personales</p>
+          <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-1 glass rounded-lg p-1 mb-8 w-fit">
+        <div className="flex gap-3 mb-8">
           <button
             onClick={() => setActiveTab('habits')}
-            className={`px-6 py-2 rounded-md transition-all duration-200 ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
               activeTab === 'habits'
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
             }`}
           >
-            <Heart className="h-4 w-4 inline mr-2" />
+            <Heart className="h-4 w-4" />
             Hábitos
           </button>
           <button
             onClick={() => setActiveTab('notes')}
-            className={`px-6 py-2 rounded-md transition-all duration-200 ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
               activeTab === 'notes'
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
             }`}
           >
-            <BookOpen className="h-4 w-4 inline mr-2" />
+            <BookOpen className="h-4 w-4" />
             Notas
           </button>
         </div>

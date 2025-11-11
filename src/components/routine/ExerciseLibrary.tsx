@@ -61,131 +61,132 @@ export default function ExerciseLibrary({
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Exercise Library</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+          Biblioteca de Ejercicios
+        </h1>
+        <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
+      </div>
         
-        {/* Search and Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Search exercises..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1 relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+          <Input
+            type="text"
+            placeholder="Buscar ejercicios..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all backdrop-blur-xl"
+          />
+        </div>
+        
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all duration-300 flex items-center gap-2 backdrop-blur-xl"
+        >
+          <Filter className="h-4 w-4" />
+          <span>Filtros</span>
+          {(filters.bodyPart || filters.equipment) && (
+            <span className="bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs rounded-full px-2 py-1">
+              {[filters.bodyPart, filters.equipment].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Active Filters */}
+      {(filters.bodyPart || filters.equipment) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {filters.bodyPart && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+              Body Part: {filters.bodyPart}
+              <button
+                onClick={() => updateFilters({ bodyPart: undefined })}
+                className="ml-2 hover:text-blue-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+          {filters.equipment && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              Equipment: {filters.equipment}
+              <button
+                onClick={() => updateFilters({ equipment: undefined })}
+                className="ml-2 hover:text-green-600"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
           <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center space-x-2"
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-gray-600"
           >
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
-            {(filters.bodyPart || filters.equipment) && (
-              <span className="bg-blue-600 text-white text-xs rounded-full px-2 py-1">
-                {[filters.bodyPart, filters.equipment].filter(Boolean).length}
-              </span>
-            )}
+            Clear All
           </Button>
         </div>
+      )}
 
-        {/* Active Filters */}
-        {(filters.bodyPart || filters.equipment) && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {filters.bodyPart && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                Body Part: {filters.bodyPart}
-                <button
-                  onClick={() => updateFilters({ bodyPart: undefined })}
-                  className="ml-2 hover:text-blue-600"
+      {/* Filter Panel */}
+      {showFilters && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Body Part
+                </label>
+                <select
+                  value={filters.bodyPart || ''}
+                  onChange={(e) => updateFilters({ bodyPart: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {filters.equipment && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                Equipment: {filters.equipment}
-                <button
-                  onClick={() => updateFilters({ equipment: undefined })}
-                  className="ml-2 hover:text-green-600"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="text-gray-600"
-            >
-              Clear All
-            </Button>
-          </div>
-        )}
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Body Part
-                  </label>
-                  <select
-                    value={filters.bodyPart || ''}
-                    onChange={(e) => updateFilters({ bodyPart: e.target.value || undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">All Body Parts</option>
-                    {bodyParts.map((bodyPart) => (
-                      <option key={bodyPart} value={bodyPart}>
-                        {bodyPart.charAt(0).toUpperCase() + bodyPart.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Equipment
-                  </label>
-                  <select
-                    value={filters.equipment || ''}
-                    onChange={(e) => updateFilters({ equipment: e.target.value || undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">All Equipment</option>
-                    {equipmentTypes.map((equipment) => (
-                      <option key={equipment} value={equipment}>
-                        {equipment.charAt(0).toUpperCase() + equipment.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <option value="">All Body Parts</option>
+                  {bodyParts.map((bodyPart) => (
+                    <option key={bodyPart} value={bodyPart}>
+                      {bodyPart.charAt(0).toUpperCase() + bodyPart.slice(1)}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Equipment
+                </label>
+                <select
+                  value={filters.equipment || ''}
+                  onChange={(e) => updateFilters({ equipment: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Equipment</option>
+                  {equipmentTypes.map((equipment) => (
+                    <option key={equipment} value={equipment}>
+                      {equipment.charAt(0).toUpperCase() + equipment.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results Count */}
       <div className="mb-4">
         <p className="text-gray-600">
           {loading ? 'Loading...' : `${exercises.length} exercise${exercises.length !== 1 ? 's' : ''} found`}
         </p>
-      </div>
-
-      {/* Exercise Grid */}
+      </div>      {/* Exercise Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, index) => (

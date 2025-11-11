@@ -4,6 +4,8 @@
 
 Una aplicación web completa para diseñar, estructurar, registrar y visualizar rutinas y planes de entrenamiento, enfocada en profesionales del fitness y atletas serios que buscan un enfoque holístico del entrenamiento y la salud.
 
+> **✨ Ahora con Supabase:** Migrado de Firebase a Supabase para mejor rendimiento, menos costos y queries SQL más eficientes.
+
 ## 🎯 Características Principales
 
 ### 📋 **Dashboard Inteligente**
@@ -69,16 +71,27 @@ Una aplicación web completa para diseñar, estructurar, registrar y visualizar 
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Styling**: Tailwind CSS 4, CSS Modules
 - **State Management**: Zustand
-- **Backend**: Firebase (Auth, Firestore)
+- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
+- **Legacy**: Firebase (en proceso de migración)
 - **Forms**: React Hook Form + Zod
 - **UI Components**: Lucide React, React Calendar
 - **Notifications**: React Hot Toast
 
-## 🏗️ Arquitectura
+### � Ventajas de Supabase
+
+- ✅ **500MB gratis** de base de datos PostgreSQL
+- ✅ **Queries SQL** más eficientes para estadísticas complejas
+- ✅ **Real-time subscriptions** incluidas
+- ✅ **Row Level Security** para máxima seguridad
+- ✅ **Menos costos** a escala vs Firebase
+- ✅ **Open source** y self-hostable
+
+## �🏗️ Arquitectura
 
 ```
 src/
 ├── app/                 # App Router de Next.js
+│   └── auth/callback/  # Callback de autenticación
 ├── components/          # Componentes React
 │   ├── ui/             # Componentes base (Button, Card, etc.)
 │   ├── auth/           # Autenticación
@@ -86,9 +99,18 @@ src/
 │   └── *.tsx           # Componentes principales
 ├── hooks/              # Custom React Hooks
 ├── lib/                # Utilidades y servicios
+│   ├── supabase.ts    # Cliente de Supabase
+│   ├── supabaseService.ts  # Servicio de datos
+│   └── firebase.ts    # Firebase (legacy)
 ├── store/              # Estado global (Zustand)
+│   ├── supabaseAuthStore.ts  # Auth de Supabase
+│   └── authStore.ts   # Firebase auth (legacy)
 ├── styles/             # Estilos CSS
 └── types/              # Tipos TypeScript
+    └── supabase.ts    # Tipos generados de Supabase
+
+supabase/
+└── schema.sql         # Schema de base de datos
 ```
 
 ## 🔧 Instalación y Desarrollo
@@ -96,13 +118,13 @@ src/
 ### Prerrequisitos
 - Node.js 18+
 - npm o yarn
-- Cuenta de Firebase
+- Cuenta de Supabase (gratis en https://supabase.com)
 
 ### Configuración
 
 1. **Clonar el repositorio**
 ```bash
-git clone https://github.com/tu-usuario/routine-schemer.git
+git clone https://github.com/MattBuiles/routine-schemer.git
 cd routine-schemer
 ```
 
@@ -111,12 +133,25 @@ cd routine-schemer
 npm install
 ```
 
-3. **Configurar Firebase**
+3. **Configurar Supabase**
+
+a) Crea un proyecto en https://supabase.com
+
+b) Ejecuta el schema SQL:
+   - Ve a SQL Editor en tu proyecto Supabase
+   - Copia el contenido de `supabase/schema.sql`
+   - Ejecuta el script
+
+c) Configura variables de entorno:
 ```bash
 # Copiar archivo de configuración
 cp .env.local.example .env.local
 
-# Editar .env.local con tus credenciales de Firebase
+c) Configura variables de entorno:
+```bash
+# Editar .env.local con tus credenciales de Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-clave-anon-aqui
 ```
 
 4. **Ejecutar en desarrollo**
@@ -129,11 +164,26 @@ La aplicación estará disponible en `http://localhost:3000`
 ### Scripts Disponibles
 
 ```bash
-npm run dev          # Servidor de desarrollo
+npm run dev          # Servidor de desarrollo (con Turbopack)
 npm run build        # Build de producción
 npm run start        # Servidor de producción
 npm run lint         # Linting
 ```
+
+## 📚 Guías de Migración
+
+### 🔄 Migrar de Firebase a Supabase
+
+Si estás migrando desde Firebase, consulta la guía completa:
+
+📖 **[SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md)**
+
+Incluye:
+- Setup completo paso a paso
+- Scripts de migración de datos
+- Ejemplos de código
+- Troubleshooting
+- Comparación de costos
 
 ## 📱 Funcionalidades por Módulo
 

@@ -98,43 +98,59 @@ export function Settings() {
   };
 
   return (
-    <div className="settings-container">
-      <div className="settings-background"></div>
-      
-      <div className="settings-main">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="settings-header">
-          <h1 className="settings-title">Configuración</h1>
-          <p className="settings-subtitle">Personaliza tu experiencia en Routine Schemer</p>
-          <div className="settings-divider"></div>
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+            Configuración
+          </h1>
+          <p className="text-gray-400 text-lg">Personaliza tu experiencia en Routine Schemer</p>
+          <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
         </div>
 
         {/* Section Navigation */}
-        <div className="settings-navigation">
+        <div className="flex flex-wrap gap-3 mb-8">
           <button
             onClick={() => setActiveSection('general')}
-            className={`settings-nav-item ${activeSection === 'general' ? 'active' : ''}`}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeSection === 'general'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
+            }`}
           >
             <SettingsIcon className="h-4 w-4" />
             General
           </button>
           <button
             onClick={() => setActiveSection('notifications')}
-            className={`settings-nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeSection === 'notifications'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
+            }`}
           >
             <Bell className="h-4 w-4" />
             Notificaciones
           </button>
           <button
             onClick={() => setActiveSection('privacy')}
-            className={`settings-nav-item ${activeSection === 'privacy' ? 'active' : ''}`}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeSection === 'privacy'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
+            }`}
           >
             <Shield className="h-4 w-4" />
             Privacidad
           </button>
           <button
             onClick={() => setActiveSection('data')}
-            className={`settings-nav-item ${activeSection === 'data' ? 'active' : ''}`}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeSection === 'data'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-xl'
+            }`}
           >
             <Database className="h-4 w-4" />
             Datos
@@ -142,147 +158,93 @@ export function Settings() {
         </div>
 
         {/* Content */}
-        <div className="settings-content">
+        <div className="space-y-6">
           {/* General Settings */}
           {activeSection === 'general' && (
-            <div className="settings-section">
+            <div className="space-y-6">
               {/* Appearance */}
-              <div className="settings-section-title">
-                <Moon className="h-5 w-5" />
-                Apariencia
-              </div>
-              <p className="settings-section-description">
-                Personaliza la apariencia y el idioma de la aplicación
-              </p>
-              <div className="settings-grid">
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Tema</div>
-                      <div className="settings-item-description">Selecciona tu tema preferido</div>
-                    </div>
-                    <div className="settings-control">
-                      <select
-                        value={settings.theme}
-                        onChange={(e) => handleSettingChange('theme', '', e.target.value)}
-                        className="settings-select"
-                      >
-                        <option value="light">Claro</option>
-                        <option value="dark">Oscuro</option>
-                        <option value="auto">Automático</option>
-                      </select>
-                    </div>
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-violet-500/20 rounded-lg">
+                    <Moon className="h-5 w-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Apariencia</h3>
+                    <p className="text-sm text-gray-400">Personaliza la apariencia y el idioma de la aplicación</p>
                   </div>
                 </div>
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Idioma</div>
-                      <div className="settings-item-description">Idioma de la interfaz</div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div>
+                      <div className="text-white font-medium mb-1">Tema</div>
+                      <div className="text-sm text-gray-400">Selecciona tu tema preferido</div>
                     </div>
-                    <div className="settings-control">
-                      <select
-                        value={settings.language}
-                        onChange={(e) => handleSettingChange('language', '', e.target.value)}
-                        className="settings-select"
-                      >
-                        <option value="es">Español</option>
-                        <option value="en">English</option>
-                      </select>
+                    <select
+                      value={settings.theme}
+                      onChange={(e) => handleSettingChange('theme', '', e.target.value)}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="light">Claro</option>
+                      <option value="dark">Oscuro</option>
+                      <option value="auto">Automático</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div>
+                      <div className="text-white font-medium mb-1">Idioma</div>
+                      <div className="text-sm text-gray-400">Idioma de la interfaz</div>
                     </div>
+                    <select
+                      value={settings.language}
+                      onChange={(e) => handleSettingChange('language', '', e.target.value)}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="es">Español</option>
+                      <option value="en">English</option>
+                    </select>
                   </div>
                 </div>
               </div>
 
               {/* Units and Calendar */}
-              <div className="settings-section-title">
-                <Globe className="h-5 w-5" />
-                Unidades y Calendario
-              </div>
-              <p className="settings-section-description">
-                Configura las unidades de medida y preferencias de calendario
-              </p>
-              <div className="settings-grid">
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Sistema de unidades</div>
-                      <div className="settings-item-description">Métrico o imperial</div>
-                    </div>
-                    <div className="settings-control">
-                      <select
-                        value={settings.units}
-                        onChange={(e) => handleSettingChange('units', '', e.target.value)}
-                        className="settings-select"
-                      >
-                        <option value="metric">Métrico (kg, cm)</option>
-                        <option value="imperial">Imperial (lb, ft)</option>
-                      </select>
-                    </div>
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Globe className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Unidades y Calendario</h3>
+                    <p className="text-sm text-gray-400">Configura las unidades de medida y preferencias de calendario</p>
                   </div>
                 </div>
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Inicio de semana</div>
-                      <div className="settings-item-description">Primer día de la semana</div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div>
+                      <div className="text-white font-medium mb-1">Sistema de unidades</div>
+                      <div className="text-sm text-gray-400">Métrico o imperial</div>
                     </div>
-                    <div className="settings-control">
-                      <select
-                        value={settings.weekStartDay}
-                        onChange={(e) => handleSettingChange('weekStartDay', '', e.target.value)}
-                        className="settings-select"
-                      >
-                        <option value="monday">Lunes</option>
-                        <option value="sunday">Domingo</option>
-                      </select>
-                    </div>
+                    <select
+                      value={settings.units}
+                      onChange={(e) => handleSettingChange('units', '', e.target.value)}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="metric">Métrico (kg, cm)</option>
+                      <option value="imperial">Imperial (lb, ft)</option>
+                    </select>
                   </div>
-                </div>
-              </div>
-
-              {/* Auto Save */}
-              <div className="settings-section-title">
-                <Save className="h-5 w-5" />
-                Guardado Automático
-              </div>
-              <p className="settings-section-description">
-                Configura cómo se guardan tus datos automáticamente
-              </p>
-              <div className="settings-grid">
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Guardado automático</div>
-                      <div className="settings-item-description">Guarda automáticamente los cambios mientras trabajas</div>
+                  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                    <div>
+                      <div className="text-white font-medium mb-1">Inicio de semana</div>
+                      <div className="text-sm text-gray-400">Primer día de la semana</div>
                     </div>
-                    <div className="settings-control">
-                      <div 
-                        className={`settings-toggle ${settings.autoSave ? 'active' : ''}`}
-                        onClick={() => handleSettingChange('autoSave', '', !settings.autoSave)}
-                      >
-                        <div className="settings-toggle-handle"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="settings-item">
-                  <div className="settings-item-header">
-                    <div className="settings-item-info">
-                      <div className="settings-item-title">Frecuencia de respaldo</div>
-                      <div className="settings-item-description">Con qué frecuencia crear respaldos</div>
-                    </div>
-                    <div className="settings-control">
-                      <select
-                        value={settings.backupFrequency}
-                        onChange={(e) => handleSettingChange('backupFrequency', '', e.target.value)}
-                        className="settings-select"
-                      >
-                        <option value="daily">Diario</option>
-                        <option value="weekly">Semanal</option>
-                        <option value="manual">Manual</option>
-                      </select>
-                    </div>
+                    <select
+                      value={settings.weekStartDay}
+                      onChange={(e) => handleSettingChange('weekStartDay', '', e.target.value)}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    >
+                      <option value="monday">Lunes</option>
+                      <option value="sunday">Domingo</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -290,8 +252,11 @@ export function Settings() {
           )}
 
           {/* Save Actions */}
-          <div className="settings-actions">
-            <button onClick={handleSaveSettings} className="settings-btn settings-btn-primary">
+          <div className="flex justify-center gap-4 mt-8">
+            <button 
+              onClick={handleSaveSettings} 
+              className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 flex items-center gap-2"
+            >
               <Save className="h-4 w-4" />
               Guardar Cambios
             </button>

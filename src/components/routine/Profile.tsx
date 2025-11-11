@@ -127,41 +127,43 @@ export function Profile() {
   };
 
   return (
-    <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-luxury mb-2">Mi Perfil</h1>
-              <p className="text-gray-400">Gestiona tu información personal y preferencias</p>
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+                Mi Perfil
+              </h1>
+              <p className="text-gray-400 text-lg">Gestiona tu información personal y preferencias</p>
+              <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               {isEditing ? (
                 <>
-                  <Button
+                  <button
                     onClick={() => setIsEditing(false)}
-                    variant="ghost"
-                    className="glass hover:bg-white/10 text-white border border-white/20"
+                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all duration-300 backdrop-blur-xl"
                   >
                     Cancelar
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     onClick={handleSave}
-                    className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white border-0"
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 flex items-center gap-2"
                   >
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4" />
                     Guardar
-                  </Button>
+                  </button>
                 </>
               ) : (
-                <Button
+                <button
                   onClick={() => setIsEditing(true)}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-violet-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2"
                 >
-                  <Edit3 className="h-4 w-4 mr-2" />
+                  <Edit3 className="h-4 w-4" />
                   Editar Perfil
-                </Button>
+                </button>
               )}
             </div>
           </div>

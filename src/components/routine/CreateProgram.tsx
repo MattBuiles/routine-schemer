@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useCreateProgram, CreateProgramData } from '@/hooks/useCreateProgram'
+import { useSupabaseCreateProgram, CreateProgramData } from '@/hooks/useSupabaseCreateProgram'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -389,15 +389,15 @@ function Step3Privacy({ data, updateData, onNext, onBack, isValid }: StepProps) 
 
 interface CreateProgramProps {
   onBack?: () => void;
+  onProgramCreated?: () => void;
+  onCancel?: () => void;
 }
 
-export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
+export default function CreateProgram({ onBack, onProgramCreated, onCancel }: CreateProgramProps = {}) {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<Partial<CreateProgramData>>({
-    isPublic: false
-  })
+  const [formData, setFormData] = useState<Partial<CreateProgramData>>({})
   
-  const { createProgram, isLoading, error, validateStep } = useCreateProgram()
+  const { createProgram, isLoading, error, validateStep } = useSupabaseCreateProgram()
 
   const updateFormData = (updates: Partial<CreateProgramData>) => {
     setFormData(prev => ({ ...prev, ...updates }))
@@ -422,8 +422,13 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
       const success = await createProgram(formData as CreateProgramData)
       if (success) {
         // Reset form
-        setFormData({ isPublic: false })
+        setFormData({})
         setCurrentStep(1)
+        
+        // Call the onProgramCreated callback if provided
+        if (onProgramCreated) {
+          onProgramCreated()
+        }
         
         // If onBack is provided, navigate back to list after successful creation
         if (onBack) {
@@ -438,7 +443,7 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
   const validation = validateStep(formData, currentStep)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/20 to-purple-900/20 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -447,7 +452,7 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
             <div className="flex justify-start mb-6">
               <button
                 onClick={onBack}
-                className="flex items-center text-gray-400 hover:text-white transition-colors group"
+                className="flex items-center px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-300 backdrop-blur-xl group"
               >
                 <svg className="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -457,11 +462,11 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
             </div>
           )}
           
-          <div className="relative inline-block mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4">
+          <div className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
               Crear Nueva Rutina
             </h1>
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg blur opacity-75"></div>
+            <div className="h-1 w-48 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mx-auto mt-4"></div>
           </div>
           
           {/* Progress Indicator */}
@@ -503,17 +508,15 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
         )}
 
         {/* Step Content */}
-        <div className="relative">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-2xl blur opacity-75"></div>
-          <Card className="relative bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl">
-            {isLoading && (
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
-                <div className="text-center">
-                  <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-white font-medium">Creando rutina...</p>
-                </div>
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-xl">
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-white font-medium">Creando rutina...</p>
               </div>
-            )}
+            </div>
+          )}
 
           {currentStep === 1 && (
             <Step1BasicInfo
@@ -546,7 +549,6 @@ export default function CreateProgram({ onBack }: CreateProgramProps = {}) {
               errors={validation.errors}
             />
           )}
-          </Card>
         </div>
       </div>
     </div>

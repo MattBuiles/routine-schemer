@@ -139,38 +139,46 @@ export default function WorkoutCalendar({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Workout Calendar</h1>
-          <div className="flex items-center space-x-4">
-            <Button
-              variant={showSessionList ? "default" : "outline"}
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+              Calendario de Entrenamientos
+            </h1>
+            <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full"></div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
               onClick={() => setShowSessionList(!showSessionList)}
-              className="flex items-center space-x-2"
+              className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                showSessionList
+                  ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-lg shadow-blue-500/50'
+                  : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 backdrop-blur-xl'
+              }`}
             >
               <Plus className="h-4 w-4" />
-              <span>Add Workouts</span>
-            </Button>
-            <div className="flex rounded-lg border border-gray-300">
+              <span>Agregar Entrenamientos</span>
+            </button>
+            <div className="flex rounded-xl overflow-hidden bg-white/5 border border-white/10 backdrop-blur-xl">
               <button
                 onClick={() => setCalendarView('month')}
-                className={`px-4 py-2 text-sm font-medium ${
+                className={`px-6 py-3 text-sm font-medium transition-all ${
                   calendarView === 'month'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:text-gray-900'
+                    ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                Month
+                Mes
               </button>
               <button
                 onClick={() => setCalendarView('week')}
-                className={`px-4 py-2 text-sm font-medium border-l border-gray-300 ${
+                className={`px-6 py-3 text-sm font-medium border-l border-white/10 transition-all ${
                   calendarView === 'week'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:text-gray-900'
+                    ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                Week
+                Semana
               </button>
             </div>
           </div>
@@ -180,21 +188,21 @@ export default function WorkoutCalendar({
           {/* Session List (Draggable) */}
           {showSessionList && (
             <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Target className="h-5 w-5" />
-                    <span>Available Workouts</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/10">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                    <Target className="h-5 w-5 text-blue-400" />
+                    <span>Entrenamientos Disponibles</span>
+                  </h3>
+                </div>
+                <div className="p-6">
                   <Droppable droppableId="session-list">
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`space-y-2 min-h-32 ${
-                          snapshot.isDraggingOver ? 'bg-gray-50' : ''
+                        className={`space-y-3 min-h-32 ${
+                          snapshot.isDraggingOver ? 'bg-blue-500/10 rounded-xl' : ''
                         }`}
                       >
                         {getAvailableSessionsForDrop().map((session, index) => (
@@ -208,21 +216,21 @@ export default function WorkoutCalendar({
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`p-3 border rounded-lg cursor-grab active:cursor-grabbing ${
+                                className={`p-4 rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200 ${
                                   snapshot.isDragging
-                                    ? 'shadow-lg bg-white border-blue-500'
-                                    : 'hover:border-gray-400'
+                                    ? 'bg-gradient-to-r from-blue-500 to-violet-600 shadow-lg shadow-blue-500/50 border border-blue-400'
+                                    : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
                                 }`}
                               >
-                                <h4 className="font-medium text-sm text-gray-900 mb-1">
+                                <h4 className="font-semibold text-sm text-white mb-2">
                                   {session.name}
                                 </h4>
-                                <div className="flex items-center justify-between text-xs text-gray-600">
-                                  <div className="flex items-center space-x-1">
+                                <div className="flex items-center justify-between text-xs text-gray-400">
+                                  <div className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     <span>{session.estimatedDuration}m</span>
                                   </div>
-                                  <span className="bg-gray-100 px-2 py-1 rounded">
+                                  <span className="px-2 py-1 bg-white/10 rounded-md text-xs">
                                     {session.type}
                                   </span>
                                 </div>
@@ -232,30 +240,30 @@ export default function WorkoutCalendar({
                         ))}
                         {provided.placeholder}
                         {getAvailableSessionsForDrop().length === 0 && (
-                          <p className="text-sm text-gray-500 text-center py-4">
-                            No available workout sessions.
-                            Create some workout sessions first.
+                          <p className="text-sm text-gray-400 text-center py-8">
+                            No hay sesiones disponibles.
+                            Crea sesiones de entrenamiento primero.
                           </p>
                         )}
                       </div>
                     )}
                   </Droppable>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Calendar */}
           <div className={showSessionList ? 'lg:col-span-3' : 'lg:col-span-4'}>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CalendarIcon className="h-5 w-5" />
-                  <span>Calendar</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="calendar-container">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+              <div className="p-6 border-b border-white/10">
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                  <CalendarIcon className="h-5 w-5 text-violet-400" />
+                  <span>Calendario</span>
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="calendar-container bg-white/5 rounded-xl p-4">
                   <Calendar
                     onChange={handleDateChange}
                     value={selectedDate}
@@ -266,29 +274,29 @@ export default function WorkoutCalendar({
                 </div>
 
                 {/* Legend */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Legend</h4>
+                <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <h4 className="text-sm font-semibold text-white mb-3">Leyenda</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-                      <span>Scheduled</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-blue-500/20 border border-blue-500/50 rounded"></div>
+                      <span className="text-gray-400">Programado</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-                      <span>Completed</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-emerald-500/20 border border-emerald-500/50 rounded"></div>
+                      <span className="text-gray-400">Completado</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
-                      <span>Today</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-orange-500/20 border border-orange-500/50 rounded"></div>
+                      <span className="text-gray-400">Hoy</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-dashed border-gray-300 rounded"></div>
-                      <span>Drop Zone</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-dashed border-white/30 rounded"></div>
+                      <span className="text-gray-400">Zona de Drop</span>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
 
