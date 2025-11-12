@@ -2,9 +2,9 @@
 
 **Plataforma Profesional de Planificación Integral de Entrenamientos**
 
-Una aplicación web completa para diseñar, estructurar, registrar y visualizar rutinas y planes de entrenamiento, enfocada en profesionales del fitness y atletas serios que buscan un enfoque holístico del entrenamiento y la salud.
+Una aplicación web completa para diseñar, estructurar y gestionar programas de entrenamiento, enfocada en profesionales del fitness y atletas serios que buscan un enfoque estructurado y científico del entrenamiento.
 
-> **✨ Ahora con Supabase:** Migrado de Firebase a Supabase para mejor rendimiento, menos costos y queries SQL más eficientes.
+> **✅ Completamente migrado a Supabase:** Backend PostgreSQL con autenticación, RLS security, y real-time sync.
 
 ## 🎯 Características Principales
 
@@ -69,48 +69,55 @@ Una aplicación web completa para diseñar, estructurar, registrar y visualizar 
 ## 🚀 Tecnologías Utilizadas
 
 - **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS 4, CSS Modules
+- **Styling**: Tailwind CSS 4
 - **State Management**: Zustand
 - **Backend**: Supabase (PostgreSQL, Auth, Real-time)
-- **Legacy**: Firebase (en proceso de migración)
-- **Forms**: React Hook Form + Zod
 - **UI Components**: Lucide React, React Calendar
 - **Notifications**: React Hot Toast
 
-### � Ventajas de Supabase
+### 🎯 Ventajas de Supabase
 
-- ✅ **500MB gratis** de base de datos PostgreSQL
-- ✅ **Queries SQL** más eficientes para estadísticas complejas
-- ✅ **Real-time subscriptions** incluidas
-- ✅ **Row Level Security** para máxima seguridad
-- ✅ **Menos costos** a escala vs Firebase
+- ✅ **PostgreSQL** con queries SQL optimizadas
+- ✅ **Row Level Security** para máxima seguridad de datos
+- ✅ **Real-time subscriptions** para sincronización instantánea
+- ✅ **Autenticación integrada** (Google OAuth, Email/Password)
+- ✅ **Triggers automáticos** para gestión de perfiles
 - ✅ **Open source** y self-hostable
 
-## �🏗️ Arquitectura
+## 🏗️ Arquitectura
 
 ```
 src/
-├── app/                 # App Router de Next.js
-│   └── auth/callback/  # Callback de autenticación
-├── components/          # Componentes React
-│   ├── ui/             # Componentes base (Button, Card, etc.)
-│   ├── auth/           # Autenticación
-│   ├── routine/        # Módulos de rutinas
-│   └── *.tsx           # Componentes principales
-├── hooks/              # Custom React Hooks
-├── lib/                # Utilidades y servicios
-│   ├── supabase.ts    # Cliente de Supabase
-│   ├── supabaseService.ts  # Servicio de datos
-│   └── firebase.ts    # Firebase (legacy)
-├── store/              # Estado global (Zustand)
-│   ├── supabaseAuthStore.ts  # Auth de Supabase
-│   └── authStore.ts   # Firebase auth (legacy)
-├── styles/             # Estilos CSS
-└── types/              # Tipos TypeScript
-    └── supabase.ts    # Tipos generados de Supabase
+├── app/                      # App Router de Next.js
+│   ├── page.tsx             # Dashboard principal
+│   ├── layout.tsx           # Layout raíz
+│   └── auth/callback/       # Callback OAuth de Supabase
+├── components/              
+│   ├── ui/                  # Componentes base (Button, Card, Input)
+│   ├── auth/                # Formulario de autenticación
+│   ├── routine/             # Módulos principales (Settings, Profile, MyRoutines)
+│   ├── planner/             # Planificador semanal y sesiones
+│   └── Dashboard*.tsx       # Componentes del dashboard
+├── hooks/                   # Custom React Hooks
+│   ├── useSupabaseAuth.ts   # Hook de autenticación
+│   ├── useSupabaseDashboardData.ts
+│   └── useSupabaseCreateProgram.ts
+├── lib/                        # Utilidades y servicios
+│   ├── supabase.ts            # Cliente de Supabase
+│   ├── supabaseService.ts     # Servicio completo de datos (CRUD)
+│   ├── exerciseService.ts     # Gestión de ejercicios
+│   └── utils.ts               # Utilidades generales
+├── store/                      # Estado global (Zustand)
+│   └── supabaseAuthStore.ts   # Store de autenticación
+├── styles/                     # Estilos CSS por módulo
+└── types/                      # Tipos TypeScript
+    ├── index.ts               # Tipos de la aplicación
+    ├── supabase.ts            # Tipos de base de datos (570+ líneas)
+    └── weekly-planner.ts      # Tipos del planificador
 
 supabase/
-└── schema.sql         # Schema de base de datos
+├── schema.sql                  # Schema completo (11 tablas)
+└── configuracion-final-rls.sql # Configuración de seguridad RLS
 ```
 
 ## 🔧 Instalación y Desarrollo
@@ -170,20 +177,20 @@ npm run start        # Servidor de producción
 npm run lint         # Linting
 ```
 
-## 📚 Guías de Migración
+## 📚 Documentación Adicional
 
-### 🔄 Migrar de Firebase a Supabase
+### � Guía de Integración Supabase
 
-Si estás migrando desde Firebase, consulta la guía completa:
+Consulta el estado completo de la integración:
 
-📖 **[SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md)**
+� **[INTEGRACION-SUPABASE.md](./INTEGRACION-SUPABASE.md)**
 
 Incluye:
-- Setup completo paso a paso
-- Scripts de migración de datos
-- Ejemplos de código
-- Troubleshooting
-- Comparación de costos
+- ✅ Features completadas (100% core, 40% avanzado)
+- ⏳ Features pendientes (calendario, historial, nutrición)
+- 🔧 Configuración de RLS y permisos
+- 🎯 Próximos pasos recomendados
+- 📝 Notas importantes de implementación
 
 ## 📱 Funcionalidades por Módulo
 

@@ -17,7 +17,7 @@ import {
   Eye,
   Loader2
 } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
 import { supabaseService } from '@/lib/supabaseService';
 import { CalendarEvent } from '@/types';
 
@@ -48,7 +48,7 @@ const workoutTypeLabels = {
 };
 
 export function History() {
-  const { user } = useAuthStore();
+  const { user } = useSupabaseAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWorkoutType, setSelectedWorkoutType] = useState<string>('all');
   const [loading, setLoading] = useState(true);

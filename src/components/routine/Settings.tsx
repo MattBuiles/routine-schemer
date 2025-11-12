@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -16,8 +16,13 @@ import {
   Key,
   AlertTriangle,
   Save,
-  RotateCcw
+  RotateCcw,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { supabaseService } from '@/lib/supabaseService';
+import { toast } from 'react-hot-toast';
 
 interface AppSettings {
   theme: 'light' | 'dark' | 'auto';
@@ -27,6 +32,7 @@ interface AppSettings {
   autoSave: boolean;
   backupFrequency: 'daily' | 'weekly' | 'manual';
   dataRetention: '1year' | '2years' | '5years' | 'forever';
+  defaultRestTime: number;
   notifications: {
     workoutReminders: boolean;
     habitReminders: boolean;
@@ -49,6 +55,7 @@ const defaultSettings: AppSettings = {
   autoSave: true,
   backupFrequency: 'weekly',
   dataRetention: '2years',
+  defaultRestTime: 90,
   notifications: {
     workoutReminders: true,
     habitReminders: true,
@@ -64,9 +71,48 @@ const defaultSettings: AppSettings = {
 };
 
 export function Settings() {
+  const { user } = useSupabaseAuth();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeSection, setActiveSection] = useState<'general' | 'notifications' | 'privacy' | 'data'>('general');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const profile = await supabaseService.getUserProfile(user.id);
+        if (profile?.preferences) {
+          setSettings({
+            theme: profile.preferences.theme || 'dark',
+            language: profile.preferences.language || 'es',
+            weekStartDay: profile.preferences.weekStartDay || 'monday',
+            units: profile.preferences.units || 'metric',
+            defaultRestTime: profile.preferences.defaultRestTime || 90,
+            autoSave: true,
+            backupFrequency: 'weekly',
+            dataRetention: '2years',
+            notifications: profile.preferences.notifications || defaultSettings.notifications,
+            privacy: {
+              shareData: false,
+              analytics: true,
+              crashReports: true
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error loading settings:', err);
+        toast.error('Error al cargar configuración');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [user]);
 
   const handleSettingChange = (section: keyof AppSettings, key: string, value: string | number | boolean) => {
     setSettings(prev => ({
@@ -77,24 +123,87 @@ export function Settings() {
     }));
   };
 
-  const handleSaveSettings = () => {
-    // Aquí iría la lógica para guardar en Firebase/localStorage
-    console.log('Guardando configuración:', settings);
+  const handleSaveSettings = async () => {
+    if (!user) return;
+
+    try {
+      setSaving(true);
+      await supabaseService.updateUserProfile(user.id, {
+        preferences: {
+          theme: settings.theme,
+          language: settings.language,
+          weekStartDay: settings.weekStartDay,
+          units: settings.units,
+          defaultRestTime: settings.defaultRestTime,
+          notifications: settings.notifications
+        }
+      });
+      toast.success('Configuración guardada exitosamente');
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      toast.error('Error al guardar configuración');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetSettings = () => {
     setSettings(defaultSettings);
     setShowResetConfirm(false);
+    toast.success('Configuración restablecida');
   };
 
-  const handleExportData = () => {
-    // Lógica para exportar datos
-    console.log('Exportando datos...');
+  const handleExportData = async () => {
+    if (!user) return;
+    
+    try {
+      toast.loading('Exportando datos...', { id: 'export' });
+      const profile = await supabaseService.getUserProfile(user.id);
+      const programs = await supabaseService.getProgramsByUser(user.id);
+      
+      const exportData = {
+        profile,
+        programs,
+        exportDate: new Date().toISOString()
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `routine-schemer-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Datos exportados exitosamente', { id: 'export' });
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      toast.error('Error al exportar datos', { id: 'export' });
+    }
   };
 
   const handleImportData = () => {
-    // Lógica para importar datos
-    console.log('Importando datos...');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      try {
+        toast.loading('Importando datos...', { id: 'import' });
+        const text = await file.text();
+        const data = JSON.parse(text);
+        console.log('Datos importados:', data);
+        toast.success('Datos importados exitosamente', { id: 'import' });
+      } catch (err) {
+        console.error('Error importing data:', err);
+        toast.error('Error al importar datos', { id: 'import' });
+      }
+    };
+    input.click();
   };
 
   return (

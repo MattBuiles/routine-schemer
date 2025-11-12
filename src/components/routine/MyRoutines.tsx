@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import React, { useState } from 'react';
 import { 
   Plus,
   Search,
@@ -10,17 +8,15 @@ import {
   Edit3,
   Copy,
   Trash2,
-  Calendar,
-  Target,
-  Clock,
-  TrendingUp,
   Dumbbell,
   Play,
   Loader2
 } from 'lucide-react';
-import { TrainingProgram } from '@/types';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { Program } from '@/types/program';
+import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
 import { supabaseService } from '@/lib/supabaseService';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import toast from 'react-hot-toast';
 
 interface MyRoutinesProps {
   onCreateNew: () => void;
@@ -28,30 +24,11 @@ interface MyRoutinesProps {
 
 export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
   const { user } = useSupabaseAuth();
+  const { programs, loading, refreshData } = useSupabaseDashboardData();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [routines, setRoutines] = useState<TrainingProgram[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadRoutines = async () => {
-      if (!user) return;
-      
-      try {
-        setLoading(true);
-        const programs = await supabaseService.getTrainingProgramsByUserId(user.id);
-        setRoutines(programs);
-      } catch (err) {
-        console.error('Error loading routines:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadRoutines();
-  }, [user]);
-
-  const filteredRoutines = routines.filter(routine => {
+  const filteredRoutines = programs.filter((routine) => {
     const matchesSearch = routine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          routine.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = selectedFilter === 'all' || 
@@ -61,21 +38,34 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const handleDuplicate = async (routine: TrainingProgram) => {
-    const newRoutine = {
-      ...routine,
-      id: Math.random().toString(36).substr(2, 9),
-      name: `${routine.name} (Copia)`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isActive: false
-    };
-    setRoutines(prev => [newRoutine, ...prev]);
+  const handleDuplicate = async (routine: Program) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para duplicar un programa');
+      return;
+    }
+
+    try {
+      toast.loading('Duplicando programa...', { id: 'duplicate' });
+      await supabaseService.duplicateProgram(routine.id, user.id);
+      await refreshData();
+      toast.success(`Programa "${routine.name}" duplicado exitosamente`, { id: 'duplicate' });
+    } catch (err) {
+      console.error('Error duplicating program:', err);
+      toast.error('Error al duplicar el programa', { id: 'duplicate' });
+    }
   };
 
-  const handleDelete = (routineId: string) => {
+  const handleDelete = async (routineId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar esta rutina? Esta acción no se puede deshacer.')) {
-      setRoutines(prev => prev.filter(routine => routine.id !== routineId));
+      try {
+        toast.loading('Eliminando programa...', { id: 'delete' });
+        await supabaseService.deleteProgram(routineId);
+        await refreshData();
+        toast.success('Programa eliminado exitosamente', { id: 'delete' });
+      } catch (err) {
+        console.error('Error deleting program:', err);
+        toast.error('Error al eliminar el programa', { id: 'delete' });
+      }
     }
   };
 
@@ -186,18 +176,18 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
                   <div className="text-xs text-gray-400">x Semana</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white mb-1">{routine.estimatedDuration}m</div>
-                  <div className="text-xs text-gray-400">Duración</div>
+                  <div className="text-2xl font-bold text-white mb-1">{routine.mesocycles?.length || 0}</div>
+                  <div className="text-xs text-gray-400">Mesociclos</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white mb-1">{routine.duration}w</div>
-                  <div className="text-xs text-gray-400">Programa</div>
+                  <div className="text-2xl font-bold text-white mb-1">{routine.totalWeeks}w</div>
+                  <div className="text-xs text-gray-400">Semanas</div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 mb-6">
                 <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  {getSplitLabel(routine.split)}
+                  {getSplitLabel(routine.splitType)}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(routine.difficulty)}`}>
                   {routine.difficulty === 'beginner' ? 'Principiante' : 

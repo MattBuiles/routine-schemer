@@ -17,7 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { UserProfile, ActivityLevel, ExperienceLevel, TrainingGoal } from '@/types';
-import { useAuthStore } from '@/store/authStore';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
 import { supabaseService } from '@/lib/supabaseService';
 
 const activityLevelLabels = {
@@ -45,7 +45,7 @@ const trainingGoalLabels = {
 };
 
 export function Profile() {
-  const { user } = useAuthStore();
+  const { user } = useSupabaseAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeSection, setActiveSection] = useState<'personal' | 'goals' | 'preferences'>('personal');

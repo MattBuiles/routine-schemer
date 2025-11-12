@@ -6,42 +6,20 @@ import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
 import { Navigation, NavigationView } from '@/components/ui/navigation';
 import { MyRoutines } from '@/components/routine/MyRoutines';
 import CreateProgram from '@/components/routine/CreateProgram';
-import ExerciseLibrary from '@/components/routine/ExerciseLibrary';
-import WorkoutCalendar from '@/components/routine/WorkoutCalendar';
-import { HabitsAndNotes } from '@/components/routine/HabitsAndNotes';
-import { History } from '@/components/routine/History';
 import { Profile } from '@/components/routine/Profile';
 import { Settings } from '@/components/routine/Settings';
-import { Nutrition } from '@/components/routine/Nutrition';
-import { Reports } from '@/components/routine/Reports';
 import { DashboardWeeklyPlanner } from '@/components/DashboardWeeklyPlanner';
-import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
-import { CalendarEvent } from '@/types';
 import { toast } from 'react-hot-toast';
-import { Plus, Calendar, Target, TrendingUp, Activity, Heart, BookOpen, Zap, CheckCircle, LayoutGrid } from 'lucide-react';
+import { Plus, Target, TrendingUp, Activity, Zap, LayoutGrid } from 'lucide-react';
 
 export default function DashboardComplete() {
   const { user, signOut } = useSupabaseAuth();
   const [currentView, setCurrentView] = useState<NavigationView>('dashboard');
-  const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
   const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
 
   const handleViewChange = (view: NavigationView) => {
     setCurrentView(view);
     setShowWeeklyPlanner(false); // Reset planner when switching views
-  };
-
-  const handleAddCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => {
-    const newEvent: CalendarEvent = { ...event, id: Math.random().toString(36).substr(2, 9) };
-    setCalendarEvents(prev => [...prev, newEvent]);
-  };
-
-  const handleUpdateCalendarEvent = (event: CalendarEvent) => {
-    setCalendarEvents(prev => prev.map(e => e.id === event.id ? event : e));
-  };
-
-  const handleDeleteCalendarEvent = (eventId: string) => {
-    setCalendarEvents(prev => prev.filter(e => e.id !== eventId));
   };
 
   const handleProgramCreated = () => {
@@ -50,7 +28,7 @@ export default function DashboardComplete() {
   };
 
   const DashboardHome = () => {
-    const { stats, programs, upcomingEvents, habits, recentSessions, loading, error } = useSupabaseDashboardData();
+    const { stats, programs, loading, error } = useSupabaseDashboardData();
 
     if (loading) {
       return (
@@ -117,12 +95,6 @@ export default function DashboardComplete() {
                     <LayoutGrid className="w-5 h-5" />
                     {showWeeklyPlanner ? 'Vista Tradicional' : 'Planificador Semanal'}
                   </button>
-                  <button 
-                    onClick={() => handleViewChange('reports')}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
-                  >
-                    Ver Análisis
-                  </button>
                 </div>
               </div>
             </div>
@@ -141,12 +113,9 @@ export default function DashboardComplete() {
               </div>
               <h2 className="text-3xl font-bold text-white">Acciones Rápidas</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 gap-5">
               {[
                 { icon: Plus, label: 'Nuevo Programa', view: 'create-program' as NavigationView, gradient: 'from-blue-500 to-cyan-500', emoji: '💪', shadow: 'shadow-blue-500/20' },
-                { icon: Calendar, label: 'Planificación', view: 'planning' as NavigationView, gradient: 'from-violet-500 to-fuchsia-500', emoji: '📅', shadow: 'shadow-violet-500/20' },
-                { icon: BookOpen, label: 'Nutrición', view: 'nutrition' as NavigationView, gradient: 'from-emerald-500 to-teal-500', emoji: '�', shadow: 'shadow-emerald-500/20' },
-                { icon: TrendingUp, label: 'Análisis', view: 'reports' as NavigationView, gradient: 'from-orange-500 to-rose-500', emoji: '📊', shadow: 'shadow-orange-500/20' },
               ].map((action, i) => (
                 <button
                   key={i}
@@ -178,12 +147,11 @@ export default function DashboardComplete() {
               </div>
               <h2 className="text-3xl font-bold text-white">Resumen General</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[
-                { icon: Activity, label: 'Total Entrenamientos', value: stats.totalWorkouts, gradient: 'from-blue-500 to-cyan-500', bgGradient: 'from-blue-500/20 to-cyan-500/20', ring: 'ring-blue-500/30' },
-                { icon: TrendingUp, label: 'Esta Semana', value: stats.weeklyWorkouts, gradient: 'from-emerald-500 to-teal-500', bgGradient: 'from-emerald-500/20 to-teal-500/20', ring: 'ring-emerald-500/30' },
-                { icon: Calendar, label: 'Este Mes', value: stats.monthlyWorkouts, gradient: 'from-violet-500 to-fuchsia-500', bgGradient: 'from-violet-500/20 to-fuchsia-500/20', ring: 'ring-violet-500/30' },
-                { icon: Heart, label: 'Racha Actual', value: `${stats.currentStreak}d`, gradient: 'from-orange-500 to-rose-500', bgGradient: 'from-orange-500/20 to-rose-500/20', ring: 'ring-orange-500/30' },
+                { icon: Activity, label: 'Total Programas', value: stats.totalPrograms, gradient: 'from-blue-500 to-cyan-500', bgGradient: 'from-blue-500/20 to-cyan-500/20', ring: 'ring-blue-500/30' },
+                { icon: TrendingUp, label: 'Programas Activos', value: stats.activePrograms, gradient: 'from-emerald-500 to-teal-500', bgGradient: 'from-emerald-500/20 to-teal-500/20', ring: 'ring-emerald-500/30' },
+                { icon: Target, label: 'Total Semanas', value: stats.totalWeeks, gradient: 'from-violet-500 to-fuchsia-500', bgGradient: 'from-violet-500/20 to-fuchsia-500/20', ring: 'ring-violet-500/30' },
               ].map((stat, i) => (
                 <div
                   key={i}
@@ -263,7 +231,7 @@ export default function DashboardComplete() {
                             {program.sessionsPerWeek}x semana
                           </span>
                           <span className="text-xs bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 text-violet-300 px-4 py-2 rounded-full border border-violet-500/30 font-semibold backdrop-blur-sm">
-                            {program.duration} semanas
+                            {program.mesocycles?.reduce((sum, m) => sum + m.durationWeeks, 0) || 0} semanas
                           </span>
                         </div>
                       </div>
@@ -272,134 +240,10 @@ export default function DashboardComplete() {
                 )}
               </div>
             </div>
-
-            {/* Upcoming Events */}
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                    <Calendar className="w-5 h-5 text-white" strokeWidth={2.5} />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white">Próximos Eventos</h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('planning')}
-                  className="group flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-all duration-300 hover:gap-3"
-                >
-                  Ver calendario
-                  <span className="transform group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-              </div>
-              <div className="space-y-4">
-                {upcomingEvents.length > 0 ? (
-                  upcomingEvents.slice(0, 5).map((event) => (
-                    <div
-                      key={event.id}
-                      className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 hover:border-white/20 p-5 transition-all duration-500 hover:scale-[1.02] shadow-lg hover:shadow-xl cursor-pointer"
-                    >
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 blur-2xl group-hover:scale-150 transition-transform duration-700" />
-                      
-                      <div className="relative z-10 flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-violet-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                          <Calendar className="w-7 h-7 text-white" strokeWidth={2.5} />
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <p className="font-bold text-lg text-white truncate group-hover:text-violet-300 transition-colors">{event.title}</p>
-                          <p className="text-sm text-gray-400 font-medium">
-                            {new Date(event.date).toLocaleDateString('es-ES', { 
-                              weekday: 'long', 
-                              day: 'numeric', 
-                              month: 'long' 
-                            })}
-                          </p>
-                        </div>
-                        {event.completed && (
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-teal-500/20 border border-emerald-500/50 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20">
-                            <CheckCircle className="w-6 h-6 text-emerald-400" strokeWidth={2.5} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-10 text-center shadow-xl">
-                    <div className="absolute top-0 right-0 w-40 h-40 bg-violet-500/10 blur-3xl" />
-                    <div className="relative z-10 space-y-5">
-                      <div className="w-20 h-20 bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-violet-500/20">
-                        <Calendar className="w-10 h-10 text-violet-400" strokeWidth={2.5} />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-gray-300 text-lg font-semibold">No tienes eventos programados</p>
-                        <p className="text-gray-500 text-sm">Organiza tu entrenamiento con el calendario</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Nutrition & Exercise Summary */}
+          {/* Training & Analysis Summary */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Nutrition Summary */}
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                    <BookOpen className="w-5 h-5 text-white" strokeWidth={2.5} />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white">Nutrición</h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('nutrition')}
-                  className="group flex items-center gap-2 text-emerald-400 hover:text-emerald-300 text-sm font-semibold transition-all duration-300 hover:gap-3"
-                >
-                  Ver detalles
-                  <span className="transform group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Nutrition Stats */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-6 shadow-xl">
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-3xl" />
-                  
-                  <div className="relative z-10 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-bold text-white">Plan Actual</h3>
-                      <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-full border border-emerald-500/30">
-                        Activo
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Calorías/día</p>
-                        <p className="text-2xl font-bold text-white">3,200</p>
-                      </div>
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Proteína/día</p>
-                        <p className="text-2xl font-bold text-blue-400">180g</p>
-                      </div>
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Carbohidratos</p>
-                        <p className="text-2xl font-bold text-orange-400">400g</p>
-                      </div>
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Grasas</p>
-                        <p className="text-2xl font-bold text-violet-400">90g</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-xl border border-emerald-500/30">
-                      <span className="text-sm text-gray-300">Planes guardados</span>
-                      <span className="text-2xl font-bold text-emerald-400">2</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Training Focus Summary */}
             <div className="space-y-5">
               <div className="flex items-center justify-between">
@@ -429,49 +273,34 @@ export default function DashboardComplete() {
                     <div className="space-y-3">
                       {programs.length > 0 ? (
                         (() => {
-                          // Calcular distribución de tipos de entrenamiento
-                          const typeCount: { [key: string]: number } = {};
-                          programs.forEach(program => {
-                            program.workoutSessions?.forEach(session => {
-                              const type = session.type;
-                              typeCount[type] = (typeCount[type] || 0) + 1;
-                            });
-                          });
+                          // Calcular sesiones por semana desde weekly splits
+                          const totalSessionsPerWeek = programs.reduce((sum, p) => sum + p.sessionsPerWeek, 0);
+                          const avgSessionsPerWeek = programs.length > 0 ? (totalSessionsPerWeek / programs.length).toFixed(1) : 0;
 
-                          const trainingTypes = [
-                            { name: 'Fuerza', key: 'strength', color: 'from-blue-500 to-cyan-500', icon: '💪' },
-                            { name: 'Hipertrofia', key: 'hypertrophy', color: 'from-emerald-500 to-teal-500', icon: '🏋️' },
-                            { name: 'Resistencia', key: 'endurance', color: 'from-violet-500 to-fuchsia-500', icon: '🏃' },
-                            { name: 'Cardio', key: 'cardio', color: 'from-orange-500 to-rose-500', icon: '❤️' }
+                          const trainingStats = [
+                            { name: 'Sesiones/Semana', value: avgSessionsPerWeek, color: 'from-blue-500 to-cyan-500', icon: '💪' },
+                            { name: 'Programas Activos', value: stats.activePrograms, color: 'from-emerald-500 to-teal-500', icon: '🏋️' },
+                            { name: 'Semanas Totales', value: stats.totalWeeks, color: 'from-violet-500 to-fuchsia-500', icon: '📅' },
                           ];
-
-                          const totalSessions = programs.reduce((sum, p) => sum + p.sessionsPerWeek, 0);
 
                           return (
                             <>
-                              {trainingTypes.map((type, i) => {
-                                const count = typeCount[type.key] || 0;
-                                if (count === 0 && i > 1) return null; // Solo mostrar los principales
+                              {trainingStats.map((stat, i) => {
                                 return (
                                   <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all group cursor-pointer">
                                     <div className="flex items-center gap-3">
-                                      <span className="text-2xl">{type.icon}</span>
+                                      <span className="text-2xl">{stat.icon}</span>
                                       <div>
-                                        <p className="text-gray-300 font-medium group-hover:text-white transition-colors">{type.name}</p>
-                                        <div className={`h-1 w-16 bg-gradient-to-r ${type.color} rounded-full mt-1`}></div>
+                                        <p className="text-gray-300 font-medium group-hover:text-white transition-colors">{stat.name}</p>
+                                        <div className={`h-1 w-16 bg-gradient-to-r ${stat.color} rounded-full mt-1`}></div>
                                       </div>
                                     </div>
                                     <div className="text-right">
-                                      <span className="text-2xl font-bold text-white">{count}</span>
-                                      <p className="text-xs text-gray-400">sesiones</p>
+                                      <span className="text-2xl font-bold text-white">{stat.value}</span>
                                     </div>
                                   </div>
                                 );
                               })}
-                              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-500/10 to-rose-500/10 rounded-xl border border-orange-500/30">
-                                <span className="text-sm text-gray-300">Total sesiones/semana</span>
-                                <span className="text-2xl font-bold text-orange-400">{totalSessions}</span>
-                              </div>
                             </>
                           );
                         })()
@@ -509,172 +338,6 @@ export default function DashboardComplete() {
               </div>
             </div>
           </div>
-
-          {/* Activity Records & Analysis */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {/* Records Summary */}
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <Activity className="w-5 h-5 text-white" strokeWidth={2.5} />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white">Registro de Actividad</h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('records')}
-                  className="group flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-semibold transition-all duration-300 hover:gap-3"
-                >
-                  Ver historial
-                  <span className="transform group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Recent Sessions */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-6 shadow-xl">
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 blur-3xl" />
-                  
-                  <div className="relative z-10 space-y-4">
-                    <h3 className="text-xl font-bold text-white">Últimas Sesiones</h3>
-                    
-                    <div className="space-y-3">
-                      {recentSessions && recentSessions.length > 0 ? (
-                        recentSessions.slice(0, 3).map((session) => (
-                          <div key={session.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all group cursor-pointer">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shadow-lg">
-                                <CheckCircle className="w-5 h-5 text-white" />
-                              </div>
-                              <div>
-                                <p className="text-white font-semibold group-hover:text-blue-300 transition-colors">{session.name}</p>
-                                <p className="text-xs text-gray-400">
-                                  {session.type} • {session.estimatedDuration} min
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-6">
-                          <p className="text-gray-400 text-sm">No hay sesiones registradas aún</p>
-                          <p className="text-gray-500 text-xs mt-1">Comienza a registrar tus entrenamientos</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-violet-500/10 rounded-xl border border-blue-500/30">
-                      <span className="text-sm text-gray-300">Sesiones registradas</span>
-                      <span className="text-2xl font-bold text-blue-400">{stats.totalWorkouts}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Analysis Summary */}
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                    <TrendingUp className="w-5 h-5 text-white" strokeWidth={2.5} />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white">Análisis y Progreso</h2>
-                </div>
-                <button
-                  onClick={() => handleViewChange('reports')}
-                  className="group flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-all duration-300 hover:gap-3"
-                >
-                  Ver reportes
-                  <span className="transform group-hover:translate-x-1 transition-transform">→</span>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Analysis Stats */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-6 shadow-xl">
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-violet-500/10 blur-3xl" />
-                  
-                  <div className="relative z-10 space-y-6">
-                    <h3 className="text-xl font-bold text-white">Resumen del Mes</h3>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Entrenamientos</p>
-                        <p className="text-2xl font-bold text-white">{stats.monthlyWorkouts}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <TrendingUp className="w-3 h-3 text-emerald-400" />
-                          <span className="text-xs text-emerald-400">Este mes</span>
-                        </div>
-                      </div>
-                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                        <p className="text-gray-400 text-xs mb-1">Esta Semana</p>
-                        <p className="text-2xl font-bold text-violet-400">{stats.weeklyWorkouts}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <TrendingUp className="w-3 h-3 text-emerald-400" />
-                          <span className="text-xs text-emerald-400">Activo</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-400 font-medium">Progreso</p>
-                      {programs.length > 0 ? (
-                        programs.slice(0, 2).map((program, i) => {
-                          const progress = Math.min(100, Math.round((stats.weeklyWorkouts / program.sessionsPerWeek) * 100));
-                          const colors = [
-                            'from-red-500 to-orange-500',
-                            'from-blue-500 to-violet-500',
-                            'from-emerald-500 to-teal-500'
-                          ];
-                          return (
-                            <div key={program.id}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-gray-300 truncate max-w-[150px]">{program.name}</span>
-                                <span className="text-white font-semibold">{progress}%</span>
-                              </div>
-                              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full bg-gradient-to-r ${colors[i % colors.length]} rounded-full transition-all duration-500`}
-                                  style={{ width: `${progress}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <>
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-300">Fuerza</span>
-                              <span className="text-white font-semibold">0%</span>
-                            </div>
-                            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all duration-500" style={{ width: '0%' }}></div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-xs mb-1">
-                              <span className="text-gray-300">Hipertrofia</span>
-                              <span className="text-white font-semibold">0%</span>
-                            </div>
-                            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-500" style={{ width: '0%' }}></div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-xl border border-violet-500/30">
-                      <span className="text-sm text-gray-300">Racha Actual</span>
-                      <span className="text-2xl font-bold text-violet-400">{stats.currentStreak}d</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
             </>
           )}
         </div>
@@ -689,17 +352,7 @@ export default function DashboardComplete() {
       case 'programs':
         return <MyRoutines onCreateNew={() => setCurrentView('create-program')} />;
       case 'create-program':
-        return <CreateProgram onProgramCreated={handleProgramCreated} onCancel={() => setCurrentView('programs')} />;
-      case 'planning':
-        return <WorkoutCalendar events={calendarEvents} onEventAdd={handleAddCalendarEvent} onEventUpdate={handleUpdateCalendarEvent} onEventDelete={handleDeleteCalendarEvent} availableSessions={sampleWorkoutSessions} />;
-      case 'exercises':
-        return <ExerciseLibrary />;
-      case 'nutrition':
-        return <Nutrition />;
-      case 'records':
-        return <History />;
-      case 'reports':
-        return <Reports />;
+        return <CreateProgram onProgramCreated={handleProgramCreated} onBack={() => setCurrentView('programs')} />;
       case 'profile':
         return <Profile />;
       case 'settings':

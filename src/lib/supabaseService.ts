@@ -1,17 +1,148 @@
 import { supabase } from './supabase';
 import { 
-  TrainingProgram, 
-  WorkoutSession, 
-  CalendarEvent, 
   UserProfile,
-  Habit,
-  HabitRecord,
-  Note,
   Exercise,
-  WorkoutExercise,
-  Mesocycle,
-  Microcycle
 } from '@/types';
+import { 
+  Program,
+  SessionTemplate,
+  SessionExercise,
+  WeeklySplit,
+  WeeklySplitDay,
+  Mesocycle,
+  MesocycleWeek,
+  ProgressionRule,
+  PhaseType,
+  SessionType,
+  SplitType,
+  DayOfWeek
+} from '@/types/program';
+
+// ============================================
+// TYPE MAPPERS (DB <-> App)
+// ============================================
+
+function mapDbProgram(dbData: any): Program {
+  return {
+    id: dbData.id,
+    userId: dbData.user_id,
+    name: dbData.name,
+    description: dbData.description,
+    splitType: dbData.split_type,
+    totalWeeks: dbData.total_weeks,
+    sessionsPerWeek: dbData.sessions_per_week,
+    mesocycles: [],
+    sessionTemplates: [],
+    weeklySplits: [],
+    progressionRules: [],
+    isActive: dbData.is_active,
+    isTemplate: dbData.is_template,
+    tags: dbData.tags || [],
+    difficulty: dbData.difficulty || 'intermediate',
+    createdAt: new Date(dbData.created_at),
+    updatedAt: new Date(dbData.updated_at),
+  };
+}
+
+function mapDbSessionTemplate(dbData: any): SessionTemplate {
+  return {
+    id: dbData.id,
+    name: dbData.name,
+    type: dbData.type,
+    focus: dbData.focus || [],
+    exercises: [],
+    estimatedDurationMinutes: dbData.estimated_duration_minutes || 60,
+    estimatedVolume: dbData.estimated_volume || 0,
+    color: dbData.color || '#3b82f6',
+    icon: dbData.icon,
+    notes: dbData.notes,
+    tags: dbData.tags || [],
+    createdAt: new Date(dbData.created_at),
+    updatedAt: new Date(dbData.updated_at),
+  };
+}
+
+function mapDbSessionExercise(dbData: any): SessionExercise {
+  return {
+    id: dbData.id,
+    exerciseId: dbData.exercise_id || '',
+    exerciseName: dbData.exercise_name,
+    sets: dbData.sets,
+    reps: dbData.reps,
+    intensityPercent: dbData.intensity_percent,
+    tempo: dbData.tempo,
+    restSeconds: dbData.rest_seconds,
+    rpe: dbData.rpe,
+    notes: dbData.notes,
+    order: dbData.order_index,
+    primaryMuscles: dbData.primary_muscles || [],
+    secondaryMuscles: dbData.secondary_muscles || [],
+  };
+}
+
+function mapDbWeeklySplit(dbData: any): WeeklySplit {
+  return {
+    id: dbData.id,
+    name: dbData.name,
+    type: dbData.type,
+    days: [],
+    totalSessionsPerWeek: dbData.total_sessions_per_week,
+    estimatedWeeklyVolume: dbData.estimated_weekly_volume || 0,
+    createdAt: new Date(dbData.created_at),
+    updatedAt: new Date(dbData.updated_at),
+  };
+}
+
+function mapDbWeeklySplitDay(dbData: any): WeeklySplitDay {
+  return {
+    dayOfWeek: dbData.day_of_week,
+    sessionTemplateId: dbData.session_template_id,
+    isRestDay: dbData.is_rest_day,
+    notes: dbData.notes,
+  };
+}
+
+function mapDbMesocycle(dbData: any): Mesocycle {
+  return {
+    id: dbData.id,
+    name: dbData.name,
+    phase: dbData.phase,
+    goal: dbData.goal,
+    durationWeeks: dbData.duration_weeks,
+    weeks: [],
+    baseIntensityPercent: dbData.base_intensity_percent || 70,
+    baseVolumeMultiplier: dbData.base_volume_multiplier || 1.0,
+    color: dbData.color || '#3b82f6',
+    order: dbData.order,
+    notes: dbData.notes,
+    createdAt: new Date(dbData.created_at),
+    updatedAt: new Date(dbData.updated_at),
+  };
+}
+
+function mapDbMesocycleWeek(dbData: any): MesocycleWeek {
+  return {
+    weekNumber: dbData.week_number,
+    weeklySplitId: dbData.weekly_split_id,
+    progressionModifier: dbData.progression_modifier || 1.0,
+    intensityModifier: dbData.intensity_modifier || 1.0,
+    volumeModifier: dbData.volume_modifier || 1.0,
+    notes: dbData.notes,
+  };
+}
+
+function mapDbProgressionRule(dbData: any): ProgressionRule {
+  return {
+    id: dbData.id,
+    type: dbData.type,
+    variable: dbData.variable,
+    startValue: dbData.start_value,
+    incrementPerWeek: dbData.increment_per_week,
+    incrementPerMesocycle: dbData.increment_per_mesocycle,
+    capValue: dbData.cap_value,
+    deloadReduction: dbData.deload_reduction,
+  };
+}
 
 export class SupabaseService {
   // ============================================
@@ -21,7 +152,7 @@ export class SupabaseService {
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select('*, user_goals(goal)')
+      .select('*')
       .eq('id', userId)
       .single();
 
@@ -32,20 +163,28 @@ export class SupabaseService {
 
     if (!data) return null;
 
+    const profileData = data as any;
+
+    // Obtener goals por separado
+    const { data: goalsData } = await supabase
+      .from('user_goals')
+      .select('goal')
+      .eq('user_id', userId);
+
     return {
-      id: data.id,
-      userId: data.id,
-      age: data.age ?? undefined,
-      weight: data.weight ?? undefined,
-      height: data.height ?? undefined,
-      bodyFat: data.body_fat ?? undefined,
-      activityLevel: data.activity_level || 'moderately_active',
-      goals: (data.user_goals as any[])?.map((g: any) => g.goal) || [],
-      experience: data.experience || 'beginner',
-      preferences: data.preferences as any,
-      weeklyGoal: data.weekly_goal ?? undefined,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      id: profileData.id,
+      userId: profileData.id,
+      age: profileData.age ?? undefined,
+      weight: profileData.weight ?? undefined,
+      height: profileData.height ?? undefined,
+      bodyFat: profileData.body_fat ?? undefined,
+      activityLevel: profileData.activity_level || 'moderately_active',
+      goals: goalsData?.map((g: any) => g.goal) || [],
+      experience: profileData.experience || 'beginner',
+      preferences: profileData.preferences,
+      weeklyGoal: profileData.weekly_goal ?? undefined,
+      createdAt: new Date(profileData.created_at),
+      updatedAt: new Date(profileData.updated_at),
     };
   }
 
@@ -87,774 +226,801 @@ export class SupabaseService {
   }
 
   // ============================================
-  // TRAINING PROGRAMS
-  // ============================================
-  
-  async createTrainingProgram(program: Omit<TrainingProgram, 'id' | 'createdAt' | 'updatedAt'>): Promise<TrainingProgram> {
-    const { data, error } = await supabase
-      .from('training_programs')
-      .insert({
-        user_id: program.userId,
-        name: program.name,
-        description: program.description,
-        split: program.split,
-        goal: program.goal,
-        duration: program.duration,
-        sessions_per_week: program.sessionsPerWeek,
-        estimated_duration: program.estimatedDuration,
-        difficulty: program.difficulty,
-        is_public: program.isPublic,
-        is_active: program.isActive,
-        tags: program.tags,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating training program:', error);
-      throw error;
-    }
-
-    return this.mapDbToTrainingProgram(data);
-  }
-
-  async getTrainingProgramsByUserId(userId: string): Promise<TrainingProgram[]> {
-    const { data, error } = await supabase
-      .from('training_programs')
-      .select(`
-        *,
-        workout_sessions(
-          *,
-          workout_exercises(
-            *,
-            exercises(*)
-          )
-        ),
-        mesocycles(
-          *,
-          microcycles(*)
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching training programs:', error);
-      throw error;
-    }
-
-    return data.map(this.mapDbToTrainingProgram);
-  }
-
-  async updateTrainingProgram(programId: string, updates: Partial<TrainingProgram>): Promise<void> {
-    const { error } = await supabase
-      .from('training_programs')
-      .update({
-        name: updates.name,
-        description: updates.description,
-        split: updates.split,
-        goal: updates.goal,
-        duration: updates.duration,
-        sessions_per_week: updates.sessionsPerWeek,
-        estimated_duration: updates.estimatedDuration,
-        difficulty: updates.difficulty,
-        is_public: updates.isPublic,
-        is_active: updates.isActive,
-        tags: updates.tags,
-      })
-      .eq('id', programId);
-
-    if (error) {
-      console.error('Error updating training program:', error);
-      throw error;
-    }
-  }
-
-  async deleteTrainingProgram(programId: string): Promise<void> {
-    const { error } = await supabase
-      .from('training_programs')
-      .delete()
-      .eq('id', programId);
-
-    if (error) {
-      console.error('Error deleting training program:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // WORKOUT SESSIONS
-  // ============================================
-  
-  async createWorkoutSession(session: Omit<WorkoutSession, 'id' | 'createdAt' | 'updatedAt'>, programId?: string): Promise<WorkoutSession> {
-    const { data, error } = await supabase
-      .from('workout_sessions')
-      .insert({
-        program_id: programId,
-        user_id: (await supabase.auth.getUser()).data.user?.id!,
-        name: session.name,
-        type: session.type,
-        estimated_duration: session.estimatedDuration,
-        notes: session.notes,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating workout session:', error);
-      throw error;
-    }
-
-    // Insert exercises
-    if (session.exercises && session.exercises.length > 0) {
-      const exercisesToInsert = session.exercises.map((ex, index) => ({
-        session_id: data.id,
-        exercise_id: ex.exerciseId,
-        sets: ex.sets,
-        reps: ex.reps,
-        weight: ex.weight,
-        rest_time: ex.restTime,
-        notes: ex.notes,
-        order_index: index,
-      }));
-
-      await supabase.from('workout_exercises').insert(exercisesToInsert);
-    }
-
-    return this.getWorkoutSessionById(data.id);
-  }
-
-  async getWorkoutSessionById(sessionId: string): Promise<WorkoutSession> {
-    const { data, error } = await supabase
-      .from('workout_sessions')
-      .select(`
-        *,
-        workout_exercises(
-          *,
-          exercises(*)
-        )
-      `)
-      .eq('id', sessionId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching workout session:', error);
-      throw error;
-    }
-
-    return this.mapDbToWorkoutSession(data);
-  }
-
-  async getWorkoutSessionsByUserId(userId: string): Promise<WorkoutSession[]> {
-    const { data, error } = await supabase
-      .from('workout_sessions')
-      .select(`
-        *,
-        workout_exercises(
-          *,
-          exercises(*)
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching workout sessions:', error);
-      throw error;
-    }
-
-    return data.map((session) => this.mapDbToWorkoutSession(session));
-  }
-
-  async updateWorkoutSession(sessionId: string, updates: Partial<WorkoutSession>): Promise<void> {
-    const { error } = await supabase
-      .from('workout_sessions')
-      .update({
-        name: updates.name,
-        type: updates.type,
-        estimated_duration: updates.estimatedDuration,
-        notes: updates.notes,
-      })
-      .eq('id', sessionId);
-
-    if (error) {
-      console.error('Error updating workout session:', error);
-      throw error;
-    }
-  }
-
-  async deleteWorkoutSession(sessionId: string): Promise<void> {
-    const { error } = await supabase
-      .from('workout_sessions')
-      .delete()
-      .eq('id', sessionId);
-
-    if (error) {
-      console.error('Error deleting workout session:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // CALENDAR EVENTS
-  // ============================================
-  
-  async createCalendarEvent(event: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>): Promise<CalendarEvent> {
-    const { data, error } = await supabase
-      .from('calendar_events')
-      .insert({
-        user_id: event.userId,
-        date: event.date,
-        time: event.time,
-        title: event.title,
-        type: event.type,
-        duration: event.duration,
-        description: event.description,
-        session_id: event.sessionId,
-        completed: event.completed ?? false,
-        actual_duration: event.actualDuration,
-        notes: event.notes,
-        category: event.category,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating calendar event:', error);
-      throw error;
-    }
-
-    return this.mapDbToCalendarEvent(data);
-  }
-
-  async getCalendarEventsByUserId(userId: string, startDate?: string, endDate?: string): Promise<CalendarEvent[]> {
-    let query = supabase
-      .from('calendar_events')
-      .select(`
-        *,
-        workout_sessions(
-          *,
-          workout_exercises(
-            *,
-            exercises(*)
-          )
-        )
-      `)
-      .eq('user_id', userId);
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
-    const { data, error } = await query.order('date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching calendar events:', error);
-      throw error;
-    }
-
-    return data.map(this.mapDbToCalendarEvent);
-  }
-
-  async updateCalendarEvent(eventId: string, updates: Partial<CalendarEvent>): Promise<void> {
-    const { error } = await supabase
-      .from('calendar_events')
-      .update({
-        date: updates.date,
-        time: updates.time,
-        title: updates.title,
-        type: updates.type,
-        duration: updates.duration,
-        description: updates.description,
-        completed: updates.completed,
-        actual_duration: updates.actualDuration,
-        notes: updates.notes,
-        category: updates.category,
-      })
-      .eq('id', eventId);
-
-    if (error) {
-      console.error('Error updating calendar event:', error);
-      throw error;
-    }
-  }
-
-  async deleteCalendarEvent(eventId: string): Promise<void> {
-    const { error } = await supabase
-      .from('calendar_events')
-      .delete()
-      .eq('id', eventId);
-
-    if (error) {
-      console.error('Error deleting calendar event:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // HABITS
-  // ============================================
-  
-  async createHabit(habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>): Promise<Habit> {
-    const { data, error } = await supabase
-      .from('habits')
-      .insert({
-        user_id: habit.userId,
-        name: habit.name,
-        description: habit.description,
-        type: habit.type,
-        target: habit.target,
-        unit: habit.unit,
-        color: habit.color,
-        icon: habit.icon,
-        is_active: habit.isActive,
-        is_favorite: habit.isFavorite ?? false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating habit:', error);
-      throw error;
-    }
-
-    return this.mapDbToHabit(data);
-  }
-
-  async getHabitsByUserId(userId: string): Promise<Habit[]> {
-    const { data, error } = await supabase
-      .from('habits')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching habits:', error);
-      throw error;
-    }
-
-    return data.map(this.mapDbToHabit);
-  }
-
-  async updateHabit(habitId: string, updates: Partial<Habit>): Promise<void> {
-    const { error } = await supabase
-      .from('habits')
-      .update({
-        name: updates.name,
-        description: updates.description,
-        type: updates.type,
-        target: updates.target,
-        unit: updates.unit,
-        color: updates.color,
-        icon: updates.icon,
-        is_active: updates.isActive,
-        is_favorite: updates.isFavorite,
-      })
-      .eq('id', habitId);
-
-    if (error) {
-      console.error('Error updating habit:', error);
-      throw error;
-    }
-  }
-
-  async deleteHabit(habitId: string): Promise<void> {
-    const { error } = await supabase
-      .from('habits')
-      .delete()
-      .eq('id', habitId);
-
-    if (error) {
-      console.error('Error deleting habit:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // HABIT RECORDS
-  // ============================================
-  
-  async createHabitRecord(record: Omit<HabitRecord, 'id' | 'createdAt'>): Promise<HabitRecord> {
-    const { data, error } = await supabase
-      .from('habit_records')
-      .insert({
-        habit_id: record.habitId,
-        user_id: record.userId,
-        date: record.date,
-        value: record.value,
-        notes: record.notes,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating habit record:', error);
-      throw error;
-    }
-
-    return this.mapDbToHabitRecord(data);
-  }
-
-  async getHabitRecords(habitId: string, startDate?: string, endDate?: string): Promise<HabitRecord[]> {
-    let query = supabase
-      .from('habit_records')
-      .select('*')
-      .eq('habit_id', habitId);
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
-    const { data, error } = await query.order('date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching habit records:', error);
-      throw error;
-    }
-
-    return data.map(this.mapDbToHabitRecord);
-  }
-
-  async updateHabitRecord(recordId: string, updates: Partial<HabitRecord>): Promise<void> {
-    const { error } = await supabase
-      .from('habit_records')
-      .update({
-        value: updates.value,
-        notes: updates.notes,
-      })
-      .eq('id', recordId);
-
-    if (error) {
-      console.error('Error updating habit record:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
-  // NOTES
-  // ============================================
-  
-  async createNote(note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
-    const { data, error } = await supabase
-      .from('notes')
-      .insert({
-        user_id: note.userId,
-        title: note.title,
-        content: note.content,
-        type: note.type,
-        tags: note.tags,
-        workout_session_id: note.workoutSessionId,
-        is_pinned: note.isPinned,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating note:', error);
-      throw error;
-    }
-
-    return this.mapDbToNote(data);
-  }
-
-  async getNotesByUserId(userId: string): Promise<Note[]> {
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('user_id', userId)
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching notes:', error);
-      throw error;
-    }
-
-    return data.map(this.mapDbToNote);
-  }
-
-  async updateNote(noteId: string, updates: Partial<Note>): Promise<void> {
-    const { error } = await supabase
-      .from('notes')
-      .update({
-        title: updates.title,
-        content: updates.content,
-        type: updates.type,
-        tags: updates.tags,
-        is_pinned: updates.isPinned,
-      })
-      .eq('id', noteId);
-
-    if (error) {
-      console.error('Error updating note:', error);
-      throw error;
-    }
-  }
-
-  async deleteNote(noteId: string): Promise<void> {
-    const { error } = await supabase
-      .from('notes')
-      .delete()
-      .eq('id', noteId);
-
-    if (error) {
-      console.error('Error deleting note:', error);
-      throw error;
-    }
-  }
-
-  // ============================================
   // EXERCISES
   // ============================================
-  
-  async getExercises(filters?: { bodyPart?: string; equipment?: string; target?: string; search?: string }): Promise<Exercise[]> {
-    let query = supabase.from('exercises').select('*');
 
-    if (filters?.bodyPart) {
+  async getExercises(): Promise<Exercise[]> {
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching exercises:', error);
+      return [];
+    }
+
+    return (data || []).map(ex => ({
+      id: ex.id,
+      name: ex.name,
+      bodyPart: ex.body_part,
+      equipment: ex.equipment,
+      target: ex.target,
+      instructions: ex.instructions || [],
+      gifUrl: ex.gif_url,
+      secondaryMuscles: ex.secondary_muscles || [],
+    }));
+  }
+
+  async searchExercises(filters: {
+    bodyPart?: string;
+    equipment?: string;
+    search?: string;
+  }): Promise<Exercise[]> {
+    let query = supabase
+      .from('exercises')
+      .select('*');
+
+    if (filters.bodyPart) {
       query = query.eq('body_part', filters.bodyPart);
     }
-    if (filters?.equipment) {
+
+    if (filters.equipment) {
       query = query.eq('equipment', filters.equipment);
     }
-    if (filters?.target) {
-      query = query.eq('target', filters.target);
-    }
-    if (filters?.search) {
+
+    if (filters.search) {
       query = query.ilike('name', `%${filters.search}%`);
     }
 
     const { data, error } = await query.order('name');
 
     if (error) {
-      console.error('Error fetching exercises:', error);
-      throw error;
+      console.error('Error searching exercises:', error);
+      return [];
     }
 
-    return data.map(this.mapDbToExercise);
+    return (data || []).map(ex => ({
+      id: ex.id,
+      name: ex.name,
+      bodyPart: ex.body_part,
+      equipment: ex.equipment,
+      target: ex.target,
+      instructions: ex.instructions || [],
+      gifUrl: ex.gif_url,
+      secondaryMuscles: ex.secondary_muscles || [],
+    }));
   }
 
-  async getExerciseById(exerciseId: string): Promise<Exercise | null> {
+  // ============================================
+  // TRAINING PROGRAMS - CRUD
+  // ============================================
+  
+  async createProgram(programData: {
+    userId: string;
+    name: string;
+    description?: string;
+    splitType: SplitType;
+    totalWeeks: number;
+    sessionsPerWeek: number;
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
+    tags?: string[];
+  }): Promise<string> {
     const { data, error } = await supabase
-      .from('exercises')
-      .select('*')
-      .eq('id', exerciseId)
+      .from('training_programs')
+      .insert({
+        user_id: programData.userId,
+        name: programData.name,
+        description: programData.description,
+        split_type: programData.splitType,
+        total_weeks: programData.totalWeeks,
+        sessions_per_week: programData.sessionsPerWeek,
+        difficulty: programData.difficulty || 'intermediate',
+        tags: programData.tags || [],
+        is_active: false,
+        is_template: false,
+        is_public: false,
+      })
+      .select('id')
       .single();
 
     if (error) {
-      console.error('Error fetching exercise:', error);
+      console.error('Error creating program:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getProgram(programId: string): Promise<Program | null> {
+    const { data, error } = await supabase
+      .from('training_programs')
+      .select('*')
+      .eq('id', programId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching program:', error);
       return null;
     }
 
-    return this.mapDbToExercise(data);
+    if (!data) return null;
+
+    const program = mapDbProgram(data);
+
+    // Load all related data
+    const [sessionTemplates, weeklySplits, mesocycles, progressionRules] = await Promise.all([
+      this.getSessionTemplatesByProgram(programId),
+      this.getWeeklySplitsByProgram(programId),
+      this.getMesocyclesByProgram(programId),
+      this.getProgressionRulesByProgram(programId),
+    ]);
+
+    program.sessionTemplates = sessionTemplates;
+    program.weeklySplits = weeklySplits;
+    program.mesocycles = mesocycles;
+    program.progressionRules = progressionRules;
+
+    return program;
+  }
+
+  async getProgramsByUser(userId: string): Promise<Program[]> {
+    const { data, error } = await supabase
+      .from('training_programs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching programs:', error);
+      return [];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const programs = (data as any[]) || [];
+    return programs.map(mapDbProgram);
+  }
+
+  async updateProgram(programId: string, updates: Partial<Program>): Promise<void> {
+    const { error } = await supabase
+      .from('training_programs')
+      .update({
+        name: updates.name,
+        description: updates.description,
+        split_type: updates.splitType,
+        total_weeks: updates.totalWeeks,
+        sessions_per_week: updates.sessionsPerWeek,
+        difficulty: updates.difficulty,
+        tags: updates.tags,
+        is_active: updates.isActive,
+      })
+      .eq('id', programId);
+
+    if (error) {
+      console.error('Error updating program:', error);
+      throw error;
+    }
+  }
+
+  async deleteProgram(programId: string): Promise<void> {
+    const { error } = await supabase
+      .from('training_programs')
+      .delete()
+      .eq('id', programId);
+
+    if (error) {
+      console.error('Error deleting program:', error);
+      throw error;
+    }
+  }
+
+  async duplicateProgram(programId: string, userId: string): Promise<string> {
+    // Obtener el programa original con todos sus datos
+    const originalProgram = await this.getProgram(programId);
+    if (!originalProgram) {
+      throw new Error('Program not found');
+    }
+
+    // Crear una copia del programa con nuevo nombre
+    const duplicatedProgramData = {
+      userId,
+      name: `${originalProgram.name} (Copia)`,
+      description: originalProgram.description,
+      splitType: originalProgram.splitType,
+      totalWeeks: originalProgram.totalWeeks,
+      sessionsPerWeek: originalProgram.sessionsPerWeek,
+      difficulty: originalProgram.difficulty,
+      tags: originalProgram.tags,
+      sessionTemplates: originalProgram.sessionTemplates,
+      weeklySplit: originalProgram.weeklySplits[0], // Usar el primer split
+      mesocycles: originalProgram.mesocycles,
+      progressionRules: originalProgram.progressionRules,
+    };
+
+    // Usar createCompleteProgram para duplicar todo
+    const newProgramId = await this.createCompleteProgram(duplicatedProgramData);
+    return newProgramId;
   }
 
   // ============================================
-  // REAL-TIME SUBSCRIPTIONS
+  // SESSION TEMPLATES
   // ============================================
-  
-  subscribeToCalendarEvents(userId: string, callback: (events: CalendarEvent[]) => void) {
-    return supabase
-      .channel('calendar_events')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calendar_events',
-          filter: `user_id=eq.${userId}`,
-        },
-        async () => {
-          const events = await this.getCalendarEventsByUserId(userId);
-          callback(events);
+
+  async createSessionTemplate(templateData: {
+    programId: string;
+    userId: string;
+    name: string;
+    type: SessionType;
+    focus?: string[];
+    estimatedDurationMinutes?: number;
+    color?: string;
+    notes?: string;
+  }): Promise<string> {
+    const { data, error } = await supabase
+      .from('session_templates')
+      .insert({
+        program_id: templateData.programId,
+        user_id: templateData.userId,
+        name: templateData.name,
+        type: templateData.type,
+        focus: templateData.focus || [],
+        estimated_duration_minutes: templateData.estimatedDurationMinutes || 60,
+        color: templateData.color || '#3b82f6',
+        notes: templateData.notes,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating session template:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getSessionTemplatesByProgram(programId: string): Promise<SessionTemplate[]> {
+    const { data, error } = await supabase
+      .from('session_templates')
+      .select('*')
+      .eq('program_id', programId)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching session templates:', error);
+      return [];
+    }
+
+    const templates = (data || []).map(mapDbSessionTemplate);
+
+    // Load exercises for each template
+    await Promise.all(
+      templates.map(async (template) => {
+        template.exercises = await this.getSessionExercises(template.id);
+      })
+    );
+
+    return templates;
+  }
+
+  async deleteSessionTemplate(templateId: string): Promise<void> {
+    const { error } = await supabase
+      .from('session_templates')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) {
+      console.error('Error deleting session template:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // SESSION EXERCISES
+  // ============================================
+
+  async createSessionExercise(exerciseData: {
+    sessionTemplateId: string;
+    exerciseId?: string;
+    exerciseName: string;
+    sets: number;
+    reps: string;
+    intensityPercent?: number;
+    restSeconds: number;
+    orderIndex: number;
+    primaryMuscles?: string[];
+    secondaryMuscles?: string[];
+    notes?: string;
+  }): Promise<string> {
+    const { data, error } = await supabase
+      .from('session_exercises')
+      .insert({
+        session_template_id: exerciseData.sessionTemplateId,
+        exercise_id: exerciseData.exerciseId,
+        exercise_name: exerciseData.exerciseName,
+        sets: exerciseData.sets,
+        reps: exerciseData.reps,
+        intensity_percent: exerciseData.intensityPercent,
+        rest_seconds: exerciseData.restSeconds,
+        order_index: exerciseData.orderIndex,
+        primary_muscles: exerciseData.primaryMuscles || [],
+        secondary_muscles: exerciseData.secondaryMuscles || [],
+        notes: exerciseData.notes,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating session exercise:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getSessionExercises(templateId: string): Promise<SessionExercise[]> {
+    const { data, error } = await supabase
+      .from('session_exercises')
+      .select('*')
+      .eq('session_template_id', templateId)
+      .order('order_index');
+
+    if (error) {
+      console.error('Error fetching session exercises:', error);
+      return [];
+    }
+
+    return (data || []).map(mapDbSessionExercise);
+  }
+
+  // ============================================
+  // WEEKLY SPLITS
+  // ============================================
+
+  async createWeeklySplit(splitData: {
+    programId: string;
+    userId: string;
+    name: string;
+    type: SplitType;
+    totalSessionsPerWeek: number;
+  }): Promise<string> {
+    const { data, error } = await supabase
+      .from('weekly_splits')
+      .insert({
+        program_id: splitData.programId,
+        user_id: splitData.userId,
+        name: splitData.name,
+        type: splitData.type,
+        total_sessions_per_week: splitData.totalSessionsPerWeek,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating weekly split:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getWeeklySplitsByProgram(programId: string): Promise<WeeklySplit[]> {
+    const { data, error } = await supabase
+      .from('weekly_splits')
+      .select('*')
+      .eq('program_id', programId)
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching weekly splits:', error);
+      return [];
+    }
+
+    const splits = (data || []).map(mapDbWeeklySplit);
+
+    // Load days for each split
+    await Promise.all(
+      splits.map(async (split) => {
+        split.days = await this.getWeeklySplitDays(split.id);
+      })
+    );
+
+    return splits;
+  }
+
+  // ============================================
+  // WEEKLY SPLIT DAYS
+  // ============================================
+
+  async createWeeklySplitDay(dayData: {
+    weeklySplitId: string;
+    dayOfWeek: DayOfWeek;
+    sessionTemplateId?: string;
+    isRestDay: boolean;
+    notes?: string;
+  }): Promise<void> {
+    const { error } = await supabase
+      .from('weekly_split_days')
+      .insert({
+        weekly_split_id: dayData.weeklySplitId,
+        day_of_week: dayData.dayOfWeek,
+        session_template_id: dayData.sessionTemplateId,
+        is_rest_day: dayData.isRestDay,
+        notes: dayData.notes,
+      });
+
+    if (error) {
+      console.error('Error creating weekly split day:', error);
+      throw error;
+    }
+  }
+
+  async getWeeklySplitDays(splitId: string): Promise<WeeklySplitDay[]> {
+    const { data, error } = await supabase
+      .from('weekly_split_days')
+      .select('*')
+      .eq('weekly_split_id', splitId)
+      .order('day_of_week');
+
+    if (error) {
+      console.error('Error fetching weekly split days:', error);
+      return [];
+    }
+
+    return (data || []).map(mapDbWeeklySplitDay);
+  }
+
+  // ============================================
+  // MESOCYCLES
+  // ============================================
+
+  async createMesocycle(mesocycleData: {
+    programId: string;
+    name: string;
+    phase: PhaseType;
+    goal: string;
+    durationWeeks: number;
+    baseIntensityPercent?: number;
+    baseVolumeMultiplier?: number;
+    color?: string;
+    order: number;
+    notes?: string;
+  }): Promise<string> {
+    const { data, error } = await supabase
+      .from('mesocycles')
+      .insert({
+        program_id: mesocycleData.programId,
+        name: mesocycleData.name,
+        phase: mesocycleData.phase,
+        goal: mesocycleData.goal,
+        duration_weeks: mesocycleData.durationWeeks,
+        base_intensity_percent: mesocycleData.baseIntensityPercent || 70,
+        base_volume_multiplier: mesocycleData.baseVolumeMultiplier || 1.0,
+        color: mesocycleData.color || '#3b82f6',
+        order: mesocycleData.order,
+        notes: mesocycleData.notes,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating mesocycle:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getMesocyclesByProgram(programId: string): Promise<Mesocycle[]> {
+    const { data, error } = await supabase
+      .from('mesocycles')
+      .select('*')
+      .eq('program_id', programId)
+      .order('order');
+
+    if (error) {
+      console.error('Error fetching mesocycles:', error);
+      return [];
+    }
+
+    const mesocycles = (data || []).map(mapDbMesocycle);
+
+    // Load weeks for each mesocycle
+    await Promise.all(
+      mesocycles.map(async (mesocycle) => {
+        mesocycle.weeks = await this.getMesocycleWeeks(mesocycle.id);
+      })
+    );
+
+    return mesocycles;
+  }
+
+  // ============================================
+  // MESOCYCLE WEEKS
+  // ============================================
+
+  async createMesocycleWeek(weekData: {
+    mesocycleId: string;
+    weekNumber: number;
+    weeklySplitId: string;
+    progressionModifier?: number;
+    intensityModifier?: number;
+    volumeModifier?: number;
+    notes?: string;
+  }): Promise<void> {
+    const { error } = await supabase
+      .from('mesocycle_weeks')
+      .insert({
+        mesocycle_id: weekData.mesocycleId,
+        week_number: weekData.weekNumber,
+        weekly_split_id: weekData.weeklySplitId,
+        progression_modifier: weekData.progressionModifier || 1.0,
+        intensity_modifier: weekData.intensityModifier || 1.0,
+        volume_modifier: weekData.volumeModifier || 1.0,
+        notes: weekData.notes,
+      });
+
+    if (error) {
+      console.error('Error creating mesocycle week:', error);
+      throw error;
+    }
+  }
+
+  async getMesocycleWeeks(mesocycleId: string): Promise<MesocycleWeek[]> {
+    const { data, error } = await supabase
+      .from('mesocycle_weeks')
+      .select('*')
+      .eq('mesocycle_id', mesocycleId)
+      .order('week_number');
+
+    if (error) {
+      console.error('Error fetching mesocycle weeks:', error);
+      return [];
+    }
+
+    return (data || []).map(mapDbMesocycleWeek);
+  }
+
+  // ============================================
+  // PROGRESSION RULES
+  // ============================================
+
+  async createProgressionRule(ruleData: {
+    programId: string;
+    type: 'linear' | 'wave' | 'step' | 'custom';
+    variable: 'weight' | 'reps' | 'sets' | 'intensity';
+    startValue: number;
+    incrementPerWeek: number;
+    incrementPerMesocycle?: number;
+    capValue?: number;
+    deloadReduction?: number;
+  }): Promise<string> {
+    const { data, error } = await supabase
+      .from('progression_rules')
+      .insert({
+        program_id: ruleData.programId,
+        type: ruleData.type,
+        variable: ruleData.variable,
+        start_value: ruleData.startValue,
+        increment_per_week: ruleData.incrementPerWeek,
+        increment_per_mesocycle: ruleData.incrementPerMesocycle,
+        cap_value: ruleData.capValue,
+        deload_reduction: ruleData.deloadReduction,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating progression rule:', error);
+      throw error;
+    }
+
+    return data.id;
+  }
+
+  async getProgressionRulesByProgram(programId: string): Promise<ProgressionRule[]> {
+    const { data, error } = await supabase
+      .from('progression_rules')
+      .select('*')
+      .eq('program_id', programId);
+
+    if (error) {
+      console.error('Error fetching progression rules:', error);
+      return [];
+    }
+
+    return (data || []).map(mapDbProgressionRule);
+  }
+
+  // ============================================
+  // COMPLETE PROGRAM CREATION (Transactional-like)
+  // ============================================
+
+  async createCompleteProgram(programData: {
+    // Basic info
+    userId: string;
+    name: string;
+    description?: string;
+    splitType: SplitType;
+    totalWeeks: number;
+    sessionsPerWeek: number;
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
+    tags?: string[];
+    
+    // Session templates
+    sessionTemplates: Array<{
+      name: string;
+      type: SessionType;
+      focus: string[];
+      color: string;
+      estimatedDurationMinutes: number;
+      exercises: Array<{
+        exerciseId?: string;
+        exerciseName: string;
+        sets: number;
+        reps: string;
+        intensityPercent?: number;
+        restSeconds: number;
+        primaryMuscles: string[];
+        secondaryMuscles: string[];
+        notes?: string;
+      }>;
+    }>;
+    
+    // Weekly split
+    weeklySplit: {
+      name: string;
+      type: SplitType;
+      days: Array<{
+        dayOfWeek: DayOfWeek;
+        sessionTemplateName?: string; // nombre del template a asignar
+        isRestDay: boolean;
+        notes?: string;
+      }>;
+    };
+    
+    // Mesocycles
+    mesocycles: Array<{
+      name: string;
+      phase: PhaseType;
+      goal: string;
+      durationWeeks: number;
+      baseIntensityPercent: number;
+      baseVolumeMultiplier: number;
+      color: string;
+      notes?: string;
+    }>;
+    
+    // Progression rules
+    progressionRules?: Array<{
+      type: 'linear' | 'wave' | 'step' | 'custom';
+      variable: 'weight' | 'reps' | 'sets' | 'intensity';
+      startValue: number;
+      incrementPerWeek: number;
+      incrementPerMesocycle?: number;
+      capValue?: number;
+      deloadReduction?: number;
+    }>;
+  }): Promise<string> {
+    try {
+      // 1. Create program
+      const programId = await this.createProgram({
+        userId: programData.userId,
+        name: programData.name,
+        description: programData.description,
+        splitType: programData.splitType,
+        totalWeeks: programData.totalWeeks,
+        sessionsPerWeek: programData.sessionsPerWeek,
+        difficulty: programData.difficulty,
+        tags: programData.tags,
+      });
+
+      // 2. Create session templates with exercises
+      const templateIdMap = new Map<string, string>();
+      
+      for (const template of programData.sessionTemplates) {
+        const templateId = await this.createSessionTemplate({
+          programId,
+          userId: programData.userId,
+          name: template.name,
+          type: template.type,
+          focus: template.focus,
+          estimatedDurationMinutes: template.estimatedDurationMinutes,
+          color: template.color,
+        });
+        
+        templateIdMap.set(template.name, templateId);
+        
+        // Create exercises for this template
+        for (let i = 0; i < template.exercises.length; i++) {
+          const exercise = template.exercises[i];
+          await this.createSessionExercise({
+            sessionTemplateId: templateId,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            sets: exercise.sets,
+            reps: exercise.reps,
+            intensityPercent: exercise.intensityPercent,
+            restSeconds: exercise.restSeconds,
+            orderIndex: i,
+            primaryMuscles: exercise.primaryMuscles,
+            secondaryMuscles: exercise.secondaryMuscles,
+            notes: exercise.notes,
+          });
         }
-      )
-      .subscribe();
-  }
+      }
 
-  subscribeToWorkoutSessions(userId: string, callback: (sessions: WorkoutSession[]) => void) {
-    return supabase
-      .channel('workout_sessions')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'workout_sessions',
-          filter: `user_id=eq.${userId}`,
-        },
-        async () => {
-          const sessions = await this.getWorkoutSessionsByUserId(userId);
-          callback(sessions);
+      // 3. Create weekly split
+      const splitId = await this.createWeeklySplit({
+        programId,
+        userId: programData.userId,
+        name: programData.weeklySplit.name,
+        type: programData.weeklySplit.type,
+        totalSessionsPerWeek: programData.sessionsPerWeek,
+      });
+
+      // 4. Create split days
+      for (const day of programData.weeklySplit.days) {
+        const templateId = day.sessionTemplateName 
+          ? templateIdMap.get(day.sessionTemplateName)
+          : undefined;
+        
+        await this.createWeeklySplitDay({
+          weeklySplitId: splitId,
+          dayOfWeek: day.dayOfWeek,
+          sessionTemplateId: templateId,
+          isRestDay: day.isRestDay,
+          notes: day.notes,
+        });
+      }
+
+      // 5. Create mesocycles
+      for (let i = 0; i < programData.mesocycles.length; i++) {
+        const meso = programData.mesocycles[i];
+        const mesoId = await this.createMesocycle({
+          programId,
+          name: meso.name,
+          phase: meso.phase,
+          goal: meso.goal,
+          durationWeeks: meso.durationWeeks,
+          baseIntensityPercent: meso.baseIntensityPercent,
+          baseVolumeMultiplier: meso.baseVolumeMultiplier,
+          color: meso.color,
+          order: i,
+          notes: meso.notes,
+        });
+
+        // Create weeks for this mesocycle (all use the same split)
+        for (let weekNum = 1; weekNum <= meso.durationWeeks; weekNum++) {
+          // Apply deload modifier on last week if it's a deload phase
+          const isDeloadWeek = meso.phase === 'deload' || weekNum === meso.durationWeeks;
+          
+          await this.createMesocycleWeek({
+            mesocycleId: mesoId,
+            weekNumber: weekNum,
+            weeklySplitId: splitId,
+            progressionModifier: isDeloadWeek ? 0.7 : 1.0,
+            intensityModifier: 1.0,
+            volumeModifier: 1.0,
+          });
         }
-      )
-      .subscribe();
-  }
+      }
 
-  // ============================================
-  // HELPER MAPPING FUNCTIONS
-  // ============================================
-  
-  private mapDbToTrainingProgram(data: any): TrainingProgram {
-    return {
-      id: data.id,
-      userId: data.user_id,
-      name: data.name,
-      description: data.description,
-      split: data.split,
-      goal: data.goal,
-      duration: data.duration,
-      sessionsPerWeek: data.sessions_per_week,
-      estimatedDuration: data.estimated_duration,
-      difficulty: data.difficulty,
-      isPublic: data.is_public,
-      isActive: data.is_active,
-      tags: data.tags || [],
-      workoutSessions: data.workout_sessions?.map((ws: any) => this.mapDbToWorkoutSession(ws)) || [],
-      mesocycles: data.mesocycles?.map((m: any) => this.mapDbToMesocycle(m)) || [],
-      microcycles: data.mesocycles?.flatMap((m: any) => m.microcycles?.map((mc: any) => this.mapDbToMicrocycle(mc)) || []) || [],
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
-  }
+      // 6. Create progression rules (if provided)
+      if (programData.progressionRules) {
+        for (const rule of programData.progressionRules) {
+          await this.createProgressionRule({
+            programId,
+            ...rule,
+          });
+        }
+      }
 
-  private mapDbToWorkoutSession(data: any): WorkoutSession {
-    return {
-      id: data.id,
-      name: data.name,
-      type: data.type,
-      exercises: data.workout_exercises?.map((we: any) => ({
-        id: we.id,
-        exerciseId: we.exercise_id,
-        exercise: we.exercises ? {
-          id: we.exercises.id,
-          name: we.exercises.name,
-          bodyPart: we.exercises.body_part,
-          equipment: we.exercises.equipment,
-          target: we.exercises.target,
-          instructions: we.exercises.instructions || [],
-          gifUrl: we.exercises.gif_url,
-          secondaryMuscles: we.exercises.secondary_muscles || [],
-        } : {} as Exercise,
-        sets: we.sets,
-        reps: we.reps,
-        weight: we.weight,
-        restTime: we.rest_time,
-        notes: we.notes,
-        order: we.order_index,
-      })) || [],
-      estimatedDuration: data.estimated_duration,
-      notes: data.notes,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
-  }
-
-  private mapDbToCalendarEvent(data: any): CalendarEvent {
-    return {
-      id: data.id,
-      userId: data.user_id,
-      date: data.date,
-      time: data.time,
-      title: data.title,
-      type: data.type,
-      duration: data.duration,
-      description: data.description,
-      sessionId: data.session_id,
-      session: data.workout_sessions ? this.mapDbToWorkoutSession(data.workout_sessions) : undefined,
-      completed: data.completed,
-      actualDuration: data.actual_duration,
-      notes: data.notes,
-      category: data.category,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
-  }
-
-  private mapDbToHabit(data: any): Habit {
-    return {
-      id: data.id,
-      userId: data.user_id,
-      name: data.name,
-      description: data.description,
-      type: data.type,
-      target: data.target,
-      unit: data.unit,
-      color: data.color,
-      icon: data.icon,
-      isActive: data.is_active,
-      isFavorite: data.is_favorite,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
-  }
-
-  private mapDbToHabitRecord(data: any): HabitRecord {
-    return {
-      id: data.id,
-      habitId: data.habit_id,
-      userId: data.user_id,
-      date: data.date,
-      value: data.value,
-      notes: data.notes,
-      createdAt: new Date(data.created_at),
-    };
-  }
-
-  private mapDbToNote(data: any): Note {
-    return {
-      id: data.id,
-      userId: data.user_id,
-      title: data.title,
-      content: data.content,
-      type: data.type,
-      tags: data.tags || [],
-      workoutSessionId: data.workout_session_id,
-      isPinned: data.is_pinned,
-      createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
-    };
-  }
-
-  private mapDbToExercise(data: any): Exercise {
-    return {
-      id: data.id,
-      name: data.name,
-      bodyPart: data.body_part,
-      equipment: data.equipment,
-      target: data.target,
-      instructions: data.instructions || [],
-      gifUrl: data.gif_url,
-      secondaryMuscles: data.secondary_muscles || [],
-    };
-  }
-
-  private mapDbToMesocycle(data: any): Mesocycle {
-    return {
-      id: data.id,
-      name: data.name,
-      startDate: new Date(data.start_date),
-      endDate: new Date(data.end_date),
-      goal: data.goal,
-      notes: data.notes,
-      microcycles: data.microcycles?.map(this.mapDbToMicrocycle) || [],
-    };
-  }
-
-  private mapDbToMicrocycle(data: any): Microcycle {
-    return {
-      id: data.id,
-      name: data.name,
-      startDate: new Date(data.start_date),
-      endDate: new Date(data.end_date),
-      sessions: {}, // Will be populated from microcycle_sessions if needed
-      notes: data.notes,
-    };
+      return programId;
+    } catch (error) {
+      console.error('Error creating complete program:', error);
+      throw error;
+    }
   }
 }
 

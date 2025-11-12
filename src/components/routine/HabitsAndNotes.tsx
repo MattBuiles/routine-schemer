@@ -22,7 +22,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Habit, HabitRecord, Note, NoteType } from '@/types';
-import { useAuthStore } from '@/store/authStore';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
 import { supabaseService } from '@/lib/supabaseService';
 
 const habitIcons = {
@@ -54,7 +54,7 @@ const noteTypeLabels = {
 };
 
 export function HabitsAndNotes() {
-  const { user } = useAuthStore();
+  const { user } = useSupabaseAuth();
   const [activeTab, setActiveTab] = useState<'habits' | 'notes'>('habits');
   const [habits, setHabits] = useState<(Habit & { todayRecord?: HabitRecord })[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);

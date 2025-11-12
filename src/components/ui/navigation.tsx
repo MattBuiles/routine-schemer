@@ -3,28 +3,17 @@
 import React from 'react';
 import { 
   Home,
-  Calendar,
   Plus,
-  BookOpen,
-  Apple,
-  BarChart3,
-  ClipboardList,
   User,
   Settings,
   LogOut,
-  Target,
-  Activity
+  Target
 } from 'lucide-react';
 
 export type NavigationView = 
   | 'dashboard'
   | 'programs'
   | 'create-program'
-  | 'planning'
-  | 'exercises'
-  | 'nutrition'
-  | 'records'
-  | 'reports'
   | 'profile'
   | 'settings';
 
@@ -55,36 +44,6 @@ const navigationItems = [
     description: 'Nuevo programa'
   },
   {
-    id: 'planning' as NavigationView,
-    label: 'Planificación',
-    icon: Calendar,
-    description: 'Calendario y ciclos'
-  },
-  {
-    id: 'exercises' as NavigationView,
-    label: 'Ejercicios',
-    icon: BookOpen,
-    description: 'Biblioteca'
-  },
-  {
-    id: 'nutrition' as NavigationView,
-    label: 'Nutrición',
-    icon: Apple,
-    description: 'Planes alimenticios'
-  },
-  {
-    id: 'records' as NavigationView,
-    label: 'Registro',
-    icon: ClipboardList,
-    description: 'Historial de sesiones'
-  },
-  {
-    id: 'reports' as NavigationView,
-    label: 'Análisis',
-    icon: BarChart3,
-    description: 'Reportes y progreso'
-  },
-  {
     id: 'profile' as NavigationView,
     label: 'Perfil',
     icon: User,
@@ -107,11 +66,11 @@ export function Navigation({ currentView, onViewChange, userName, onSignOut }: N
           <div className="flex items-center gap-4 min-w-fit">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/50">
-                <Activity className="h-6 w-6 text-white" />
+                <Target className="h-6 w-6 text-white" />
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-bold text-white">Routine Schemer</h1>
-                <p className="text-xs text-gray-400">Sistema de Planificación</p>
+                <p className="text-xs text-gray-400">Planificación Estructural</p>
               </div>
             </div>
           </div>
