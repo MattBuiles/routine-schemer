@@ -14,18 +14,21 @@ import { Profile } from '@/components/routine/Profile';
 import { Settings } from '@/components/routine/Settings';
 import { Nutrition } from '@/components/routine/Nutrition';
 import { Reports } from '@/components/routine/Reports';
+import { DashboardWeeklyPlanner } from '@/components/DashboardWeeklyPlanner';
 import { generateCurrentMonthEvents, sampleWorkoutSessions } from '@/lib/sampleData';
 import { CalendarEvent } from '@/types';
 import { toast } from 'react-hot-toast';
-import { Plus, Calendar, Target, TrendingUp, Loader2, Activity, Heart, BookOpen, Zap, CheckCircle } from 'lucide-react';
+import { Plus, Calendar, Target, TrendingUp, Activity, Heart, BookOpen, Zap, CheckCircle, LayoutGrid } from 'lucide-react';
 
 export default function DashboardComplete() {
   const { user, signOut } = useSupabaseAuth();
   const [currentView, setCurrentView] = useState<NavigationView>('dashboard');
   const [calendarEvents, setCalendarEvents] = useState(generateCurrentMonthEvents());
+  const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
 
   const handleViewChange = (view: NavigationView) => {
     setCurrentView(view);
+    setShowWeeklyPlanner(false); // Reset planner when switching views
   };
 
   const handleAddCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => {
@@ -83,7 +86,7 @@ export default function DashboardComplete() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 md:p-10">
         <div className="max-w-[1600px] mx-auto space-y-10">
-          {/* Hero Section */}
+          {/* Hero Section with Toggle */}
           <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-600 via-violet-600 to-fuchsia-600 p-1 shadow-2xl shadow-blue-500/20">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 via-transparent to-fuchsia-500/20" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -99,10 +102,21 @@ export default function DashboardComplete() {
                     <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-violet-100 bg-clip-text text-transparent leading-tight">
                       ¡Bienvenido de vuelta!
                     </h1>
-                    <p className="text-lg text-gray-300 font-medium">Organiza y documenta tu entrenamiento �</p>
+                    <p className="text-lg text-gray-300 font-medium">Organiza y documenta tu entrenamiento 💪</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowWeeklyPlanner(!showWeeklyPlanner)}
+                    className={`px-6 py-3 font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2 ${
+                      showWeeklyPlanner 
+                        ? 'bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white shadow-violet-500/30 hover:shadow-violet-500/40'
+                        : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                    }`}
+                  >
+                    <LayoutGrid className="w-5 h-5" />
+                    {showWeeklyPlanner ? 'Vista Tradicional' : 'Planificador Semanal'}
+                  </button>
                   <button 
                     onClick={() => handleViewChange('reports')}
                     className="px-6 py-3 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
@@ -114,6 +128,11 @@ export default function DashboardComplete() {
             </div>
           </div>
 
+          {/* Conditional Rendering: Weekly Planner or Traditional Dashboard */}
+          {showWeeklyPlanner ? (
+            <DashboardWeeklyPlanner />
+          ) : (
+            <>
           {/* Quick Actions */}
           <div className="space-y-6">
             <div className="flex items-center gap-3">
@@ -656,6 +675,8 @@ export default function DashboardComplete() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
     );
