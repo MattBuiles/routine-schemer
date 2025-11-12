@@ -263,7 +263,7 @@ export class SupabaseService {
       throw error;
     }
 
-    return data.map(this.mapDbToWorkoutSession);
+    return data.map((session) => this.mapDbToWorkoutSession(session));
   }
 
   async updateWorkoutSession(sessionId: string, updates: Partial<WorkoutSession>): Promise<void> {
@@ -715,9 +715,9 @@ export class SupabaseService {
       isPublic: data.is_public,
       isActive: data.is_active,
       tags: data.tags || [],
-      workoutSessions: data.workout_sessions?.map(this.mapDbToWorkoutSession) || [],
-      mesocycles: data.mesocycles?.map(this.mapDbToMesocycle) || [],
-      microcycles: data.mesocycles?.flatMap((m: any) => m.microcycles?.map(this.mapDbToMicrocycle) || []) || [],
+      workoutSessions: data.workout_sessions?.map((ws: any) => this.mapDbToWorkoutSession(ws)) || [],
+      mesocycles: data.mesocycles?.map((m: any) => this.mapDbToMesocycle(m)) || [],
+      microcycles: data.mesocycles?.flatMap((m: any) => m.microcycles?.map((mc: any) => this.mapDbToMicrocycle(mc)) || []) || [],
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

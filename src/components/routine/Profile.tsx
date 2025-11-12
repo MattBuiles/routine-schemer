@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -13,37 +13,12 @@ import {
   TrendingUp,
   Weight,
   Heart,
-  Crown
+  Crown,
+  Loader2
 } from 'lucide-react';
 import { UserProfile, ActivityLevel, ExperienceLevel, TrainingGoal } from '@/types';
-
-// Datos de ejemplo del perfil
-const sampleProfile: UserProfile = {
-  id: '1',
-  userId: 'user1',
-  age: 28,
-  weight: 75.5,
-  height: 178,
-  bodyFat: 12.5,
-  activityLevel: 'very_active',
-  goals: ['muscle_gain', 'strength'],
-  experience: 'intermediate',
-  preferences: {
-    theme: 'dark',
-    language: 'es',
-    notifications: {
-      workoutReminders: true,
-      habitReminders: true,
-      progressUpdates: true,
-      emailNotifications: false
-    },
-    defaultRestTime: 90,
-    units: 'metric',
-    weekStartDay: 'monday'
-  },
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-20')
-};
+import { useAuthStore } from '@/store/authStore';
+import { supabaseService } from '@/lib/supabaseService';
 
 const activityLevelLabels = {
   sedentary: 'Sedentario',
@@ -70,13 +45,63 @@ const trainingGoalLabels = {
 };
 
 export function Profile() {
-  const [profile, setProfile] = useState(sampleProfile);
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeSection, setActiveSection] = useState<'personal' | 'goals' | 'preferences'>('personal');
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    // Aquí iría la lógica para guardar en Firebase
-    setIsEditing(false);
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const userProfile = await supabaseService.getUserProfile(user.id);
+        setProfile(userProfile || {
+          id: user.id,
+          userId: user.id,
+          age: 25,
+          weight: 70,
+          height: 170,
+          activityLevel: 'moderately_active',
+          goals: ['muscle_gain'],
+          experience: 'beginner',
+          preferences: {
+            theme: 'dark',
+            language: 'es',
+            notifications: {
+              workoutReminders: true,
+              habitReminders: true,
+              progressUpdates: true,
+              emailNotifications: false
+            },
+            defaultRestTime: 90,
+            units: 'metric',
+            weekStartDay: 'monday'
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      } catch (err) {
+        console.error('Error loading profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user || !profile) return;
+    
+    try {
+      await supabaseService.updateUserProfile(user.id, profile);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+    }
   };
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -119,12 +144,34 @@ export function Profile() {
   };
 
   const calculateBMI = () => {
-    if (profile.weight && profile.height) {
+    if (profile?.weight && profile?.height) {
       const heightInMeters = profile.height / 100;
       return (profile.weight / (heightInMeters * heightInMeters)).toFixed(1);
     }
     return 'N/A';
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-400">No se pudo cargar el perfil</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -18,131 +18,12 @@ import {
   BookOpen,
   PinIcon,
   Search,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 import { Habit, HabitRecord, Note, NoteType } from '@/types';
-
-// Datos de ejemplo para hábitos
-const sampleHabits: (Habit & { todayRecord?: HabitRecord })[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    name: 'Hidratación',
-    description: 'Mantener un consumo adecuado de agua durante el día',
-    type: 'water_intake',
-    target: 8,
-    unit: 'vasos',
-    color: '#3b82f6',
-    icon: 'Droplets',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    isActive: true,
-    todayRecord: {
-      id: '1r',
-      habitId: '1',
-      userId: 'user1',
-      date: '2024-01-20',
-      value: 6,
-      createdAt: new Date()
-    }
-  },
-  {
-    id: '2',
-    userId: 'user1',
-    name: 'Sueño',
-    description: 'Dormir las horas necesarias para una buena recuperación',
-    type: 'sleep',
-    target: 8,
-    unit: 'horas',
-    color: '#8b5cf6',
-    icon: 'Moon',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    isActive: true,
-    todayRecord: {
-      id: '2r',
-      habitId: '2',
-      userId: 'user1',
-      date: '2024-01-20',
-      value: 7.5,
-      createdAt: new Date()
-    }
-  },
-  {
-    id: '3',
-    userId: 'user1',
-    name: 'Suplementos',
-    description: 'Tomar suplementos según la planificación',
-    type: 'supplements',
-    target: 3,
-    unit: 'dosis',
-    color: '#10b981',
-    icon: 'Pill',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    isActive: true,
-    todayRecord: {
-      id: '3r',
-      habitId: '3',
-      userId: 'user1',
-      date: '2024-01-20',
-      value: 2,
-      createdAt: new Date()
-    }
-  },
-  {
-    id: '4',
-    userId: 'user1',
-    name: 'Meditación',
-    description: 'Práctica diaria de mindfulness y relajación',
-    type: 'meditation',
-    target: 15,
-    unit: 'minutos',
-    color: '#f59e0b',
-    icon: 'Brain',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    isActive: true
-  }
-];
-
-// Datos de ejemplo para notas
-const sampleNotes: Note[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    title: 'Progreso en Press Banca',
-    content: 'Logré incrementar 5kg en el press banca. La técnica mejoró considerablemente después de trabajar en la movilidad de hombros.',
-    type: 'progress',
-    tags: ['fuerza', 'press-banca', 'técnica'],
-    workoutSessionId: 'session1',
-    createdAt: new Date('2024-01-20'),
-    updatedAt: new Date('2024-01-20'),
-    isPinned: true
-  },
-  {
-    id: '2',
-    userId: 'user1',
-    title: 'Plan Nutricional Semana 3',
-    content: 'Ajustar las calorías para la siguiente fase. Incrementar proteínas en 20g y reducir carbohidratos en la cena.',
-    type: 'nutrition',
-    tags: ['nutrición', 'planificación', 'macros'],
-    createdAt: new Date('2024-01-19'),
-    updatedAt: new Date('2024-01-19'),
-    isPinned: false
-  },
-  {
-    id: '3',
-    userId: 'user1',
-    title: 'Ideas para Rutina de Movilidad',
-    content: 'Incorporar más ejercicios de cadena posterior. Secuencia: cat-cow, hip circles, thoracic spine rotation.',
-    type: 'idea',
-    tags: ['movilidad', 'rutina', 'flexibilidad'],
-    createdAt: new Date('2024-01-18'),
-    updatedAt: new Date('2024-01-18'),
-    isPinned: false
-  }
-];
+import { useAuthStore } from '@/store/authStore';
+import { supabaseService } from '@/lib/supabaseService';
 
 const habitIcons = {
   Droplets,
@@ -173,13 +54,51 @@ const noteTypeLabels = {
 };
 
 export function HabitsAndNotes() {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'habits' | 'notes'>('habits');
-  const [habits, setHabits] = useState(sampleHabits);
-  const [notes, setNotes] = useState(sampleNotes);
+  const [habits, setHabits] = useState<(Habit & { todayRecord?: HabitRecord })[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
+  const [loading, setLoading] = useState(true);
 
-  const updateHabitValue = (habitId: string, value: number) => {
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const [userHabits, userNotes] = await Promise.all([
+          supabaseService.getHabitsByUserId(user.id),
+          supabaseService.getNotesByUserId(user.id)
+        ]);
+        
+        // Get today's records for habits
+        const today = new Date().toISOString().split('T')[0];
+        const habitRecords = await supabaseService.getHabitRecords(user.id);
+        
+        // Filter for today's records
+        const todayRecords = habitRecords.filter(r => r.date === today);
+        
+        // Merge habits with today's records
+        const habitsWithRecords = userHabits.map(habit => ({
+          ...habit,
+          todayRecord: todayRecords.find((r: HabitRecord) => r.habitId === habit.id)
+        }));
+        
+        setHabits(habitsWithRecords);
+        setNotes(userNotes);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user]);
+
+  const updateHabitValue = async (habitId: string, value: number) => {
     setHabits(prev => prev.map(habit => 
       habit.id === habitId 
         ? { 
@@ -210,6 +129,17 @@ export function HabitsAndNotes() {
       note.id === noteId ? { ...note, isPinned: !note.isPinned } : note
     ));
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando datos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">

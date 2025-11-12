@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -14,138 +14,12 @@ import {
   BarChart3,
   Activity,
   CheckCircle,
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react';
-
-// Interface para datos de sesión completada
-interface CompletedSession {
-  id: string;
-  date: string;
-  sessionId: string;
-  session: {
-    id: string;
-    name: string;
-    type: 'strength' | 'hypertrophy' | 'endurance' | 'power' | 'flexibility' | 'cardio' | 'recovery' | 'mobility' | 'stretching' | 'conditioning';
-    exercises: never[];
-    estimatedDuration: number;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-  completed: boolean;
-  actualDuration: number;
-  notes?: string;
-}
-
-// Datos de ejemplo para historial
-const sampleHistoryData = {
-  completedSessions: [
-    {
-      id: '1',
-      date: '2024-01-20',
-      session: {
-        id: 's1',
-        name: 'Push Day - Hipertrofia',
-        type: 'hypertrophy' as const,
-        exercises: [],
-        estimatedDuration: 75,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      completed: true,
-      actualDuration: 80,
-      notes: 'Excelente sesión, incrementé peso en press banca'
-    },
-    {
-      id: '2',
-      date: '2024-01-19',
-      session: {
-        id: 's2',
-        name: 'Cardio HIIT',
-        type: 'cardio' as const,
-        exercises: [],
-        estimatedDuration: 30,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      completed: true,
-      actualDuration: 35,
-      notes: 'Muy intenso, buena quema'
-    },
-    {
-      id: '3',
-      date: '2024-01-18',
-      session: {
-        id: 's3',
-        name: 'Pull Day - Fuerza',
-        type: 'strength' as const,
-        exercises: [],
-        estimatedDuration: 90,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      completed: true,
-      actualDuration: 85,
-      notes: 'Nuevo PR en peso muerto: 180kg'
-    },
-    {
-      id: '4',
-      date: '2024-01-17',
-      session: {
-        id: 's4',
-        name: 'Movilidad y Recuperación',
-        type: 'mobility' as const,
-        exercises: [],
-        estimatedDuration: 45,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      completed: true,
-      actualDuration: 40,
-      notes: 'Sesión relajante, mejoró flexibilidad'
-    },
-    {
-      id: '5',
-      date: '2024-01-16',
-      session: {
-        id: 's5',
-        name: 'Leg Day - Hipertrofia',
-        type: 'hypertrophy' as const,
-        exercises: [],
-        estimatedDuration: 85,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      completed: true,
-      actualDuration: 90,
-      notes: 'Sesión muy demandante, sentadillas pesadas'
-    }
-  ] as CompletedSession[],
-  
-  statistics: {
-    totalSessions: 156,
-    totalTime: 11700, // minutos
-    avgDuration: 75,
-    currentStreak: 5,
-    bestStreak: 21,
-    favoriteWorkoutType: 'hypertrophy' as const,
-    completionRate: 94
-  },
-
-  monthlyProgress: [
-    { month: 'Dic 2023', sessions: 20, avgDuration: 72 },
-    { month: 'Ene 2024', sessions: 24, avgDuration: 75 },
-    { month: 'Feb 2024', sessions: 22, avgDuration: 73 },
-    { month: 'Mar 2024', sessions: 26, avgDuration: 78 }
-  ],
-
-  workoutTypeDistribution: [
-    { type: 'hypertrophy', count: 65, percentage: 42 },
-    { type: 'strength', count: 31, percentage: 20 },
-    { type: 'cardio', count: 25, percentage: 16 },
-    { type: 'mobility', count: 20, percentage: 13 },
-    { type: 'conditioning', count: 15, percentage: 9 }
-  ]
-};
+import { useAuthStore } from '@/store/authStore';
+import { supabaseService } from '@/lib/supabaseService';
+import { CalendarEvent } from '@/types';
 
 const workoutTypeColors = {
   strength: '#ef4444',
@@ -174,17 +48,72 @@ const workoutTypeLabels = {
 };
 
 export function History() {
+  const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWorkoutType, setSelectedWorkoutType] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [completedEvents, setCompletedEvents] = useState<CalendarEvent[]>([]);
 
-  const { completedSessions, statistics, monthlyProgress, workoutTypeDistribution } = sampleHistoryData;
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        // Get events from the last 6 months
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 6);
+        
+        const events = await supabaseService.getCalendarEventsByUserId(
+          user.id, 
+          startDate.toISOString(), 
+          endDate.toISOString()
+        );
+        
+        // Filter only completed workout events
+        const completed = events.filter(e => e.completed && e.type === 'workout');
+        setCompletedEvents(completed);
+      } catch (err) {
+        console.error('Error loading history:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredSessions = completedSessions.filter(session => {
-    const matchesSearch = session.session.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         session.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedWorkoutType === 'all' || session.session.type === selectedWorkoutType;
+    loadHistory();
+  }, [user]);
+
+  // Calculate statistics from real data
+  const statistics = {
+    totalSessions: completedEvents.length,
+    totalTime: completedEvents.reduce((sum, e) => sum + (e.duration || 0), 0),
+    avgDuration: completedEvents.length > 0 
+      ? Math.round(completedEvents.reduce((sum, e) => sum + (e.duration || 0), 0) / completedEvents.length)
+      : 0,
+    currentStreak: 0, // TODO: Calculate streak
+    bestStreak: 0, // TODO: Calculate best streak
+    favoriteWorkoutType: 'hypertrophy' as const,
+    completionRate: 100 // All filtered events are completed
+  };
+
+  const filteredSessions = completedEvents.filter(event => {
+    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         event.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = selectedWorkoutType === 'all' || selectedWorkoutType === 'workout';
     return matchesSearch && matchesType;
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando historial...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
@@ -262,49 +191,21 @@ export function History() {
               <BarChart3 className="h-5 w-5 text-gray-400" />
             </div>
             <div className="space-y-4">
-              {monthlyProgress.map((month, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400 w-20">{month.month}</span>
-                  <div className="flex-1 mx-4">
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(month.sessions / 30) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-sm text-white font-semibold w-16 text-right">
-                    {month.sessions} sesiones
-                  </span>
-                </div>
-              ))}
+              <div className="text-center py-8">
+                <p className="text-gray-400">Gráficos disponibles próximamente</p>
+              </div>
             </div>
           </Card>
 
           {/* Workout Type Distribution */}
           <Card className="glass border-white/20 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Distribución por Tipo</h3>
+              <h3 className="text-lg font-semibold text-white">Estadísticas</h3>
               <Activity className="h-5 w-5 text-gray-400" />
             </div>
-            <div className="space-y-3">
-              {workoutTypeDistribution.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: workoutTypeColors[item.type as keyof typeof workoutTypeColors] }}
-                    />
-                    <span className="text-sm text-gray-400">
-                      {workoutTypeLabels[item.type as keyof typeof workoutTypeLabels]}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-white">{item.count}</span>
-                    <span className="text-xs text-gray-400">({item.percentage}%)</span>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center py-8">
+              <p className="text-gray-400 mb-2">Total de sesiones completadas</p>
+              <p className="text-4xl font-bold text-white">{completedEvents.length}</p>
             </div>
           </Card>
         </div>
@@ -352,44 +253,43 @@ export function History() {
 
           {/* Sessions List */}
           <div className="space-y-3">
-            {filteredSessions.map((session) => (
-              <div key={session.id} className="glass border border-white/10 rounded-lg p-4 hover:border-white/20 transition-all duration-200">
+            {filteredSessions.map((event) => (
+              <div key={event.id} className="glass border border-white/10 rounded-lg p-4 hover:border-white/20 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4 flex-1">
                     {/* Date */}
                     <div className="text-center min-w-[60px]">
                       <p className="text-xs text-gray-400">
-                        {new Date(session.date).toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}
+                        {new Date(event.date).toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}
                       </p>
                       <p className="text-lg font-bold text-white">
-                        {new Date(session.date).getDate()}
+                        {new Date(event.date).getDate()}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {new Date(session.date).toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}
+                        {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}
                       </p>
                     </div>
 
                     {/* Session Info */}
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="text-white font-semibold">{session.session.name}</h4>
+                        <h4 className="text-white font-semibold">{event.title}</h4>
                         <span 
-                          className="px-2 py-1 text-xs rounded-full border"
+                          className="px-2 py-1 text-xs rounded-full border border-blue-400/40"
                           style={{ 
-                            backgroundColor: `${workoutTypeColors[session.session.type as keyof typeof workoutTypeColors]}20`,
-                            color: workoutTypeColors[session.session.type as keyof typeof workoutTypeColors],
-                            borderColor: `${workoutTypeColors[session.session.type as keyof typeof workoutTypeColors]}40`
+                            backgroundColor: '#3b82f620',
+                            color: '#3b82f6'
                           }}
                         >
-                          {workoutTypeLabels[session.session.type as keyof typeof workoutTypeLabels]}
+                          {event.type}
                         </span>
-                        {session.completed && (
+                        {event.completed && (
                           <CheckCircle className="h-4 w-4 text-green-400" />
                         )}
                       </div>
                       
-                      {session.notes && (
-                        <p className="text-sm text-gray-400 line-clamp-1">{session.notes}</p>
+                      {event.notes && (
+                        <p className="text-sm text-gray-400 line-clamp-1">{event.notes}</p>
                       )}
                     </div>
 
@@ -397,7 +297,7 @@ export function History() {
                     <div className="text-right min-w-[80px]">
                       <div className="flex items-center space-x-1 text-gray-400">
                         <Clock className="h-4 w-4" />
-                        <span className="text-sm">{session.actualDuration}min</span>
+                        <span className="text-sm">{event.duration || 0}min</span>
                       </div>
                     </div>
                   </div>

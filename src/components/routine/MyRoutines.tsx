@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
@@ -15,97 +15,41 @@ import {
   Clock,
   TrendingUp,
   Dumbbell,
-  Play
+  Play,
+  Loader2
 } from 'lucide-react';
 import { TrainingProgram } from '@/types';
+import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { supabaseService } from '@/lib/supabaseService';
 
 interface MyRoutinesProps {
   onCreateNew: () => void;
 }
 
-// Datos de ejemplo para rutinas
-const sampleRoutines: (TrainingProgram & { stats: { sessions: number; avgDuration: number; lastUsed: string; }})[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    name: 'Hipertrofia Avanzada',
-    description: 'Programa de 12 semanas enfocado en ganancia muscular con periodización ondulante',
-    mesocycles: [],
-    split: 'push_pull_legs',
-    goal: 'muscle_gain',
-    duration: 12,
-    sessionsPerWeek: 6,
-    estimatedDuration: 75,
-    difficulty: 'advanced',
-    isPublic: false,
-    isActive: true,
-    tags: ['muscle_gain', 'push_pull_legs', 'advanced'],
-    workoutSessions: [],
-    microcycles: [],
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-20'),
-    stats: {
-      sessions: 36,
-      avgDuration: 75,
-      lastUsed: '2024-01-20'
-    }
-  },
-  {
-    id: '2',
-    userId: 'user1',
-    name: 'Acondicionamiento Funcional',
-    description: 'Rutina de alta intensidad para mejorar resistencia cardiovascular y fuerza funcional',
-    mesocycles: [],
-    split: 'full_body',
-    goal: 'endurance',
-    duration: 8,
-    sessionsPerWeek: 4,
-    estimatedDuration: 45,
-    difficulty: 'intermediate',
-    isPublic: true,
-    isActive: false,
-    tags: ['endurance', 'full_body', 'intermediate'],
-    workoutSessions: [],
-    microcycles: [],
-    createdAt: new Date('2023-11-10'),
-    updatedAt: new Date('2023-12-05'),
-    stats: {
-      sessions: 24,
-      avgDuration: 45,
-      lastUsed: '2023-12-05'
-    }
-  },
-  {
-    id: '3',
-    userId: 'user1',
-    name: 'Fuerza Básica 5x5',
-    description: 'Programa de iniciación enfocado en desarrollar fuerza base con ejercicios compuestos',
-    mesocycles: [],
-    split: 'full_body',
-    goal: 'strength',
-    duration: 16,
-    sessionsPerWeek: 3,
-    estimatedDuration: 60,
-    difficulty: 'beginner',
-    isPublic: false,
-    isActive: true,
-    tags: ['strength', 'full_body', 'beginner'],
-    workoutSessions: [],
-    microcycles: [],
-    createdAt: new Date('2023-09-01'),
-    updatedAt: new Date('2024-01-15'),
-    stats: {
-      sessions: 48,
-      avgDuration: 60,
-      lastUsed: '2024-01-15'
-    }
-  }
-];
-
 export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
+  const { user } = useSupabaseAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [routines, setRoutines] = useState(sampleRoutines);
+  const [routines, setRoutines] = useState<TrainingProgram[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadRoutines = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const programs = await supabaseService.getTrainingProgramsByUserId(user.id);
+        setRoutines(programs);
+      } catch (err) {
+        console.error('Error loading routines:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRoutines();
+  }, [user]);
 
   const filteredRoutines = routines.filter(routine => {
     const matchesSearch = routine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,7 +61,7 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const handleDuplicate = (routine: TrainingProgram & { stats: { sessions: number; avgDuration: number; lastUsed: string; }}) => {
+  const handleDuplicate = async (routine: TrainingProgram) => {
     const newRoutine = {
       ...routine,
       id: Math.random().toString(36).substr(2, 9),
@@ -154,6 +98,17 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     };
     return colors[difficulty as keyof typeof colors] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando rutinas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
@@ -227,11 +182,11 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
 
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white mb-1">{routine.stats?.sessions || 0}</div>
-                  <div className="text-xs text-gray-400">Sesiones</div>
+                  <div className="text-2xl font-bold text-white mb-1">{routine.sessionsPerWeek}</div>
+                  <div className="text-xs text-gray-400">x Semana</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-white mb-1">{routine.stats?.avgDuration || 0}m</div>
+                  <div className="text-2xl font-bold text-white mb-1">{routine.estimatedDuration}m</div>
                   <div className="text-xs text-gray-400">Duración</div>
                 </div>
                 <div className="text-center">
