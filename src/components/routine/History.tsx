@@ -21,19 +21,6 @@ import { useSupabaseAuth } from '@/store/supabaseAuthStore';
 import { supabaseService } from '@/lib/supabaseService';
 import { CalendarEvent } from '@/types';
 
-const workoutTypeColors = {
-  strength: '#ef4444',
-  hypertrophy: '#3b82f6',
-  endurance: '#10b981',
-  power: '#f59e0b',
-  flexibility: '#8b5cf6',
-  cardio: '#f97316',
-  recovery: '#6b7280',
-  mobility: '#6366f1',
-  stretching: '#ec4899',
-  conditioning: '#14b8a6'
-};
-
 const workoutTypeLabels = {
   strength: 'Fuerza',
   hypertrophy: 'Hipertrofia',
@@ -61,18 +48,12 @@ export function History() {
       try {
         setLoading(true);
         // Get events from the last 6 months
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 6);
+        // TODO: Add date range filtering when calendar_events table is implemented
         
-        const events = await supabaseService.getCalendarEventsByUserId(
-          user.id, 
-          startDate.toISOString(), 
-          endDate.toISOString()
-        );
+        const events = await supabaseService.getCalendarEventsByUserId(user.id);
         
         // Filter only completed workout events
-        const completed = events.filter(e => e.completed && e.type === 'workout');
+        const completed = events.filter((e: any) => e.completed && e.type === 'workout');
         setCompletedEvents(completed);
       } catch (err) {
         console.error('Error loading history:', err);

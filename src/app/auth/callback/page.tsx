@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { supabaseService } from '@/lib/supabaseService';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -16,6 +17,32 @@ export default function AuthCallback() {
         );
 
         if (error) throw error;
+
+        // Verificar si el usuario tiene perfil, si no, crearlo
+        if (data?.user) {
+          const profile = await supabaseService.getUserProfile(data.user.id);
+          if (!profile) {
+            // Crear perfil automáticamente
+            await supabaseService.updateUserProfile(data.user.id, {
+              age: 25,
+              weight: 70,
+              height: 175,
+              preferences: {
+                theme: 'dark',
+                language: 'es',
+                units: 'metric',
+                weekStartDay: 'monday',
+                defaultRestTime: 90,
+                notifications: {
+                  workoutReminders: true,
+                  habitReminders: true,
+                  progressUpdates: true,
+                  emailNotifications: false
+                }
+              }
+            });
+          }
+        }
 
         // Redirect to home on success
         router.push('/');

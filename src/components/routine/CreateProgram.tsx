@@ -9,7 +9,9 @@ import {
   WeeklySplit, 
   SessionTemplate, 
   ProgressionRule,
-  PhaseType
+  PhaseType,
+  SessionType,
+  Program
 } from '@/types/program'
 import { MesocycleTimeline } from '@/components/planner/MesocycleTimeline'
 import { 
@@ -24,6 +26,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSupabaseCreateProgram } from '@/hooks/useSupabaseCreateProgram'
+import { supabaseService } from '@/lib/supabaseService'
 
 // ==================== CONSTANTES ====================
 
@@ -257,11 +260,28 @@ function Step2Mesocycles({ data, updateData, onNext, onBack, isValid, errors }: 
           </div>
           <div>
             <p className="text-gray-400 text-sm mb-1">Restantes</p>
-            <p className={`text-2xl font-bold ${weeksRemaining === 0 ? 'text-green-400' : 'text-orange-400'}`}>
+            <p className={`text-2xl font-bold ${weeksRemaining === 0 ? 'text-green-400' : weeksRemaining > 0 ? 'text-orange-400' : 'text-red-400'}`}>
               {weeksRemaining} sem
             </p>
           </div>
         </div>
+        {weeksRemaining !== 0 && (
+          <div className={`mt-4 p-3 rounded-lg ${weeksRemaining > 0 ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+            <p className={`text-sm text-center ${weeksRemaining > 0 ? 'text-orange-300' : 'text-red-300'}`}>
+              {weeksRemaining > 0 
+                ? `⚠️ Debes planificar las ${weeksRemaining} semanas restantes para continuar`
+                : `⚠️ Has planificado ${Math.abs(weeksRemaining)} semanas de más. Ajusta la duración de los mesociclos`
+              }
+            </p>
+          </div>
+        )}
+        {weeksRemaining === 0 && mesocycles.length > 0 && (
+          <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+            <p className="text-sm text-center text-green-300">
+              ✅ Perfecto! Todas las semanas están planificadas
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Lista de Mesociclos */}
@@ -349,10 +369,8 @@ function Step2Mesocycles({ data, updateData, onNext, onBack, isValid, errors }: 
         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
-        Agregar Mesociclo
+        {weeksRemaining > 0 ? `Agregar Mesociclo` : `Todas las semanas planificadas`}
       </Button>
-
-      {errors.mesocycles && <p className="text-red-400 text-sm text-center">{errors.mesocycles}</p>}
 
       <div className="flex justify-between pt-6">
         <Button
@@ -372,13 +390,86 @@ function Step2Mesocycles({ data, updateData, onNext, onBack, isValid, errors }: 
           <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
+      
+      {/* Mensaje de ayuda si el botón está deshabilitado */}
+      {(!isValid || weeksRemaining !== 0) && (
+        <div className="text-center mt-2">
+          {!isValid && errors.mesocycles && (
+            <p className="text-red-400 text-sm">{errors.mesocycles}</p>
+          )}
+          {isValid && weeksRemaining !== 0 && (
+            <p className="text-orange-400 text-sm">
+              💡 Ajusta la duración de los mesociclos para que sumen exactamente {data.totalWeeks} semanas
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 // ==================== PASO 3: DISEÑO SEMANAL ====================
 
-function Step3WeeklySplit({ onNext, onBack, isValid }: StepProps) {
+function Step3WeeklySplit({ data, updateData, onNext, onBack, isValid }: StepProps) {
+  const [sessionTemplates, setSessionTemplates] = useState<SessionTemplate[]>(data.sessionTemplates || [])
+  const [editingSession, setEditingSession] = useState<SessionTemplate | null>(null)
+
+  const sessionColors = [
+    '#ef4444', '#f97316', '#f59e0b', '#eab308', 
+    '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+    '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
+    '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'
+  ]
+
+  const sessionTypes = [
+    { value: 'strength', label: 'Fuerza' },
+    { value: 'hypertrophy', label: 'Hipertrofia' },
+    { value: 'power', label: 'Potencia' },
+    { value: 'endurance', label: 'Resistencia' },
+    { value: 'conditioning', label: 'Acondicionamiento' }
+  ]
+
+  const addSession = () => {
+    const newSession: SessionTemplate = {
+      id: `session-${Date.now()}`,
+      name: `Sesión ${sessionTemplates.length + 1}`,
+      type: 'hypertrophy',
+      focus: [],
+      exercises: [],
+      estimatedDurationMinutes: 60,
+      estimatedVolume: 0,
+      color: sessionColors[sessionTemplates.length % sessionColors.length],
+      notes: '',
+      tags: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    setEditingSession(newSession)
+  }
+
+  const saveSession = () => {
+    if (!editingSession) return
+    
+    const exists = sessionTemplates.find(s => s.id === editingSession.id)
+    let updated: SessionTemplate[]
+    
+    if (exists) {
+      updated = sessionTemplates.map(s => s.id === editingSession.id ? editingSession : s)
+    } else {
+      updated = [...sessionTemplates, editingSession]
+    }
+    
+    setSessionTemplates(updated)
+    updateData({ sessionTemplates: updated })
+    setEditingSession(null)
+  }
+
+  const deleteSession = (id: string) => {
+    const updated = sessionTemplates.filter(s => s.id !== id)
+    setSessionTemplates(updated)
+    updateData({ sessionTemplates: updated })
+  }
+
   return (
     <div className="space-y-8">
       <div className="text-center mb-10">
@@ -386,26 +477,176 @@ function Step3WeeklySplit({ onNext, onBack, isValid }: StepProps) {
           <Calendar className="w-12 h-12 text-green-400" />
         </div>
         <h2 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent mb-3">
-          Diseño de Split Semanal
+          Sesiones de Entrenamiento
         </h2>
-        <p className="text-gray-400 text-lg">Organiza tus sesiones de entrenamiento</p>
+        <p className="text-gray-400 text-lg">Define tus sesiones y distribúyelas en la semana</p>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
-        <div className="text-center py-12">
-          <Calendar className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg mb-2">Diseñador de Split Semanal</p>
-          <p className="text-gray-500 text-sm">
-            Función avanzada disponible en próxima actualización
-          </p>
-          <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 max-w-md mx-auto">
-            <p className="text-blue-300 text-sm">
-              Por ahora, puedes crear el programa y configurar el split después. 
-              El diseñador visual estará disponible próximamente. 🚀
-            </p>
-          </div>
+      {/* Lista de Sesiones */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Sesiones Creadas ({sessionTemplates.length})</h3>
+          <Button
+            onClick={addSession}
+            className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva Sesión
+          </Button>
         </div>
+
+        {sessionTemplates.length === 0 && !editingSession && (
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8 text-center">
+            <Calendar className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400 mb-4">No has creado ninguna sesión todavía</p>
+            <p className="text-gray-500 text-sm">Crea al menos una sesión para continuar</p>
+          </div>
+        )}
+
+        {sessionTemplates.map((session) => (
+          <Card key={session.id} className="bg-white/5 border-white/10 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div 
+                  className="w-4 h-4 rounded-full" 
+                  style={{ backgroundColor: session.color }}
+                />
+                <div>
+                  <h4 className="text-white font-medium">{session.name}</h4>
+                  <p className="text-gray-400 text-sm capitalize">
+                    {sessionTypes.find(t => t.value === session.type)?.label} • {session.estimatedDurationMinutes} min
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingSession(session)}
+                  className="text-blue-400 hover:text-blue-300 p-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => deleteSession(session.id)}
+                  className="text-red-400 hover:text-red-300 p-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
+
+      {/* Modal de Edición */}
+      {editingSession && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="bg-slate-900 border-white/10 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">
+                {sessionTemplates.find(s => s.id === editingSession.id) ? 'Editar Sesión' : 'Nueva Sesión'}
+              </h3>
+              <button
+                onClick={() => setEditingSession(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Nombre de la Sesión *</label>
+                <Input
+                  value={editingSession.name}
+                  onChange={(e) => setEditingSession({ ...editingSession, name: e.target.value })}
+                  placeholder="Ej: Tren Superior A"
+                  className="bg-white/10 border-white/20 text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Tipo de Sesión *</label>
+                  <select
+                    value={editingSession.type}
+                    onChange={(e) => setEditingSession({ ...editingSession, type: e.target.value as SessionType })}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
+                  >
+                    {sessionTypes.map(type => (
+                      <option key={type.value} value={type.value} className="bg-slate-800">
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Duración (min)</label>
+                  <Input
+                    type="number"
+                    min="15"
+                    max="180"
+                    value={editingSession.estimatedDurationMinutes}
+                    onChange={(e) => setEditingSession({ ...editingSession, estimatedDurationMinutes: parseInt(e.target.value) || 60 })}
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Color</label>
+                <div className="grid grid-cols-8 gap-2">
+                  {sessionColors.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setEditingSession({ ...editingSession, color })}
+                      className={`w-10 h-10 rounded-lg transition-all ${
+                        editingSession.color === color ? 'ring-2 ring-white scale-110' : ''
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Notas (Opcional)</label>
+                <textarea
+                  value={editingSession.notes}
+                  onChange={(e) => setEditingSession({ ...editingSession, notes: e.target.value })}
+                  placeholder="Ej: Enfoque en pecho y hombros, incluir ejercicios compuestos..."
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white min-h-[80px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={() => setEditingSession(null)}
+                variant="outline"
+                className="flex-1 border-white/20 text-gray-300 hover:bg-white/10"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={saveSession}
+                disabled={!editingSession.name.trim()}
+                className="flex-1 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white disabled:opacity-50"
+              >
+                Guardar Sesión
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <div className="flex justify-between pt-6">
         <Button
@@ -726,14 +967,56 @@ function Step5Preview({ data, onBack, onSubmit, isLoading }: StepProps & { onSub
 interface CreateProgramProps {
   onBack?: () => void
   onProgramCreated?: () => void
+  editingProgram?: Program | null
 }
 
-export default function CreateProgram({ onBack, onProgramCreated }: CreateProgramProps = {}) {
+export default function CreateProgram({ onBack, onProgramCreated, editingProgram }: CreateProgramProps = {}) {
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<Partial<ProgramFormData>>({
-    sessionTemplates: [],
-    mesocycles: [],
-    progressionRules: []
+  const [formData, setFormData] = useState<Partial<ProgramFormData>>(() => {
+    // Si estamos editando, pre-cargar los datos
+    if (editingProgram) {
+      return {
+        name: editingProgram.name,
+        description: editingProgram.description || '',
+        totalWeeks: editingProgram.totalWeeks,
+        sessionsPerWeek: editingProgram.sessionsPerWeek,
+        splitType: editingProgram.splitType,
+        sessionTemplates: editingProgram.sessionTemplates || [],
+        mesocycles: editingProgram.mesocycles || [],
+        progressionRules: editingProgram.progressionRules || [],
+        weeklySplit: editingProgram.weeklySplits?.[0] || {
+          id: 'default-split',
+          name: 'Split Semanal',
+          type: editingProgram.splitType,
+          days: [],
+          totalSessionsPerWeek: editingProgram.sessionsPerWeek,
+          estimatedWeeklyVolume: 0,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+    }
+    // Datos por defecto para nuevo programa
+    return {
+      name: '',
+      description: '',
+      totalWeeks: 12,
+      sessionsPerWeek: 3,
+      splitType: 'full_body',
+      sessionTemplates: [],
+      mesocycles: [],
+      progressionRules: [],
+      weeklySplit: {
+        id: 'default-split',
+        name: 'Split Semanal',
+        type: 'full_body',
+        days: [],
+        totalSessionsPerWeek: 3,
+        estimatedWeeklyVolume: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    }
   })
   const { createCompleteProgram, isLoading, error: createError } = useSupabaseCreateProgram()
 
@@ -755,7 +1038,8 @@ export default function CreateProgram({ onBack, onProgramCreated }: CreateProgra
       case 2:
         if (!formData.mesocycles || formData.mesocycles.length === 0) {
           errors.mesocycles = 'Agrega al menos un mesociclo'
-        } else {
+        }
+        if (formData.mesocycles && formData.mesocycles.length > 0) {
           const totalPlanned = formData.mesocycles.reduce((sum, m) => sum + m.durationWeeks, 0)
           if (totalPlanned !== formData.totalWeeks) {
             errors.mesocycles = `Los mesociclos deben sumar ${formData.totalWeeks} semanas (actualmente: ${totalPlanned})`
@@ -765,6 +1049,9 @@ export default function CreateProgram({ onBack, onProgramCreated }: CreateProgra
       
       case 3:
         // Validar que tenga sesiones configuradas
+        if (!formData.sessionTemplates || formData.sessionTemplates.length === 0) {
+          errors.sessionTemplates = 'Agrega al menos una sesión de entrenamiento'
+        }
         break
       
       case 4:
@@ -796,41 +1083,79 @@ export default function CreateProgram({ onBack, onProgramCreated }: CreateProgra
   }
 
   const handleSubmit = async () => {
-    // Validar que tenemos todos los datos necesarios
-    if (!formData.name || !formData.splitType || !formData.sessionTemplates || !formData.mesocycles || !formData.weeklySplit) {
-      toast.error('Faltan datos requeridos para crear el programa');
+    // Validar campos básicos requeridos
+    if (!formData.name?.trim()) {
+      toast.error('El nombre del programa es requerido');
+      setCurrentStep(1);
+      return;
+    }
+
+    if (!formData.splitType) {
+      toast.error('Debes seleccionar un tipo de split');
+      setCurrentStep(1);
+      return;
+    }
+
+    if (!formData.mesocycles || formData.mesocycles.length === 0) {
+      toast.error('Debes crear al menos un mesociclo');
+      setCurrentStep(2);
+      return;
+    }
+
+    if (!formData.sessionTemplates || formData.sessionTemplates.length === 0) {
+      toast.error('Debes crear al menos una sesión de entrenamiento');
+      setCurrentStep(2);
       return;
     }
 
     try {
+      // Crear weeklySplit automáticamente si no existe
+      const weeklySplit = formData.weeklySplit || {
+        name: `Split ${formData.splitType.replace('_', ' ')}`,
+        type: formData.splitType,
+        days: [
+          { dayOfWeek: 'monday' as const, isRestDay: false },
+          { dayOfWeek: 'tuesday' as const, isRestDay: false },
+          { dayOfWeek: 'wednesday' as const, isRestDay: false },
+          { dayOfWeek: 'thursday' as const, isRestDay: true },
+          { dayOfWeek: 'friday' as const, isRestDay: false },
+          { dayOfWeek: 'saturday' as const, isRestDay: true },
+          { dayOfWeek: 'sunday' as const, isRestDay: true }
+        ]
+      };
+
       // Preparar datos para enviar a Supabase
       const programData = {
         name: formData.name,
         description: formData.description || '',
         splitType: formData.splitType,
-        totalWeeks: formData.totalWeeks || 0,
-        sessionsPerWeek: formData.sessionsPerWeek || 0,
+        totalWeeks: formData.totalWeeks || 12,
+        sessionsPerWeek: formData.sessionsPerWeek || 3,
         sessionTemplates: formData.sessionTemplates,
-        weeklySplit: formData.weeklySplit,
+        weeklySplit: weeklySplit,
         mesocycles: formData.mesocycles,
         progressionRules: formData.progressionRules || []
       };
 
-      const programId = await createCompleteProgram(programData);
-      
-      if (programId) {
-        toast.success(`¡Programa "${formData.name}" creado exitosamente!`, {
-          icon: '🎉',
-          duration: 3000,
+      // Detectar modo: edición o creación
+      if (editingProgram) {
+        // MODO EDICIÓN: Actualizar programa existente
+        await supabaseService.updateProgram(editingProgram.id, {
+          name: programData.name,
+          description: programData.description,
+          splitType: programData.splitType,
+          totalWeeks: programData.totalWeeks,
+          sessionsPerWeek: programData.sessionsPerWeek,
+          sessionTemplates: programData.sessionTemplates,
+          weeklySplits: [programData.weeklySplit as WeeklySplit], // Convertir a array
+          mesocycles: programData.mesocycles,
+          progressionRules: programData.progressionRules
         });
         
-        // Resetear formulario
-        setFormData({
-          sessionTemplates: [],
-          mesocycles: [],
-          progressionRules: []
+        toast.success(`¡Programa "${formData.name}" actualizado exitosamente!`, {
+          icon: '✅',
+          duration: 3000,
         });
-        setCurrentStep(1);
         
         if (onProgramCreated) {
           onProgramCreated();
@@ -842,11 +1167,39 @@ export default function CreateProgram({ onBack, onProgramCreated }: CreateProgra
           }, 1500);
         }
       } else {
-        toast.error(createError || 'Error al crear el programa');
+        // MODO CREACIÓN: Crear nuevo programa
+        const programId = await createCompleteProgram(programData);
+        
+        if (programId) {
+          toast.success(`¡Programa "${formData.name}" creado exitosamente!`, {
+            icon: '🎉',
+            duration: 3000,
+          });
+          
+          // Resetear formulario
+          setFormData({
+            sessionTemplates: [],
+            mesocycles: [],
+            progressionRules: []
+          });
+          setCurrentStep(1);
+          
+          if (onProgramCreated) {
+            onProgramCreated();
+          }
+          
+          if (onBack) {
+            setTimeout(() => {
+              onBack();
+            }, 1500);
+          }
+        } else {
+          toast.error(createError || 'Error al crear el programa');
+        }
       }
     } catch (err) {
-      console.error('Error creating program:', err);
-      toast.error('Error al crear el programa');
+      console.error('Error saving program:', err);
+      toast.error(editingProgram ? 'Error al actualizar el programa' : 'Error al crear el programa');
     }
   }
 
@@ -872,7 +1225,7 @@ export default function CreateProgram({ onBack, onProgramCreated }: CreateProgra
           
           <div className="mb-8">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
-              Crear Programa de Entrenamiento
+              {editingProgram ? 'Editar Programa de Entrenamiento' : 'Crear Programa de Entrenamiento'}
             </h1>
             <div className="h-1 w-48 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mx-auto mt-4"></div>
           </div>

@@ -20,9 +20,10 @@ import toast from 'react-hot-toast';
 
 interface MyRoutinesProps {
   onCreateNew: () => void;
+  onEditProgram?: (program: Program) => void;
 }
 
-export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
+export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
   const { user } = useSupabaseAuth();
   const { programs, loading, refreshData } = useSupabaseDashboardData();
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,6 +70,49 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     }
   };
 
+  const handleActivate = async (routine: Program) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión');
+      return;
+    }
+
+    try {
+      toast.loading(routine.isActive ? 'Desactivando programa...' : 'Activando programa...', { id: 'activate' });
+      
+      // Si se está activando, desactivar todos los demás primero
+      if (!routine.isActive) {
+        const activePrograms = programs.filter(p => p.isActive && p.id !== routine.id);
+        for (const prog of activePrograms) {
+          await supabaseService.updateProgram(prog.id, { isActive: false });
+        }
+      }
+      
+      await supabaseService.updateProgram(routine.id, { isActive: !routine.isActive });
+      await refreshData();
+      toast.success(routine.isActive ? 'Programa desactivado' : 'Programa activado exitosamente', { id: 'activate' });
+    } catch (err) {
+      console.error('Error activating program:', err);
+      toast.error('Error al cambiar estado del programa', { id: 'activate' });
+    }
+  };
+
+  const handleEdit = (routine: Program) => {
+    if (onEditProgram) {
+      onEditProgram(routine);
+    } else {
+      toast('Función de edición en desarrollo', { icon: '🚧' });
+    }
+  };
+
+  const handleStartSession = (routine: Program) => {
+    if (!routine.isActive) {
+      toast.error('Debes activar este programa primero');
+      return;
+    }
+    toast('Función de registro de sesiones en desarrollo', { icon: '🚧' });
+    // TODO: Implementar registro de sesiones
+  };
+
   const getSplitLabel = (split: string) => {
     const labels = {
       'full_body': 'Cuerpo Completo',
@@ -89,6 +133,8 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     return colors[difficulty as keyof typeof colors] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   };
 
+  const activePrograms = programs.filter(p => p.isActive).length;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
@@ -104,13 +150,26 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
-          Mis Rutinas
-        </h1>
-        <p className="text-gray-400 text-lg">
-          Gestiona y organiza tus programas de entrenamiento personalizados
-        </p>
-        <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full mt-4"></div>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
+              Mis Rutinas
+            </h1>
+            <p className="text-gray-400 text-lg">
+              Gestiona y organiza tus programas de entrenamiento personalizados
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-white">{programs.length}</div>
+            <div className="text-sm text-gray-400">Programas</div>
+            {activePrograms > 0 && (
+              <div className="mt-2 inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                {activePrograms} Activo{activePrograms > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full"></div>
       </div>
 
       {/* Controls */}
@@ -151,18 +210,25 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
           {filteredRoutines.map((routine) => (
             <div 
               key={routine.id} 
-              className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300"
+              className={`group bg-white/5 backdrop-blur-xl border rounded-2xl p-6 hover:bg-white/10 hover:scale-[1.02] hover:shadow-xl transition-all duration-300 ${
+                routine.isActive 
+                  ? 'border-emerald-500/50 shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-500/30' 
+                  : 'border-white/10 hover:shadow-blue-500/20'
+              }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-white mb-2">{routine.name}</h3>
-                  <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                    routine.isActive 
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                  }`}>
-                    {routine.isActive ? 'Activa' : 'Inactiva'}
-                  </div>
+                  <button
+                    onClick={() => handleActivate(routine)}
+                    className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold transition-all hover:scale-105 ${
+                      routine.isActive 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' 
+                        : 'bg-gray-500/20 text-gray-400 border border-gray-500/30 hover:bg-gray-500/30'
+                    }`}
+                  >
+                    {routine.isActive ? '✓ Activa' : 'Activar'}
+                  </button>
                 </div>
               </div>
 
@@ -196,18 +262,29 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
               </div>
 
               <div className="flex gap-2">
-                <button className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 flex items-center justify-center gap-2">
+                <button 
+                  className={`flex-1 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-emerald-500/50 transition-all duration-300 flex items-center justify-center gap-2 ${
+                    !routine.isActive ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onClick={() => handleStartSession(routine)}
+                  disabled={!routine.isActive}
+                >
                   <Play className="h-4 w-4" />
                   Registrar Sesión
                 </button>
                 
-                <button className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                <button 
+                  className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                  onClick={() => handleEdit(routine)}
+                  title="Editar programa"
+                >
                   <Edit3 className="h-4 w-4" />
                 </button>
                 
                 <button 
                   className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                   onClick={() => handleDuplicate(routine)}
+                  title="Duplicar programa"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
@@ -215,6 +292,7 @@ export function MyRoutines({ onCreateNew }: MyRoutinesProps) {
                 <button 
                   className="p-2 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
                   onClick={() => handleDelete(routine.id)}
+                  title="Eliminar programa"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

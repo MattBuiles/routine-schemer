@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
   User,
@@ -105,24 +104,27 @@ export function Profile() {
   };
 
   const handleInputChange = (field: string, value: string | number) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       [field]: value
-    }));
+    }) : null);
   };
 
   const handlePreferencesChange = (field: string, value: string | number) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       preferences: {
         ...prev.preferences,
         [field]: value
       }
-    }));
+    }) : null);
   };
 
   const handleNotificationChange = (field: string, value: boolean) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       preferences: {
         ...prev.preferences,
@@ -131,16 +133,17 @@ export function Profile() {
           [field]: value
         }
       }
-    }));
+    }) : null);
   };
 
   const toggleGoal = (goal: TrainingGoal) => {
-    setProfile(prev => ({
+    if (!profile) return;
+    setProfile(prev => prev ? ({
       ...prev,
       goals: prev.goals.includes(goal)
         ? prev.goals.filter(g => g !== goal)
         : [...prev.goals, goal]
-    }));
+    }) : null);
   };
 
   const calculateBMI = () => {

@@ -189,9 +189,11 @@ export class SupabaseService {
   }
 
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
-    const { error } = await supabase
+    // Primero intentar actualizar, si no existe, insertar (UPSERT)
+    const { error: upsertError } = await supabase
       .from('user_profiles')
-      .update({
+      .upsert({
+        id: userId,
         age: updates.age,
         weight: updates.weight,
         height: updates.height,
@@ -200,12 +202,13 @@ export class SupabaseService {
         experience: updates.experience,
         weekly_goal: updates.weeklyGoal,
         preferences: updates.preferences as any,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', userId);
 
-    if (error) {
-      console.error('Error updating user profile:', error);
-      throw error;
+    if (upsertError) {
+      console.error('Error upserting user profile:', upsertError);
+      throw upsertError;
     }
 
     // Update goals if provided
@@ -1021,6 +1024,38 @@ export class SupabaseService {
       console.error('Error creating complete program:', error);
       throw error;
     }
+  }
+
+  // ============================================
+  // HABITS & NOTES
+  // ============================================
+
+  async getHabitsByUserId(userId: string): Promise<any[]> {
+    // TODO: Implementar cuando exista la tabla habits
+    console.warn('getHabitsByUserId not implemented yet - table habits does not exist');
+    return [];
+  }
+
+  async getNotesByUserId(userId: string): Promise<any[]> {
+    // TODO: Implementar cuando exista la tabla notes
+    console.warn('getNotesByUserId not implemented yet - table notes does not exist');
+    return [];
+  }
+
+  async getHabitRecords(userId: string): Promise<any[]> {
+    // TODO: Implementar cuando exista la tabla habit_records
+    console.warn('getHabitRecords not implemented yet - table habit_records does not exist');
+    return [];
+  }
+
+  // ============================================
+  // CALENDAR EVENTS
+  // ============================================
+
+  async getCalendarEventsByUserId(userId: string): Promise<any[]> {
+    // TODO: Implementar cuando exista la tabla calendar_events
+    console.warn('getCalendarEventsByUserId not implemented yet - table calendar_events does not exist');
+    return [];
   }
 }
 
