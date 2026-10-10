@@ -6,22 +6,21 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 const raw = (over: Record<string, unknown> = {}) => ({ id: id(1), label: 'Push', color: '#112233', blockType: 'strength', dayStart: 0, daySpan: 1, lane: 0, load: 3, ...over });
 
 describe('sanitizeCycle', () => {
-  it('normaliza enfoque, notas, duración e icono', () => {
+  it('normaliza zonas, notas e icono', () => {
     const [b] = sanitizeCycle({
       cycleDays: 7,
-      blocks: [raw({ focus: ['Pecho', ' pecho ', 'Pecho', '', 5, 'x'.repeat(99), 'a', 'b', 'c', 'd', 'e'], notes: 'n'.repeat(900), durationMinutes: 9999, icon: '<script>' })],
+      blocks: [raw({ zones: ['Pecho', ' pecho ', 'Pecho', '', 5, 'x'.repeat(99), 'a', 'b', 'c', 'd', 'e'], notes: 'n'.repeat(900), icon: '<script>' })],
     }).blocks;
-    expect(b.focus).toHaveLength(6);
-    expect(b.focus[0]).toBe('Pecho');
-    expect(b.focus.every((t) => t.length <= 24)).toBe(true);
+    expect(b.zones).toHaveLength(6);
+    expect(b.zones[0]).toBe('Pecho');
+    expect(b.zones.every((t) => t.length <= 24)).toBe(true);
     expect(b.notes).toHaveLength(500);
-    expect(b.durationMinutes).toBe(300);
-    expect(b.icon).toBe('sparkles');
+    expect(b.icon).toBe('dumbbell'); // icono inválido → el del enfoque (strength)
   });
 
-  it('conserva un icono válido y usa valores por defecto', () => {
+  it('conserva un icono válido y usa el del enfoque cuando falta', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [raw({ icon: 'dumbbell' })] }).blocks;
-    expect(b).toMatchObject({ icon: 'dumbbell', durationMinutes: 60, focus: [], notes: '' });
+    expect(b).toMatchObject({ icon: 'dumbbell', zones: [], notes: '' });
   });
 
   it('tolera entradas que no son un ciclo', () => {
@@ -59,7 +58,7 @@ describe('sanitizeCycle', () => {
 
   it('ignora claves ajenas y limita la cantidad de bloques', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), userId: 'atacante', boardId: 'x' }] }).blocks;
-    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'durationMinutes', 'focus', 'icon', 'id', 'label', 'lane', 'load', 'notes']);
+    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'icon', 'id', 'label', 'lane', 'load', 'notes', 'zones']);
     const many = Array.from({ length: MAX_BLOCKS + 50 }, (_, i) => raw({ id: id(i + 1), dayStart: i % 28 }));
     expect(sanitizeCycle({ cycleDays: 28, blocks: many }).blocks.length).toBeLessThanOrEqual(MAX_BLOCKS);
   });

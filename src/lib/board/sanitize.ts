@@ -1,4 +1,4 @@
-import { BLOCK_ICONS, DEFAULT_DURATION, MAX_DURATION, MAX_FOCUS, MAX_LANES, MAX_LOAD, placeBlock, resizeCycle, type CycleBlock } from './cycle';
+import { BLOCK_ICONS, MAX_LANES, MAX_LOAD, MAX_ZONES, defaultIconFor, placeBlock, resizeCycle, type CycleBlock } from './cycle';
 import { clamp } from './geometry';
 
 export const MAX_BLOCKS = 100;
@@ -14,13 +14,13 @@ const int = (value: unknown, min: number, max: number, fallback: number) =>
 
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 
-const cleanFocus = (value: unknown): string[] => {
+const cleanZones = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
   for (const item of value) {
     const tag = text(item, 24);
     if (tag) seen.add(tag);
-    if (seen.size >= MAX_FOCUS) break;
+    if (seen.size >= MAX_ZONES) break;
   }
   return [...seen];
 };
@@ -40,19 +40,19 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
     if (!item || !isUuid(item.id) || seen.has(item.id.toLowerCase())) continue;
     seen.add(item.id.toLowerCase());
     const daySpan = int(item.daySpan, 1, cycleDays, 1);
+    const blockType = text(item.blockType, 40) || 'free';
     const block: CycleBlock = {
       id: item.id.toLowerCase(),
       label: text(item.label, 60),
       color: isHexColor(item.color) ? item.color : '#3b82f6',
-      blockType: text(item.blockType, 40) || 'free',
+      blockType,
       dayStart: int(item.dayStart, 0, cycleDays - daySpan, 0),
       daySpan,
       lane: int(item.lane, 0, MAX_LANES - 1, 0),
       load: int(item.load, 1, MAX_LOAD, 3),
-      focus: cleanFocus(item.focus),
+      zones: cleanZones(item.zones),
       notes: text(item.notes, 500),
-      durationMinutes: int(item.durationMinutes, 0, MAX_DURATION, DEFAULT_DURATION),
-      icon: (BLOCK_ICONS as readonly string[]).includes(item.icon as string) ? (item.icon as string) : 'sparkles',
+      icon: (BLOCK_ICONS as readonly string[]).includes(item.icon as string) ? (item.icon as string) : defaultIconFor(blockType),
     };
     const result = placeBlock(placed, block);
     if (result) placed.push(result);
