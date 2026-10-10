@@ -6,6 +6,24 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')
 const raw = (over: Record<string, unknown> = {}) => ({ id: id(1), label: 'Push', color: '#112233', blockType: 'strength', dayStart: 0, daySpan: 1, lane: 0, load: 3, ...over });
 
 describe('sanitizeCycle', () => {
+  it('normaliza enfoque, notas, duración e icono', () => {
+    const [b] = sanitizeCycle({
+      cycleDays: 7,
+      blocks: [raw({ focus: ['Pecho', ' pecho ', 'Pecho', '', 5, 'x'.repeat(99), 'a', 'b', 'c', 'd', 'e'], notes: 'n'.repeat(900), durationMinutes: 9999, icon: '<script>' })],
+    }).blocks;
+    expect(b.focus).toHaveLength(6);
+    expect(b.focus[0]).toBe('Pecho');
+    expect(b.focus.every((t) => t.length <= 24)).toBe(true);
+    expect(b.notes).toHaveLength(500);
+    expect(b.durationMinutes).toBe(300);
+    expect(b.icon).toBe('sparkles');
+  });
+
+  it('conserva un icono válido y usa valores por defecto', () => {
+    const [b] = sanitizeCycle({ cycleDays: 7, blocks: [raw({ icon: 'dumbbell' })] }).blocks;
+    expect(b).toMatchObject({ icon: 'dumbbell', durationMinutes: 60, focus: [], notes: '' });
+  });
+
   it('tolera entradas que no son un ciclo', () => {
     for (const bad of [null, undefined, 5, 'x', [], { blocks: 'no' }]) {
       expect(sanitizeCycle(bad)).toEqual({ cycleDays: 7, blocks: [] });
@@ -41,7 +59,7 @@ describe('sanitizeCycle', () => {
 
   it('ignora claves ajenas y limita la cantidad de bloques', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), userId: 'atacante', boardId: 'x' }] }).blocks;
-    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'id', 'label', 'lane', 'load']);
+    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'durationMinutes', 'focus', 'icon', 'id', 'label', 'lane', 'load', 'notes']);
     const many = Array.from({ length: MAX_BLOCKS + 50 }, (_, i) => raw({ id: id(i + 1), dayStart: i % 28 }));
     expect(sanitizeCycle({ cycleDays: 28, blocks: many }).blocks.length).toBeLessThanOrEqual(MAX_BLOCKS);
   });

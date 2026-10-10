@@ -224,6 +224,10 @@ export const boardBlocks = pgTable('board_blocks', {
   daySpan: integer('day_span'),
   lane: integer('lane'),
   load: integer('load'),
+  focus: text('focus').array().notNull().default([]),
+  notes: text('notes').notNull().default(''),
+  durationMinutes: integer('duration_minutes'),
+  icon: text('icon'),
   widgetType: text('widget_type'),
   x: integer('x'),
   y: integer('y'),
@@ -238,5 +242,6 @@ export const blockTypes = pgTable('block_types', {
   userId: text('user_id').notNull(),
   name: text('name').notNull(),
   color: text('color').notNull().default('#3b82f6'),
+  icon: text('icon').notNull().default('sparkles'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

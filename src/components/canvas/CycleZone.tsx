@@ -17,14 +17,26 @@ import {
 } from '@/lib/board/cycle';
 import type { Rect } from '@/lib/board/geometry';
 import Block from './Block';
+import BlockContent from './BlockContent';
+import { getIcon } from './blockIcons';
 
 // x deja libre la paleta flotante (16px de margen + 176px de ancho) con el viewport por defecto.
+export interface DropPreview {
+  dayStart: number;
+  lane: number;
+  color: string;
+  label: string;
+  icon: string;
+}
+
 export const ZONE_ORIGIN = { x: 240, y: 100 };
 
 interface CycleZoneProps {
   cycleDays: number;
   blocks: CycleBlock[];
   selectedId: string | null;
+  /** Hueco donde caería el bloque que se arrastra desde la paleta. */
+  dropPreview?: DropPreview | null;
   onSelect: (id: string | null) => void;
   /** Reemplaza los bloques (un único paso de deshacer). */
   onBlocksChange: (blocks: CycleBlock[]) => void;
@@ -39,6 +51,7 @@ export default function CycleZone({
   cycleDays,
   blocks,
   selectedId,
+  dropPreview,
   onSelect,
   onBlocksChange,
   onDelete,
@@ -116,6 +129,7 @@ export default function CycleZone({
             rect={live?.id === b.id ? live.rect : toRect(b)}
             color={b.color}
             label={b.label || 'Sin nombre'}
+            content={<BlockContent block={b} />}
             selected={b.id === selectedId}
             onSelect={() => onSelect(b.id)}
             onGestureStart={() => undefined}
@@ -124,6 +138,25 @@ export default function CycleZone({
             onDelete={() => onDelete(b.id)}
           />
         ))}
+
+        {dropPreview && (
+          <div
+            data-testid="drop-preview"
+            className="pointer-events-none absolute flex items-center gap-1.5 rounded-xl border-2 border-dashed px-2 text-sm font-semibold"
+            style={{
+              left: dropPreview.dayStart * DAY_W,
+              top: HEADER_H + dropPreview.lane * LANE_H,
+              width: DAY_W,
+              height: 80,
+              borderColor: dropPreview.color,
+              backgroundColor: `${dropPreview.color}22`,
+              color: dropPreview.color,
+            }}
+          >
+            {React.createElement(getIcon(dropPreview.icon), { className: 'h-4 w-4' })}
+            {dropPreview.label}
+          </div>
+        )}
 
         <div
           className="absolute -right-12 top-2 flex flex-col gap-1"

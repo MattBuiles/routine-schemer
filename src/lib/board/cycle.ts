@@ -10,28 +10,56 @@ export const MIN_CYCLE_DAYS = 1;
 export const MAX_CYCLE_DAYS = 28;
 export const DEFAULT_CYCLE_DAYS = 7;
 
+export const MAX_FOCUS = 6;
+export const MAX_DURATION = 300;
+export const DEFAULT_DURATION = 60;
+
+/** Iconos disponibles para un bloque (se resuelven a componentes en la UI). */
+export const BLOCK_ICONS = ['dumbbell', 'flame', 'zap', 'heart-pulse', 'target', 'leaf', 'moon', 'sparkles', 'mountain', 'swords', 'timer', 'bike'] as const;
+export type BlockIconKey = (typeof BLOCK_ICONS)[number];
+
+/** Enfoques sugeridos (el usuario también puede escribir los suyos). */
+export const FOCUS_SUGGESTIONS = ['Pecho', 'Espalda', 'Hombros', 'Brazos', 'Piernas', 'Glúteos', 'Core', 'Cardio', 'Movilidad', 'Técnica', 'Empuje', 'Tracción'] as const;
+
 export interface CycleBlock {
   id: string;
   label: string;
   color: string;
+  /** Clave del tipo: predefinido (`strength`…) o propio (`custom:<id>`). */
   blockType: string;
   dayStart: number;
   daySpan: number;
   lane: number;
   load: number;
+  /** Enfoque: grupos musculares, patrones o ideas (etiquetas libres). */
+  focus: string[];
+  notes: string;
+  /** Duración estimada en minutos (0 = sin definir). */
+  durationMinutes: number;
+  icon: string;
+}
+
+export interface BlockTypeDef {
+  key: string;
+  label: string;
+  color: string;
+  icon: BlockIconKey;
+  hint: string;
+  defaultLoad: number;
+  defaultDuration: number;
 }
 
 /** Tipos de sesión predefinidos de la paleta. */
-export const DEFAULT_BLOCK_TYPES = [
-  { key: 'strength', label: 'Fuerza', color: '#dc2626' },
-  { key: 'hypertrophy', label: 'Hipertrofia', color: '#2563eb' },
-  { key: 'power', label: 'Potencia', color: '#f59e0b' },
-  { key: 'endurance', label: 'Resistencia', color: '#10b981' },
-  { key: 'skill', label: 'Técnica', color: '#8b5cf6' },
-  { key: 'recovery', label: 'Recuperación', color: '#06b6d4' },
-  { key: 'rest', label: 'Descanso', color: '#71717a' },
-  { key: 'free', label: 'Libre', color: '#a855f7' },
-] as const;
+export const DEFAULT_BLOCK_TYPES: readonly BlockTypeDef[] = [
+  { key: 'strength', label: 'Fuerza', color: '#dc2626', icon: 'dumbbell', hint: 'Cargas altas, pocas repeticiones', defaultLoad: 4, defaultDuration: 75 },
+  { key: 'hypertrophy', label: 'Hipertrofia', color: '#2563eb', icon: 'flame', hint: 'Volumen moderado, cerca del fallo', defaultLoad: 4, defaultDuration: 70 },
+  { key: 'power', label: 'Potencia', color: '#f59e0b', icon: 'zap', hint: 'Velocidad y explosividad', defaultLoad: 3, defaultDuration: 60 },
+  { key: 'endurance', label: 'Resistencia', color: '#10b981', icon: 'heart-pulse', hint: 'Capacidad aeróbica y trabajo continuo', defaultLoad: 3, defaultDuration: 45 },
+  { key: 'skill', label: 'Técnica', color: '#8b5cf6', icon: 'target', hint: 'Práctica de movimiento, baja fatiga', defaultLoad: 2, defaultDuration: 45 },
+  { key: 'recovery', label: 'Recuperación', color: '#06b6d4', icon: 'leaf', hint: 'Movilidad y trabajo suave', defaultLoad: 1, defaultDuration: 30 },
+  { key: 'rest', label: 'Descanso', color: '#71717a', icon: 'moon', hint: 'Día libre de entrenamiento', defaultLoad: 1, defaultDuration: 0 },
+  { key: 'free', label: 'Libre', color: '#a855f7', icon: 'sparkles', hint: 'Lo que tú definas', defaultLoad: 3, defaultDuration: 60 },
+];
 
 export const blockHeight = (load: number) => GRID * (clamp(Math.round(load), 1, MAX_LOAD) + 1);
 
@@ -71,7 +99,7 @@ export function placeBlock(others: CycleBlock[], block: CycleBlock): CycleBlock 
 /** Primer hueco libre de `span` días (carril por carril) para crear bloques sin posición explícita. */
 export function findFreeSlot(blocks: CycleBlock[], cycleDays: number, span = 1): { dayStart: number; lane: number } | null {
   const daySpan = Math.min(span, cycleDays);
-  const probe = { id: '', label: '', color: '', blockType: '', daySpan, load: 1 };
+  const probe = { id: '', label: '', color: '', blockType: '', daySpan, load: 1, focus: [], notes: '', durationMinutes: 0, icon: '' };
   for (let lane = 0; lane < MAX_LANES; lane++) {
     for (let dayStart = 0; dayStart + daySpan <= cycleDays; dayStart++) {
       if (!blocks.some((o) => overlaps({ ...probe, dayStart, lane }, o))) return { dayStart, lane };
@@ -94,5 +122,46 @@ export function resizeCycle(blocks: CycleBlock[], days: number): { cycleDays: nu
     blocks: blocks
       .filter((b) => b.dayStart < cycleDays)
       .map((b) => (b.dayStart + b.daySpan > cycleDays ? { ...b, daySpan: cycleDays - b.dayStart } : b)),
+  };
+}
+
+/** Casilla (día y carril) bajo un punto en px relativos a la zona del ciclo, o null si cae fuera. */
+export function cellAt(x: number, y: number, cycleDays: number): { dayStart: number; lane: number } | null {
+  const row = y - HEADER_H;
+  if (x < 0 || row < 0 || x >= cycleDays * DAY_W || row >= MAX_LANES * LANE_H) return null;
+  return { dayStart: Math.floor(x / DAY_W), lane: Math.floor(row / LANE_H) };
+}
+
+/** Tipos disponibles (predefinidos + propios); los propios usan la clave `custom:<id>`. */
+export function resolveTypes(custom: { id: string; name: string; color: string; icon: string }[]): BlockTypeDef[] {
+  return [
+    ...DEFAULT_BLOCK_TYPES,
+    ...custom.map((t) => ({
+      key: `custom:${t.id}`,
+      label: t.name,
+      color: t.color,
+      icon: ((BLOCK_ICONS as readonly string[]).includes(t.icon) ? t.icon : 'sparkles') as BlockIconKey,
+      hint: 'Tipo propio',
+      defaultLoad: 3,
+      defaultDuration: DEFAULT_DURATION,
+    })),
+  ];
+}
+
+/** Bloque nuevo a partir de un tipo (con sus valores por defecto). */
+export function blockFromType(type: BlockTypeDef, id: string, dayStart: number, lane: number): CycleBlock {
+  return {
+    id,
+    label: type.label,
+    color: type.color,
+    blockType: type.key,
+    dayStart,
+    daySpan: 1,
+    lane,
+    load: type.defaultLoad,
+    focus: [],
+    notes: '',
+    durationMinutes: type.defaultDuration,
+    icon: type.icon,
   };
 }
