@@ -2,6 +2,7 @@
 
 import { NeonAuthUIProvider } from '@neondatabase/auth-ui';
 import Link from 'next/link';
+import { ThemeProvider, ToastProvider } from 'strata';
 import { useRouter } from 'next/navigation';
 
 import { authClient } from '@/lib/auth/client';
@@ -19,7 +20,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       redirectTo="/"
       Link={Link}
     >
-      {children}
+      <ThemeProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </ThemeProvider>
     </NeonAuthUIProvider>
   );
 }

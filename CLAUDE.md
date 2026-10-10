@@ -18,6 +18,8 @@ Proveedor de auth vigente: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{c
 - **Pendiente:** tabla y UI de ejercicios (hoy los ejercicios de una sesión son texto libre; `lib/exerciseService.ts` es una API externa sin usar). `routine/WorkoutCalendar.tsx` y `lib/exerciseService.ts` no los importa nadie.
 - `drizzle/0000` activa `FORCE ROW LEVEL SECURITY` sin políticas en las 3 primeras tablas; funciona porque el rol `neondb_owner` tiene BYPASSRLS (comprobado). Con otro rol, las consultas no verían filas.
 
+- **UI:** el sistema de diseño es `strata` (repo `MattBuiles/strata-ui`, dependencia git; tokens `bg-bg/surface/border-border/text-fg/text-muted/bg-accent`, componentes `Button`, `Card`, `Modal`, `Switch`, `useToast`…). Código nuevo usa strata, no colores sueltos de Tailwind.
+
 ## Estructura
 - `src/app/` rutas (`page.tsx` es el dashboard; navegación por vistas, ver `src/config/viewConfig.ts` y `useRoutineNavigation`) y `api/`.
 - `src/components/{routine,planner,auth,ui}`; estilos CSS por módulo en `src/styles/`.
