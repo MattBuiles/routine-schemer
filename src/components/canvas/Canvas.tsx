@@ -112,9 +112,9 @@ export default function Canvas({ children, onBackgroundClick }: CanvasProps) {
     <div
       ref={ref}
       data-canvas-bg
-      className="relative h-full w-full overflow-hidden touch-none select-none bg-slate-50 dark:bg-slate-950 cursor-grab active:cursor-grabbing"
+      className="relative h-full w-full overflow-hidden touch-none select-none bg-bg cursor-grab active:cursor-grabbing"
       style={{
-        backgroundImage: 'radial-gradient(circle, rgb(148 163 184 / 0.45) 1px, transparent 1px)',
+        backgroundImage: 'radial-gradient(circle, var(--border-strong) 1px, transparent 1px)',
         backgroundSize: `${GRID * vp.zoom}px ${GRID * vp.zoom}px`,
         backgroundPosition: `${vp.x}px ${vp.y}px`,
       }}
@@ -131,17 +131,17 @@ export default function Canvas({ children, onBackgroundClick }: CanvasProps) {
       </div>
 
       <div
-        className="absolute bottom-4 right-4 flex items-center gap-1 rounded-xl border border-slate-200 bg-white/90 p-1 shadow-md backdrop-blur dark:border-slate-700 dark:bg-slate-900/90"
+        className="absolute bottom-4 right-4 flex items-center gap-1 rounded-xl border border-border bg-surface/90 p-1 shadow-[var(--shadow)] backdrop-blur"
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <button aria-label="Alejar" className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => zoomBy(1 / 1.2)}>
+        <button aria-label="Alejar" className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg" onClick={() => zoomBy(1 / 1.2)}>
           <Minus className="h-4 w-4" />
         </button>
-        <span className="w-12 text-center text-xs tabular-nums">{Math.round(vp.zoom * 100)}%</span>
-        <button aria-label="Acercar" className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => zoomBy(1.2)}>
+        <span className="iv-tabular w-12 text-center font-mono text-xs text-muted">{Math.round(vp.zoom * 100)}%</span>
+        <button aria-label="Acercar" className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg" onClick={() => zoomBy(1.2)}>
           <Plus className="h-4 w-4" />
         </button>
-        <button aria-label="Restablecer vista" className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setVp(DEFAULT_VIEWPORT)}>
+        <button aria-label="Restablecer vista" className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg" onClick={() => setVp(DEFAULT_VIEWPORT)}>
           <Maximize2 className="h-4 w-4" />
         </button>
       </div>

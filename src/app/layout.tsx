@@ -1,18 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "@neondatabase/auth-ui/css";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Las tres familias de strata; globals.css las consume vía --font-inter, --font-fraunces y --font-geist-mono.
+const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const serif = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", display: "swap" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Routine Schemer - Planificación Integral de Entrenamientos",
@@ -25,10 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="es" className={`${sans.variable} ${serif.variable} ${mono.variable}`} suppressHydrationWarning>
+      <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

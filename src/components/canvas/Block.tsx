@@ -94,7 +94,7 @@ export default function Block({
       onPointerUp={end}
       onPointerCancel={end}
       className={`absolute cursor-move rounded-xl border-2 text-white shadow-md outline-none transition-shadow ${
-        selected ? 'shadow-xl ring-2 ring-offset-2 ring-blue-500' : ''
+        selected ? 'shadow-xl ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''
       }`}
       style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, backgroundColor: color, borderColor: color }}
     >

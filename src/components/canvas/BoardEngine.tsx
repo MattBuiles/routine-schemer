@@ -5,6 +5,7 @@ import { Plus, Redo2, Trash2, Undo2 } from 'lucide-react';
 
 import type { Rect } from '@/lib/board/geometry';
 import { commit, commitFrom, createHistory, redo, replace, undo, type History } from '@/lib/board/history';
+import { ThemeToggle } from 'strata';
 import Block from './Block';
 import Canvas from './Canvas';
 
@@ -93,20 +94,21 @@ export default function BoardEngine() {
         ))}
       </Canvas>
 
-      <div className="absolute left-4 top-4 flex items-center gap-1 rounded-xl border border-slate-200 bg-white/90 p-1 shadow-md backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
-        <button aria-label="Añadir bloque" className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800" onClick={addBlock}>
+      <div className="absolute left-4 top-4 flex items-center gap-1 rounded-xl border border-border bg-surface/90 p-1 shadow-[var(--shadow)] backdrop-blur">
+        <button aria-label="Añadir bloque" className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-fg" onClick={addBlock}>
           <Plus className="h-4 w-4" /> Bloque
         </button>
-        <button aria-label="Deshacer" disabled={!history.past.length} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-40 dark:hover:bg-slate-800" onClick={() => setHistory(undo)}>
+        <button aria-label="Deshacer" disabled={!history.past.length} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => setHistory(undo)}>
           <Undo2 className="h-4 w-4" />
         </button>
-        <button aria-label="Rehacer" disabled={!history.future.length} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-40 dark:hover:bg-slate-800" onClick={() => setHistory(redo)}>
+        <button aria-label="Rehacer" disabled={!history.future.length} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => setHistory(redo)}>
           <Redo2 className="h-4 w-4" />
         </button>
-        <button aria-label="Eliminar bloque" disabled={!selectedId} className="rounded-lg p-2 hover:bg-slate-100 disabled:opacity-40 dark:hover:bg-slate-800" onClick={() => selectedId && deleteBlock(selectedId)}>
+        <button aria-label="Eliminar bloque" disabled={!selectedId} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => selectedId && deleteBlock(selectedId)}>
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+      <ThemeToggle className="absolute right-4 top-4" />
     </div>
   );
 }

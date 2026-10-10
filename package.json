@@ -30,6 +30,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "react-hot-toast": "^2.5.2",
+    "strata": "github:MattBuiles/strata-ui#main",
     "zod": "^4.0.17",
     "zustand": "^5.0.7"
   },
