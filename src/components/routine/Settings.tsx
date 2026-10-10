@@ -20,8 +20,9 @@ import {
   Loader2,
   CheckCircle2
 } from 'lucide-react';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { supabaseService } from '@/lib/supabaseService';
+import { useAuth } from '@/hooks/useAuth';
+import { getUserProfile, updateUserProfile } from '@/app/actions/profile';
+import { getPrograms } from '@/app/actions/programs';
 import { toast } from 'react-hot-toast';
 
 interface AppSettings {
@@ -71,7 +72,7 @@ const defaultSettings: AppSettings = {
 };
 
 export function Settings() {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [activeSection, setActiveSection] = useState<'general' | 'notifications' | 'privacy' | 'data'>('general');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -84,18 +85,18 @@ export function Settings() {
       
       try {
         setLoading(true);
-        const profile = await supabaseService.getUserProfile(user.id);
+        const profile = await getUserProfile();
         if (profile?.preferences) {
           setSettings({
             theme: profile.preferences.theme || 'dark',
-            language: profile.preferences.language || 'es',
+            language: profile.preferences.language === 'en' ? 'en' : 'es',
             weekStartDay: profile.preferences.weekStartDay || 'monday',
             units: profile.preferences.units || 'metric',
             defaultRestTime: profile.preferences.defaultRestTime || 90,
             autoSave: true,
             backupFrequency: 'weekly',
             dataRetention: '2years',
-            notifications: profile.preferences.notifications || defaultSettings.notifications,
+            notifications: { ...defaultSettings.notifications, ...profile.preferences.notifications },
             privacy: {
               shareData: false,
               analytics: true,
@@ -128,7 +129,7 @@ export function Settings() {
 
     try {
       setSaving(true);
-      await supabaseService.updateUserProfile(user.id, {
+      await updateUserProfile({
         preferences: {
           theme: settings.theme,
           language: settings.language,
@@ -158,8 +159,8 @@ export function Settings() {
     
     try {
       toast.loading('Exportando datos...', { id: 'export' });
-      const profile = await supabaseService.getUserProfile(user.id);
-      const programs = await supabaseService.getProgramsByUser(user.id);
+      const profile = await getUserProfile();
+      const programs = await getPrograms();
       
       const exportData = {
         profile,

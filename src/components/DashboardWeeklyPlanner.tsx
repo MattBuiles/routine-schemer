@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +8,6 @@ import {
   Plus,
   Calendar,
   Copy,
-  Save,
   ChevronLeft,
   ChevronRight,
   Grid3x3,
@@ -19,8 +18,13 @@ import { WeeklyGridCell } from './planner/WeeklyGridCell';
 import { WorkoutLibrarySidebar } from './planner/WorkoutLibrarySidebar';
 import { SessionConfigModal } from './planner/SessionConfigModal';
 import { WeeklyStatsWidgets } from './planner/WeeklyStatsWidgets';
-import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
-import { ScheduledSession, WorkoutLibraryItem, DayOfWeek } from '@/types/weekly-planner';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { ScheduledSession, WorkoutLibraryItem } from '@/types/weekly-planner';
+import type { CalendarEvent } from '@/types';
+import toast from 'react-hot-toast';
+import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from '@/app/actions/calendar';
+import { eventToScheduledSession, templateToWorkoutSession } from '@/lib/plannerMapping';
+import { calculateStreaks, getDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const DAYS_OF_WEEK = [
@@ -33,143 +37,204 @@ const DAYS_OF_WEEK = [
   { name: 'Sábado', short: 'Sáb', index: 6 }
 ];
 
+const TYPE_COLORS: Record<string, string> = {
+  strength: '#ef4444',
+  hypertrophy: '#3b82f6',
+  power: '#f97316',
+  endurance: '#22c55e',
+  cardio: '#ec4899',
+  conditioning: '#eab308',
+  recovery: '#14b8a6',
+};
+
+/** Domingo de la semana que contiene `date` (los índices de día del planificador van de 0=domingo a 6=sábado). */
+const startOfWeek = (date: Date) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  start.setDate(start.getDate() - start.getDay());
+  return start;
+};
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
 export function DashboardWeeklyPlanner() {
-  const { programs, stats, loading } = useSupabaseDashboardData();
-  
+  const { programs, loading } = useDashboardData();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedSession, setSelectedSession] = useState<ScheduledSession | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
-  
-  // Mock scheduled sessions - replace with real data from Supabase
-  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>([
-    // Add your scheduled sessions here
-  ]);
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
+  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
+  const [recentEvents, setRecentEvents] = useState<CalendarEvent[]>([]);
 
-  // Transform programs into library items
-  const workoutLibrary: WorkoutLibraryItem[] = programs.flatMap(program => 
-    program.workoutSessions.map(session => ({
-      id: session.id,
-      session,
-      isFavorite: false,
-      useCount: 0
-    }))
+  // La biblioteca sale de las plantillas del programa activo (o del más reciente si no hay ninguno activo).
+  const currentProgram = programs.find(p => p.isActive) || programs[0];
+  const templates = currentProgram?.sessionTemplates;
+  const templatesById = useMemo(() => new Map((templates ?? []).map(t => [t.id, t])), [templates]);
+  const workoutLibrary: WorkoutLibraryItem[] = useMemo(
+    () => (templates ?? []).map(t => ({ id: t.id, session: templateToWorkoutSession(t), isFavorite: false, useCount: 0 })),
+    [templates]
   );
 
-  // Group sessions by day
+  const weekStartString = getDateString(currentWeekStart);
+  const weekEndString = getDateString(addDays(currentWeekStart, 6));
+
+  const loadEvents = useCallback(async () => {
+    try {
+      // Semana visible + los últimos 60 días para calcular la racha.
+      const streakFrom = getDateString(addDays(new Date(), -60));
+      const events = await getCalendarEvents({ from: streakFrom < weekStartString ? streakFrom : weekStartString, to: weekEndString });
+      setWeekEvents(events.filter(e => e.type === 'workout' && e.date >= weekStartString && e.date <= weekEndString));
+      setRecentEvents(events.filter(e => e.type === 'workout' && e.completed));
+    } catch (err) {
+      console.error('Error loading planner events:', err);
+      toast.error('No se pudo cargar la semana');
+    }
+  }, [weekStartString, weekEndString]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  const scheduledSessions = useMemo(
+    () => weekEvents.map(event => eventToScheduledSession(event, templatesById)),
+    [weekEvents, templatesById]
+  );
+
   const sessionsByDay: Record<number, ScheduledSession[]> = {};
   DAYS_OF_WEEK.forEach(day => {
-    sessionsByDay[day.index] = scheduledSessions.filter(s => s.dayOfWeek === day.index);
+    sessionsByDay[day.index] = scheduledSessions
+      .filter(s => s.dayOfWeek === day.index)
+      .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
   });
 
-  const handleDragEnd = useCallback((result: DropResult) => {
-    const { source, destination, draggableId } = result;
+  const dateForDay = (dayIndex: number) => getDateString(addDays(currentWeekStart, dayIndex));
 
+  const handleDragEnd = useCallback(async (result: DropResult) => {
+    const { source, destination, draggableId } = result;
     if (!destination) return;
 
-    // Handle drag from library to calendar
-    if (source.droppableId.startsWith('workout-') && destination.droppableId.startsWith('day-')) {
-      const dayIndex = parseInt(destination.droppableId.split('-')[1]) as DayOfWeek;
-      const workoutId = draggableId.replace('workout-', '');
-      const workout = workoutLibrary.find(w => w.id === workoutId);
+    try {
+      // Biblioteca -> día: crea la sesión planificada
+      if (source.droppableId.startsWith('workout-') && destination.droppableId.startsWith('day-')) {
+        const dayIndex = parseInt(destination.droppableId.split('-')[1]);
+        const workout = workoutLibrary.find(w => w.id === draggableId.replace('workout-', ''));
+        if (!workout) return;
 
-      if (workout) {
-        const newSession: ScheduledSession = {
-          id: `session-${Date.now()}`,
-          workoutSession: workout.session,
-          dayOfWeek: dayIndex,
-          status: 'scheduled',
-          progress: 0
-        };
-
-        setScheduledSessions(prev => [...prev, newSession]);
-        setSelectedSession(newSession);
+        const created = await createCalendarEvent({
+          date: dateForDay(dayIndex),
+          title: workout.session.name,
+          type: 'workout',
+          category: 'workout',
+          completed: false,
+          sessionId: workout.session.id,
+          duration: workout.session.estimatedDuration,
+        });
+        setWeekEvents(prev => [...prev, created]);
+        setSelectedSession(eventToScheduledSession(created, templatesById));
         setIsModalOpen(true);
+        return;
       }
-    }
 
-    // Handle reordering within the same day
-    if (source.droppableId === destination.droppableId && source.droppableId.startsWith('day-')) {
-      const dayIndex = parseInt(source.droppableId.split('-')[1]);
-      const daySessions = [...sessionsByDay[dayIndex]];
-      const [removed] = daySessions.splice(source.index, 1);
-      daySessions.splice(destination.index, 0, removed);
-
-      setScheduledSessions(prev => {
-        const newSessions = prev.filter(s => s.dayOfWeek !== dayIndex);
-        return [...newSessions, ...daySessions];
-      });
+      // Día -> otro día: cambia la fecha del evento
+      if (
+        source.droppableId !== destination.droppableId &&
+        source.droppableId.startsWith('day-') &&
+        destination.droppableId.startsWith('day-')
+      ) {
+        const eventId = draggableId.replace('session-', '');
+        const date = dateForDay(parseInt(destination.droppableId.split('-')[1]));
+        await updateCalendarEvent(eventId, { date });
+        setWeekEvents(prev => prev.map(e => (e.id === eventId ? { ...e, date } : e)));
+      }
+      // El orden dentro de un mismo día lo da la hora de inicio, no el arrastre.
+    } catch (err) {
+      console.error('Error updating planner:', err);
+      toast.error('No se pudo guardar el cambio');
+      loadEvents();
     }
-
-    // Handle moving between days
-    if (source.droppableId !== destination.droppableId && 
-        source.droppableId.startsWith('day-') && 
-        destination.droppableId.startsWith('day-')) {
-      const sourceDayIndex = parseInt(source.droppableId.split('-')[1]);
-      const destDayIndex = parseInt(destination.droppableId.split('-')[1]) as DayOfWeek;
-      
-      setScheduledSessions(prev => prev.map(session => 
-        session.id === draggableId.replace('session-', '')
-          ? { ...session, dayOfWeek: destDayIndex }
-          : session
-      ));
-    }
-  }, [workoutLibrary, sessionsByDay]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutLibrary, templatesById, currentWeekStart, loadEvents]);
 
   const handleSessionClick = (session: ScheduledSession) => {
     setSelectedSession(session);
     setIsModalOpen(true);
   };
 
-  const handleSaveSession = (updatedSession: ScheduledSession) => {
-    setScheduledSessions(prev =>
-      prev.map(s => s.id === updatedSession.id ? updatedSession : s)
-    );
-    // TODO: Save to Supabase
+  const handleSaveSession = async (updated: ScheduledSession) => {
+    const changes = { time: updated.startTime, notes: updated.notes || undefined, completed: updated.status === 'completed' };
+    try {
+      await updateCalendarEvent(updated.id, changes);
+      setWeekEvents(prev => prev.map(e => (e.id === updated.id ? { ...e, ...changes } : e)));
+      loadEvents();
+    } catch (err) {
+      console.error('Error saving session:', err);
+      toast.error('No se pudo guardar la sesión');
+    }
   };
 
-  const handleDeleteSession = (sessionId: string) => {
-    setScheduledSessions(prev => prev.filter(s => s.id !== sessionId));
-    // TODO: Delete from Supabase
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await deleteCalendarEvent(sessionId);
+      setWeekEvents(prev => prev.filter(e => e.id !== sessionId));
+      loadEvents();
+    } catch (err) {
+      console.error('Error deleting session:', err);
+      toast.error('No se pudo eliminar la sesión');
+    }
   };
 
-  const handleSaveWeeklyPlan = () => {
-    // TODO: Save entire week to Supabase
-    console.log('Saving weekly plan...', scheduledSessions);
-  };
-
-  const handleDuplicateWeek = () => {
-    // TODO: Duplicate current week's sessions
-    console.log('Duplicating week...');
+  const handleDuplicateWeek = async () => {
+    if (weekEvents.length === 0) {
+      toast.error('Esta semana no tiene sesiones que duplicar');
+      return;
+    }
+    try {
+      await Promise.all(
+        weekEvents.map(e =>
+          createCalendarEvent({
+            date: getDateString(addDays(new Date(`${e.date}T00:00:00`), 7)),
+            time: e.time,
+            title: e.title,
+            type: 'workout',
+            category: 'workout',
+            completed: false,
+            sessionId: e.sessionId,
+            duration: e.duration,
+          })
+        )
+      );
+      setCurrentWeekStart(prev => addDays(prev, 7));
+      toast.success('Semana duplicada en la siguiente');
+    } catch (err) {
+      console.error('Error duplicating week:', err);
+      toast.error('No se pudo duplicar la semana');
+    }
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
-    setCurrentWeekStart(newDate);
+    setCurrentWeekStart(prev => addDays(prev, direction === 'next' ? 7 : -7));
   };
 
-  // Calculate stats for widgets
+  // Estadísticas de la semana visible
   const weeklyCompletion = scheduledSessions.length > 0
     ? (scheduledSessions.filter(s => s.status === 'completed').length / scheduledSessions.length) * 100
     : 0;
-
-  const workoutDistribution = programs.reduce((acc: { type: string; count: number; color: string }[], program) => {
-    program.workoutSessions.forEach(session => {
-      const existing = acc.find(item => item.type === session.type);
-      if (existing) {
-        existing.count++;
-      } else {
-        acc.push({ 
-          type: session.type, 
-          count: 1,
-          color: '#3b82f6' // Add proper color mapping
-        });
-      }
-    });
-    return acc;
-  }, []);
+  const currentStreak = calculateStreaks(recentEvents.map(e => e.date)).current;
+  const totalSets = scheduledSessions.reduce(
+    (sum, s) => sum + s.workoutSession.exercises.reduce((acc, e) => acc + e.sets, 0),
+    0
+  );
+  const workoutDistribution = Object.entries(
+    scheduledSessions.reduce<Record<string, number>>((acc, s) => {
+      acc[s.workoutSession.type] = (acc[s.workoutSession.type] ?? 0) + 1;
+      return acc;
+    }, {})
+  ).map(([type, count]) => ({ type, count, color: TYPE_COLORS[type] ?? '#3b82f6' }));
 
   if (loading) {
     return (
@@ -253,22 +318,14 @@ export function DashboardWeeklyPlanner() {
                     <Copy className="h-4 w-4 mr-2" />
                     Duplicar Semana
                   </Button>
-
-                  <Button
-                    onClick={handleSaveWeeklyPlan}
-                    className="bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar Plan
-                  </Button>
                 </div>
               </div>
 
               {/* Stats Widgets */}
               <WeeklyStatsWidgets
-                currentStreak={stats.currentStreak}
+                currentStreak={currentStreak}
                 weeklyCompletion={weeklyCompletion}
-                totalVolume={5000} // Calculate from sessions
+                totalSets={totalSets}
                 workoutDistribution={workoutDistribution}
               />
             </div>
@@ -313,12 +370,12 @@ export function DashboardWeeklyPlanner() {
                     </h3>
                     <div className={`
                       w-10 h-10 mx-auto rounded-full flex items-center justify-center
-                      ${day.index === new Date().getDay()
+                      ${dateForDay(day.index) === getDateString(new Date())
                         ? 'bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold'
                         : 'bg-white/5 text-gray-400'
                       }
                     `}>
-                      {new Date(currentWeekStart.getTime() + day.index * 24 * 60 * 60 * 1000).getDate()}
+                      {addDays(currentWeekStart, day.index).getDate()}
                     </div>
                   </div>
 
@@ -360,6 +417,7 @@ export function DashboardWeeklyPlanner() {
 
         {/* Session Config Modal */}
         <SessionConfigModal
+          key={selectedSession?.id ?? 'none'}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           session={selectedSession}

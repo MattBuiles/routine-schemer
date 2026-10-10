@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Draggable } from '@hello-pangea/dnd';
+import { Draggable, Droppable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -12,9 +12,6 @@ import {
   Heart,
   Zap,
   Wind,
-  ChevronDown,
-  ChevronRight,
-  Filter,
   X
 } from 'lucide-react';
 import { WorkoutLibraryItem } from '@/types/weekly-planner';
@@ -27,7 +24,7 @@ interface WorkoutLibrarySidebarProps {
   onSessionSelect?: (workout: WorkoutLibraryItem) => void;
 }
 
-const workoutTypeConfig: Record<WorkoutType, { icon: any; color: string; label: string }> = {
+const workoutTypeConfig: Record<WorkoutType, { icon: React.ComponentType<{ className?: string }>; color: string; label: string }> = {
   strength: { icon: Dumbbell, color: 'text-red-400', label: 'Fuerza' },
   hypertrophy: { icon: Dumbbell, color: 'text-blue-400', label: 'Hipertrofia' },
   power: { icon: Flame, color: 'text-orange-400', label: 'Potencia' },
@@ -54,33 +51,12 @@ export function WorkoutLibrarySidebar({
 }: WorkoutLibrarySidebarProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<WorkoutType | 'all'>('all');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['favorites']));
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(section)) {
-        newSet.delete(section);
-      } else {
-        newSet.add(section);
-      }
-      return newSet;
-    });
-  };
 
   const filteredWorkouts = workouts.filter(item => {
     const matchesSearch = item.session.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = selectedType === 'all' || item.session.type === selectedType;
-    const matchesFavorite = !showFavoritesOnly || item.isFavorite;
-    return matchesSearch && matchesType && matchesFavorite;
+    return matchesSearch && matchesType;
   });
-
-  const favoriteWorkouts = filteredWorkouts.filter(w => w.isFavorite);
-  const recentWorkouts = [...filteredWorkouts]
-    .filter(w => w.lastUsed)
-    .sort((a, b) => (b.lastUsed?.getTime() || 0) - (a.lastUsed?.getTime() || 0))
-    .slice(0, 5);
 
   return (
     <AnimatePresence>
@@ -101,7 +77,7 @@ export function WorkoutLibrarySidebar({
             animate={{ x: 0 }}
             exit={{ x: -320 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 bottom-0 w-80 bg-slate-900/95 backdrop-blur-2xl border-r border-white/10 z-50 flex flex-col shadow-2xl"
+            className="fixed left-0 top-[73px] bottom-0 w-80 bg-slate-900/95 backdrop-blur-2xl border-r border-white/10 z-50 flex flex-col shadow-2xl"
           >
             {/* Header */}
             <div className="p-4 border-b border-white/10">
@@ -131,127 +107,34 @@ export function WorkoutLibrarySidebar({
               </div>
 
               {/* Filters */}
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                  className={`
-                    flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                    ${showFavoritesOnly 
-                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-400/30' 
-                      : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
-                    }
-                  `}
-                >
-                  <Star className={`h-3.5 w-3.5 ${showFavoritesOnly ? 'fill-yellow-400' : ''}`} />
-                  Favoritos
-                </button>
-                <button
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-all"
-                >
-                  <Filter className="h-3.5 w-3.5" />
-                  Filtros
-                </button>
-              </div>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value as WorkoutType | 'all')}
+                className="mt-3 w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-400/50"
+              >
+                <option value="all" className="bg-slate-800">Todos los tipos</option>
+                {Object.entries(workoutTypeConfig).map(([type, config]) => (
+                  <option key={type} value={type} className="bg-slate-800">{config.label}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Workout List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Favorites Section */}
-              {favoriteWorkouts.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => toggleSection('favorites')}
-                    className="flex items-center justify-between w-full mb-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                      Favoritos ({favoriteWorkouts.length})
-                    </span>
-                    {expandedSections.has('favorites') ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-                  
-                  <AnimatePresence>
-                    {expandedSections.has('favorites') && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="space-y-2"
-                      >
-                        {favoriteWorkouts.map((item, index) => (
-                          <WorkoutCard key={item.id} item={item} index={index} />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+            {/* Workout List: las sesiones del programa se arrastran a un día del planificador */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">Sesiones del programa ({filteredWorkouts.length})</h3>
+              <Droppable droppableId="workout-library" isDropDisabled>
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
+                    {filteredWorkouts.map((item, index) => (
+                      <WorkoutCard key={item.id} item={item} index={index} />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+              {workouts.length === 0 && (
+                <p className="text-sm text-gray-500">Crea un programa con sesiones para poder planificarlas aquí.</p>
               )}
-
-              {/* Recent Section */}
-              {recentWorkouts.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => toggleSection('recent')}
-                    className="flex items-center justify-between w-full mb-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
-                  >
-                    <span>Recientes ({recentWorkouts.length})</span>
-                    {expandedSections.has('recent') ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-                  
-                  <AnimatePresence>
-                    {expandedSections.has('recent') && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="space-y-2"
-                      >
-                        {recentWorkouts.map((item, index) => (
-                          <WorkoutCard key={item.id} item={item} index={index + 100} />
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-
-              {/* All Workouts Section */}
-              <div>
-                <button
-                  onClick={() => toggleSection('all')}
-                  className="flex items-center justify-between w-full mb-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
-                >
-                  <span>Todas las sesiones ({filteredWorkouts.length})</span>
-                  {expandedSections.has('all') ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                
-                <AnimatePresence>
-                  {expandedSections.has('all') && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="space-y-2"
-                    >
-                      {filteredWorkouts.map((item, index) => (
-                        <WorkoutCard key={item.id} item={item} index={index + 200} />
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           </motion.div>
         </>
@@ -297,8 +180,8 @@ function WorkoutCard({ item, index }: { item: WorkoutLibraryItem; index: number 
                 <span>{item.session.exercises.length} ejercicios</span>
               </div>
               <div className="mt-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${difficultyConfig[item.session.difficulty || 'beginner'].color}`}>
-                  {difficultyConfig[item.session.difficulty || 'beginner'].label}
+                <span className={`text-xs px-2 py-0.5 rounded-full ${difficultyConfig.beginner.color}`}>
+                  {difficultyConfig.beginner.label}
                 </span>
               </div>
             </div>

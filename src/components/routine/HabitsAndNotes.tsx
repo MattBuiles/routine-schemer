@@ -22,8 +22,11 @@ import {
   Loader2
 } from 'lucide-react';
 import { Habit, HabitRecord, Note, NoteType } from '@/types';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { supabaseService } from '@/lib/supabaseService';
+import { deleteHabit, getHabitRecords, getHabits, setHabitRecord } from '@/app/actions/habits';
+import { deleteNote, getNotes, updateNote } from '@/app/actions/notes';
+import { HabitFormModal, NoteFormModal } from './HabitNoteForms';
+import { useAuth } from '@/hooks/useAuth';
+import { getDateString } from '@/lib/utils';
 
 const habitIcons = {
   Droplets,
@@ -54,13 +57,15 @@ const noteTypeLabels = {
 };
 
 export function HabitsAndNotes() {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'habits' | 'notes'>('habits');
   const [habits, setHabits] = useState<(Habit & { todayRecord?: HabitRecord })[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNoteType, setSelectedNoteType] = useState<NoteType | 'all'>('all');
   const [loading, setLoading] = useState(true);
+  const [habitForm, setHabitForm] = useState<{ habit?: Habit } | null>(null);
+  const [noteForm, setNoteForm] = useState<{ note?: Note } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,17 +73,12 @@ export function HabitsAndNotes() {
       
       try {
         setLoading(true);
-        const [userHabits, userNotes] = await Promise.all([
-          supabaseService.getHabitsByUserId(user.id),
-          supabaseService.getNotesByUserId(user.id)
+        const today = getDateString(new Date());
+        const [userHabits, userNotes, todayRecords] = await Promise.all([
+          getHabits(),
+          getNotes(),
+          getHabitRecords({ from: today, to: today }),
         ]);
-        
-        // Get today's records for habits
-        const today = new Date().toISOString().split('T')[0];
-        const habitRecords = await supabaseService.getHabitRecords(user.id);
-        
-        // Filter for today's records
-        const todayRecords = habitRecords.filter(r => r.date === today);
         
         // Merge habits with today's records
         const habitsWithRecords = userHabits.map(habit => ({
@@ -99,21 +99,45 @@ export function HabitsAndNotes() {
   }, [user]);
 
   const updateHabitValue = async (habitId: string, value: number) => {
-    setHabits(prev => prev.map(habit => 
-      habit.id === habitId 
-        ? { 
-            ...habit, 
-            todayRecord: {
-              id: habit.todayRecord?.id || Math.random().toString(36).substr(2, 9),
-              habitId,
-              userId: 'user1',
-              date: new Date().toISOString().split('T')[0],
-              value,
-              createdAt: new Date()
-            }
-          }
-        : habit
-    ));
+    const today = getDateString(new Date());
+    try {
+      const todayRecord = await setHabitRecord(habitId, today, value);
+      setHabits(prev => prev.map(habit => (habit.id === habitId ? { ...habit, todayRecord } : habit)));
+    } catch (err) {
+      console.error('Error saving habit record:', err);
+    }
+  };
+
+  const handleHabitSaved = (saved: Habit) => {
+    setHabits(prev =>
+      prev.some(h => h.id === saved.id)
+        ? prev.map(h => (h.id === saved.id ? { ...h, ...saved } : h))
+        : [...prev, saved]
+    );
+  };
+
+  const handleNoteSaved = (saved: Note) => {
+    setNotes(prev => (prev.some(n => n.id === saved.id) ? prev.map(n => (n.id === saved.id ? saved : n)) : [saved, ...prev]));
+  };
+
+  const handleDeleteHabit = async (habit: Habit) => {
+    if (!confirm(`¿Eliminar el hábito "${habit.name}" y todos sus registros?`)) return;
+    try {
+      await deleteHabit(habit.id);
+      setHabits(prev => prev.filter(h => h.id !== habit.id));
+    } catch (err) {
+      console.error('Error deleting habit:', err);
+    }
+  };
+
+  const handleDeleteNote = async (note: Note) => {
+    if (!confirm(`¿Eliminar la nota "${note.title}"?`)) return;
+    try {
+      await deleteNote(note.id);
+      setNotes(prev => prev.filter(n => n.id !== note.id));
+    } catch (err) {
+      console.error('Error deleting note:', err);
+    }
   };
 
   const filteredNotes = notes.filter(note => {
@@ -124,10 +148,15 @@ export function HabitsAndNotes() {
     return matchesSearch && matchesType;
   });
 
-  const toggleNotePinned = (noteId: string) => {
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, isPinned: !note.isPinned } : note
-    ));
+  const toggleNotePinned = async (noteId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    try {
+      await updateNote(noteId, { isPinned: !note.isPinned });
+      setNotes(prev => prev.map(n => (n.id === noteId ? { ...n, isPinned: !n.isPinned } : n)));
+    } catch (err) {
+      console.error('Error updating note:', err);
+    }
   };
 
   if (loading) {
@@ -211,7 +240,7 @@ export function HabitsAndNotes() {
                   <div>
                     <p className="text-sm text-gray-400">Progreso Promedio</p>
                     <p className="text-2xl font-bold text-white">
-                      {Math.round(
+                      {habits.length === 0 ? 0 : Math.round(
                         habits.reduce((acc, h) => 
                           acc + ((h.todayRecord?.value || 0) / h.target * 100), 0
                         ) / habits.length
@@ -299,10 +328,10 @@ export function HabitsAndNotes() {
                       </div>
                       
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm" className="glass hover:bg-white/10 text-white border border-white/20">
+                        <Button variant="ghost" size="sm" onClick={() => setHabitForm({ habit })} title="Editar hábito" className="glass hover:bg-white/10 text-white border border-white/20">
                           <Edit3 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="glass hover:bg-white/10 text-red-400 border border-red-500/20">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteHabit(habit)} title="Eliminar hábito" className="glass hover:bg-white/10 text-red-400 border border-red-500/20">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -314,7 +343,7 @@ export function HabitsAndNotes() {
 
             {/* Add Habit Button */}
             <div className="mt-8 text-center">
-              <Button className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white border-0">
+              <Button onClick={() => setHabitForm({})} className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white border-0">
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Hábito
               </Button>
@@ -357,7 +386,7 @@ export function HabitsAndNotes() {
               </div>
 
               {/* Add Note Button */}
-              <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0">
+              <Button onClick={() => setNoteForm({})} className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0">
                 <Plus className="h-4 w-4 mr-2" />
                 Nueva Nota
               </Button>
@@ -414,13 +443,13 @@ export function HabitsAndNotes() {
                   {/* Actions */}
                   <div className="flex justify-between items-center pt-4 border-t border-white/10">
                     <span className="text-xs text-gray-400">
-                      {note.updatedAt !== note.createdAt ? 'Editado' : 'Creado'} {note.updatedAt.toLocaleDateString('es-ES')}
+                      {note.updatedAt.getTime() !== note.createdAt.getTime() ? 'Editado' : 'Creado'} {note.updatedAt.toLocaleDateString('es-ES')}
                     </span>
                     <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm" className="glass hover:bg-white/10 text-white border border-white/20">
+                      <Button variant="ghost" size="sm" onClick={() => setNoteForm({ note })} title="Editar nota" className="glass hover:bg-white/10 text-white border border-white/20">
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="glass hover:bg-white/10 text-red-400 border border-red-500/20">
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteNote(note)} title="Eliminar nota" className="glass hover:bg-white/10 text-red-400 border border-red-500/20">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -443,7 +472,7 @@ export function HabitsAndNotes() {
                   }
                 </p>
                 {(!searchTerm && selectedNoteType === 'all') && (
-                  <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0">
+                  <Button onClick={() => setNoteForm({})} className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white border-0">
                     <Plus className="h-4 w-4 mr-2" />
                     Crear Primera Nota
                   </Button>
@@ -453,6 +482,13 @@ export function HabitsAndNotes() {
           </div>
         )}
       </div>
+
+      {habitForm && (
+        <HabitFormModal habit={habitForm.habit} onClose={() => setHabitForm(null)} onSaved={handleHabitSaved} />
+      )}
+      {noteForm && (
+        <NoteFormModal note={noteForm.note} onClose={() => setNoteForm(null)} onSaved={handleNoteSaved} />
+      )}
     </div>
   );
 }

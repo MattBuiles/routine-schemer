@@ -9,12 +9,15 @@
  */
 
 import React, { useState } from 'react';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
+import { useAuth } from '@/hooks/useAuth';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import type { Program } from '@/types/program';
 import { Navigation, NavigationView } from '@/components/ui/navigation';
 import { MyRoutines } from '@/components/routine/MyRoutines';
 import CreateProgram from '@/components/routine/CreateProgram';
 import { Profile } from '@/components/routine/Profile';
+import { HabitsAndNotes } from '@/components/routine/HabitsAndNotes';
+import { History } from '@/components/routine/History';
 import { Settings } from '@/components/routine/Settings';
 import { MesocycleTimeline } from '@/components/planner/MesocycleTimeline';
 import { WeeklySplitDesigner } from '@/components/planner/WeeklySplitDesigner';
@@ -30,9 +33,10 @@ import {
 import toast from 'react-hot-toast';
 
 export default function DashboardComplete() {
-  const { user, signOut } = useSupabaseAuth();
-  const { programs } = useSupabaseDashboardData();
+  const { user, signOut } = useAuth();
+  const { programs } = useDashboardData();
   const [currentView, setCurrentView] = useState<NavigationView>('dashboard');
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   
   // Seleccionar el primer programa activo o el primer programa disponible
   const currentProgram = programs.find(p => p.isActive) || programs[0];
@@ -54,6 +58,7 @@ export default function DashboardComplete() {
   const weeklySplit = currentProgram?.weeklySplits?.[0] || null;
 
   const handleViewChange = (view: NavigationView) => {
+    setEditingProgram(null);
     setCurrentView(view);
   };
 
@@ -71,8 +76,10 @@ export default function DashboardComplete() {
   };
 
   const handleProgramCreated = () => {
+    const wasEditing = editingProgram !== null;
+    setEditingProgram(null);
     setCurrentView('programs');
-    toast.success('Programa creado exitosamente');
+    toast.success(wasEditing ? 'Programa actualizado exitosamente' : 'Programa creado exitosamente');
   };
 
   const PlanOverviewHub = () => {
@@ -354,15 +361,26 @@ export default function DashboardComplete() {
         return <PlanOverviewHub />;
       case 'programs':
         return (
-          <MyRoutines onCreateNew={() => setCurrentView('create-program')} />
+          <MyRoutines
+          onCreateNew={() => handleViewChange('create-program')}
+          onEditProgram={program => {
+            setEditingProgram(program);
+            setCurrentView('create-program');
+          }}
+        />
         );
       case 'create-program':
         return (
           <CreateProgram
+            editingProgram={editingProgram ?? undefined}
             onProgramCreated={handleProgramCreated}
-            onBack={() => setCurrentView('programs')}
+            onBack={() => handleViewChange('programs')}
           />
         );
+      case 'habits':
+        return <HabitsAndNotes />;
+      case 'history':
+        return <History />;
       case 'profile':
         return <Profile />;
       case 'settings':

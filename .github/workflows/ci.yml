@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+        env:
+          # Valores ficticios: el build solo necesita que las variables existan y tengan formato válido.
+          DATABASE_URL: postgresql://user:password@localhost:5432/ci
+          NEON_AUTH_BASE_URL: https://ci.invalid/neondb/auth
+          NEON_AUTH_COOKIE_SECRET: ci-only-placeholder-secret-0123456789

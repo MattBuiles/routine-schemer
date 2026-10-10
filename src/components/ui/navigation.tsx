@@ -7,13 +7,17 @@ import {
   User,
   Settings,
   LogOut,
-  Target
+  Target,
+  Heart,
+  BarChart3
 } from 'lucide-react';
 
 export type NavigationView = 
   | 'dashboard'
   | 'programs'
   | 'create-program'
+  | 'habits'
+  | 'history'
   | 'profile'
   | 'settings';
 
@@ -42,6 +46,18 @@ const navigationItems = [
     label: 'Crear Programa',
     icon: Plus,
     description: 'Nuevo programa'
+  },
+  {
+    id: 'habits' as NavigationView,
+    label: 'Hábitos y Notas',
+    icon: Heart,
+    description: 'Hábitos saludables y notas'
+  },
+  {
+    id: 'history' as NavigationView,
+    label: 'Historial',
+    icon: BarChart3,
+    description: 'Sesiones completadas'
   },
   {
     id: 'profile' as NavigationView,

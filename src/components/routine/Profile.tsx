@@ -12,12 +12,11 @@ import {
   TrendingUp,
   Weight,
   Heart,
-  Crown,
   Loader2
 } from 'lucide-react';
 import { UserProfile, ActivityLevel, ExperienceLevel, TrainingGoal } from '@/types';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { supabaseService } from '@/lib/supabaseService';
+import { useAuth } from '@/hooks/useAuth';
+import { getUserProfile, updateUserProfile } from '@/app/actions/profile';
 
 const activityLevelLabels = {
   sedentary: 'Sedentario',
@@ -44,7 +43,7 @@ const trainingGoalLabels = {
 };
 
 export function Profile() {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [activeSection, setActiveSection] = useState<'personal' | 'goals' | 'preferences'>('personal');
@@ -56,7 +55,7 @@ export function Profile() {
       
       try {
         setLoading(true);
-        const userProfile = await supabaseService.getUserProfile(user.id);
+        const userProfile = await getUserProfile();
         setProfile(userProfile || {
           id: user.id,
           userId: user.id,
@@ -96,7 +95,7 @@ export function Profile() {
     if (!user || !profile) return;
     
     try {
-      await supabaseService.updateUserProfile(user.id, profile);
+      await updateUserProfile(profile);
       setIsEditing(false);
     } catch (err) {
       console.error('Error saving profile:', err);
@@ -237,10 +236,11 @@ export function Profile() {
             {/* Basic Info */}
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
-                <h2 className="text-2xl font-bold text-white">Usuario Premium</h2>
-                <Crown className="h-6 w-6 text-yellow-400" />
+                <h2 className="text-2xl font-bold text-white">{user?.name || user?.email?.split('@')[0] || 'Usuario'}</h2>
               </div>
-              <p className="text-gray-400 mb-4">Miembro desde enero 2024</p>
+              <p className="text-gray-400 mb-4">
+                {user?.createdAt ? `Miembro desde ${new Date(user.createdAt).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}` : user?.email}
+              </p>
               
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-4">

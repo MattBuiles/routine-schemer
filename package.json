@@ -2,19 +2,25 @@
   "name": "routine-schemer",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.2.1",
-    "@supabase/supabase-js": "^2.81.0",
+    "@neondatabase/auth": "0.5.0-beta",
+    "@neondatabase/auth-ui": "0.3.0-beta",
+    "@neondatabase/serverless": "^1.1.0",
     "autoprefixer": "^10.4.21",
     "clsx": "^2.1.1",
-    "firebase": "^12.1.0",
+    "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.539.0",
     "next": "15.4.6",
@@ -30,12 +36,16 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-calendar": "^3.9.0",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

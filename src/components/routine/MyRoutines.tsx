@@ -13,10 +13,11 @@ import {
   Loader2
 } from 'lucide-react';
 import { Program } from '@/types/program';
-import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
-import { supabaseService } from '@/lib/supabaseService';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { deleteProgram, duplicateProgram, updateProgram } from '@/app/actions/programs';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
+import { LogSessionModal } from './LogSessionModal';
 
 interface MyRoutinesProps {
   onCreateNew: () => void;
@@ -24,9 +25,10 @@ interface MyRoutinesProps {
 }
 
 export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
-  const { user } = useSupabaseAuth();
-  const { programs, loading, refreshData } = useSupabaseDashboardData();
+  const { user } = useAuth();
+  const { programs, loading, refreshData } = useDashboardData();
   const [searchTerm, setSearchTerm] = useState('');
+  const [loggingProgram, setLoggingProgram] = useState<Program | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   const filteredRoutines = programs.filter((routine) => {
@@ -47,7 +49,7 @@ export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
 
     try {
       toast.loading('Duplicando programa...', { id: 'duplicate' });
-      await supabaseService.duplicateProgram(routine.id, user.id);
+      await duplicateProgram(routine.id);
       await refreshData();
       toast.success(`Programa "${routine.name}" duplicado exitosamente`, { id: 'duplicate' });
     } catch (err) {
@@ -60,7 +62,7 @@ export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
     if (confirm('¿Estás seguro de que quieres eliminar esta rutina? Esta acción no se puede deshacer.')) {
       try {
         toast.loading('Eliminando programa...', { id: 'delete' });
-        await supabaseService.deleteProgram(routineId);
+        await deleteProgram(routineId);
         await refreshData();
         toast.success('Programa eliminado exitosamente', { id: 'delete' });
       } catch (err) {
@@ -83,11 +85,11 @@ export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
       if (!routine.isActive) {
         const activePrograms = programs.filter(p => p.isActive && p.id !== routine.id);
         for (const prog of activePrograms) {
-          await supabaseService.updateProgram(prog.id, { isActive: false });
+          await updateProgram(prog.id, { isActive: false });
         }
       }
       
-      await supabaseService.updateProgram(routine.id, { isActive: !routine.isActive });
+      await updateProgram(routine.id, { isActive: !routine.isActive });
       await refreshData();
       toast.success(routine.isActive ? 'Programa desactivado' : 'Programa activado exitosamente', { id: 'activate' });
     } catch (err) {
@@ -109,8 +111,7 @@ export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
       toast.error('Debes activar este programa primero');
       return;
     }
-    toast('Función de registro de sesiones en desarrollo', { icon: '🚧' });
-    // TODO: Implementar registro de sesiones
+    setLoggingProgram(routine);
   };
 
   const getSplitLabel = (split: string) => {
@@ -322,6 +323,14 @@ export function MyRoutines({ onCreateNew, onEditProgram }: MyRoutinesProps) {
             </button>
           )}
         </div>
+      )}
+
+      {loggingProgram && (
+        <LogSessionModal
+          program={loggingProgram}
+          onClose={() => setLoggingProgram(null)}
+          onLogged={() => toast.success('Sesión registrada')}
+        />
       )}
     </div>
   );

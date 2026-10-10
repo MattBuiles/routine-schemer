@@ -49,7 +49,13 @@ export default function WorkoutCalendar({
       const session = availableSessions.find(s => s.id === draggableId);
       
       if (session) {
+        const now = new Date();
         const newEvent: Omit<CalendarEvent, 'id'> = {
+          userId: '',
+          title: session.name,
+          type: 'workout',
+          createdAt: now,
+          updatedAt: now,
           date: dateString,
           sessionId: session.id,
           session: session,
@@ -107,7 +113,7 @@ export default function WorkoutCalendar({
                       onClick={() => handleEventClick(event)}
                     >
                       <span className="text-xs truncate">
-                        {event.session.name}
+                        {event.session?.name ?? event.title}
                       </span>
                     </div>
                   )}
@@ -329,10 +335,10 @@ export default function WorkoutCalendar({
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-medium text-gray-900">
-                              {event.session.name}
+                              {event.session?.name ?? event.title}
                             </h4>
                             <p className="text-sm text-gray-600 mt-1">
-                              {event.session.exercises.length} exercises • {event.session.estimatedDuration} minutes
+                              {event.session?.exercises.length ?? 0} exercises • {event.session?.estimatedDuration ?? event.duration ?? 0} minutes
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">

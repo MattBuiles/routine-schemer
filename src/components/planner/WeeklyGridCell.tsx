@@ -25,7 +25,7 @@ interface WeeklyGridCellProps {
 const statusConfig: Record<SessionStatus, { 
   color: string; 
   bgColor: string; 
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = {
   scheduled: {
@@ -54,7 +54,7 @@ const statusConfig: Record<SessionStatus, {
   }
 };
 
-const workoutTypeIcons: Record<WorkoutType, React.ComponentType<any>> = {
+const workoutTypeIcons: Record<WorkoutType, React.ComponentType<{ className?: string }>> = {
   strength: Dumbbell,
   hypertrophy: Dumbbell,
   power: Flame,
@@ -111,11 +111,15 @@ export function WeeklyGridCell({ dayIndex, timeSlot, sessions, onSessionClick }:
                       draggableId={session.id}
                       index={index}
                     >
-                      {(provided, snapshot) => (
+                      {(provided, snapshot) => {
+                        // onDragStart nativo choca con el de framer-motion
+                        const dragHandleProps = { ...provided.dragHandleProps } as Record<string, unknown>;
+                        delete dragHandleProps.onDragStart;
+                        return (
                         <motion.div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          {...provided.dragHandleProps}
+                          {...dragHandleProps}
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9 }}
@@ -178,7 +182,8 @@ export function WeeklyGridCell({ dayIndex, timeSlot, sessions, onSessionClick }:
                             )}
                           </div>
                         </motion.div>
-                      )}
+                        );
+                      }}
                     </Draggable>
                   );
                 })}
