@@ -25,8 +25,8 @@ import {
   Sparkles
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useSupabaseCreateProgram } from '@/hooks/useSupabaseCreateProgram'
-import { supabaseService } from '@/lib/supabaseService'
+import { useCreateProgram } from '@/hooks/useCreateProgram'
+import { updateProgram } from '@/app/actions/programs'
 
 // ==================== CONSTANTES ====================
 
@@ -843,7 +843,7 @@ function Step4Progression({ data, updateData, onNext, onBack, isValid }: StepPro
 
 // ==================== PASO 5: PREVIEW Y CONFIRMACIÓN ====================
 
-function Step5Preview({ data, onBack, onSubmit, isLoading }: StepProps & { onSubmit: () => void; isLoading?: boolean }) {
+function Step5Preview({ data, onBack, onSubmit, isLoading, isEditing }: StepProps & { onSubmit: () => void; isLoading?: boolean; isEditing?: boolean }) {
   const totalSessions = (data.totalWeeks || 0) * (data.sessionsPerWeek || 0)
 
   // Convertir mesociclos a timeline items con startWeek y endWeek calculados
@@ -947,12 +947,12 @@ function Step5Preview({ data, onBack, onSubmit, isLoading }: StepProps & { onSub
           {isLoading ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Creando...
+              {isEditing ? 'Guardando...' : 'Creando...'}
             </>
           ) : (
             <>
               <CheckCircle2 className="w-5 h-5" />
-              Crear Programa
+              {isEditing ? 'Actualizar Programa' : 'Crear Programa'}
               <Sparkles className="w-5 h-5" />
             </>
           )}
@@ -1018,7 +1018,8 @@ export default function CreateProgram({ onBack, onProgramCreated, editingProgram
       }
     }
   })
-  const { createCompleteProgram, isLoading, error: createError } = useSupabaseCreateProgram()
+  const { createCompleteProgram, isLoading, error: createError } = useCreateProgram()
+  const [isSaving, setIsSaving] = useState(false)
 
   const updateFormData = (updates: Partial<ProgramFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }))
@@ -1083,6 +1084,16 @@ export default function CreateProgram({ onBack, onProgramCreated, editingProgram
   }
 
   const handleSubmit = async () => {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      await submitProgram()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const submitProgram = async () => {
     // Validar campos básicos requeridos
     if (!formData.name?.trim()) {
       toast.error('El nombre del programa es requerido');
@@ -1124,7 +1135,7 @@ export default function CreateProgram({ onBack, onProgramCreated, editingProgram
         ]
       };
 
-      // Preparar datos para enviar a Supabase
+      // Preparar datos para guardar en Neon
       const programData = {
         name: formData.name,
         description: formData.description || '',
@@ -1140,7 +1151,7 @@ export default function CreateProgram({ onBack, onProgramCreated, editingProgram
       // Detectar modo: edición o creación
       if (editingProgram) {
         // MODO EDICIÓN: Actualizar programa existente
-        await supabaseService.updateProgram(editingProgram.id, {
+        await updateProgram(editingProgram.id, {
           name: programData.name,
           description: programData.description,
           splitType: programData.splitType,
@@ -1314,7 +1325,8 @@ export default function CreateProgram({ onBack, onProgramCreated, editingProgram
               onSubmit={handleSubmit}
               isValid={true}
               errors={{}}
-              isLoading={isLoading}
+              isLoading={isLoading || isSaving}
+              isEditing={!!editingProgram}
             />
           )}
         </div>

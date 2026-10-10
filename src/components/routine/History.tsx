@@ -14,12 +14,13 @@ import {
   BarChart3,
   Activity,
   CheckCircle,
-  Eye,
+  Trash2,
   Loader2
 } from 'lucide-react';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { supabaseService } from '@/lib/supabaseService';
+import { useAuth } from '@/hooks/useAuth';
 import { CalendarEvent } from '@/types';
+import { deleteCalendarEvent, getCalendarEvents } from '@/app/actions/calendar';
+import { calculateStreaks, getDateString } from '@/lib/utils';
 
 const workoutTypeLabels = {
   strength: 'Fuerza',
@@ -35,11 +36,11 @@ const workoutTypeLabels = {
 };
 
 export function History() {
-  const { user } = useSupabaseAuth();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedWorkoutType, setSelectedWorkoutType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [completedEvents, setCompletedEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -48,13 +49,10 @@ export function History() {
       try {
         setLoading(true);
         // Get events from the last 6 months
-        // TODO: Add date range filtering when calendar_events table is implemented
         
-        const events = await supabaseService.getCalendarEventsByUserId(user.id);
-        
-        // Filter only completed workout events
-        const completed = events.filter((e: any) => e.completed && e.type === 'workout');
-        setCompletedEvents(completed);
+        const from = new Date();
+        from.setMonth(from.getMonth() - 6);
+        setEvents(await getCalendarEvents({ from: getDateString(from) }));
       } catch (err) {
         console.error('Error loading history:', err);
       } finally {
@@ -65,17 +63,43 @@ export function History() {
     loadHistory();
   }, [user]);
 
-  // Calculate statistics from real data
+  const today = getDateString(new Date());
+  const workouts = events.filter(e => e.type === 'workout');
+  const completedEvents = workouts.filter(e => e.completed);
+  // Tasa de éxito: completadas sobre las sesiones de entreno que ya tocaban (hasta hoy).
+  const dueWorkouts = workouts.filter(e => e.date <= today);
+  const sessionMinutes = (e: CalendarEvent) => e.actualDuration ?? e.duration ?? 0;
+  const totalTime = completedEvents.reduce((sum, e) => sum + sessionMinutes(e), 0);
+  const streaks = calculateStreaks(completedEvents.map(e => e.date), today);
+
   const statistics = {
     totalSessions: completedEvents.length,
-    totalTime: completedEvents.reduce((sum, e) => sum + (e.duration || 0), 0),
-    avgDuration: completedEvents.length > 0 
-      ? Math.round(completedEvents.reduce((sum, e) => sum + (e.duration || 0), 0) / completedEvents.length)
-      : 0,
-    currentStreak: 0, // TODO: Calculate streak
-    bestStreak: 0, // TODO: Calculate best streak
-    favoriteWorkoutType: 'hypertrophy' as const,
-    completionRate: 100 // All filtered events are completed
+    sessionsThisMonth: completedEvents.filter(e => e.date.slice(0, 7) === today.slice(0, 7)).length,
+    totalTime,
+    avgDuration: completedEvents.length > 0 ? Math.round(totalTime / completedEvents.length) : 0,
+    currentStreak: streaks.current,
+    bestStreak: streaks.best,
+    completionRate: dueWorkouts.length > 0 ? Math.round((completedEvents.length / dueWorkouts.length) * 100) : null,
+  };
+
+  const handleDelete = async (event: CalendarEvent) => {
+    if (!confirm(`¿Eliminar la sesión "${event.title}" del ${event.date}?`)) return;
+    try {
+      await deleteCalendarEvent(event.id);
+      setEvents(prev => prev.filter(e => e.id !== event.id));
+    } catch (err) {
+      console.error('Error deleting event:', err);
+    }
+  };
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(completedEvents, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-${today}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const filteredSessions = completedEvents.filter(event => {
@@ -115,7 +139,7 @@ export function History() {
               <div>
                 <p className="text-sm text-gray-400 mb-2">Total Sesiones</p>
                 <p className="text-4xl font-bold text-white mb-1">{statistics.totalSessions}</p>
-                <p className="text-xs text-emerald-400">+8 este mes</p>
+                <p className="text-xs text-emerald-400">+{statistics.sessionsThisMonth} este mes</p>
               </div>
               <div className="p-4 bg-blue-500/20 rounded-full">
                 <Target className="h-8 w-8 text-blue-400" />
@@ -153,7 +177,7 @@ export function History() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-2">Tasa de Éxito</p>
-                <p className="text-4xl font-bold text-white mb-1">{statistics.completionRate}%</p>
+                <p className="text-4xl font-bold text-white mb-1">{statistics.completionRate === null ? '—' : `${statistics.completionRate}%`}</p>
                 <p className="text-xs text-emerald-400">sesiones completadas</p>
               </div>
               <div className="p-4 bg-emerald-500/20 rounded-full">
@@ -225,7 +249,7 @@ export function History() {
               </div>
 
               {/* Export */}
-              <Button variant="ghost" className="glass hover:bg-white/10 text-white border border-white/20">
+              <Button variant="ghost" onClick={handleExport} disabled={completedEvents.length === 0} className="glass hover:bg-white/10 text-white border border-white/20">
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
               </Button>
@@ -241,13 +265,13 @@ export function History() {
                     {/* Date */}
                     <div className="text-center min-w-[60px]">
                       <p className="text-xs text-gray-400">
-                        {new Date(event.date).toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}
+                        {new Date(`${event.date}T00:00:00`).toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}
                       </p>
                       <p className="text-lg font-bold text-white">
-                        {new Date(event.date).getDate()}
+                        {new Date(`${event.date}T00:00:00`).getDate()}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}
+                        {new Date(`${event.date}T00:00:00`).toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}
                       </p>
                     </div>
 
@@ -278,15 +302,15 @@ export function History() {
                     <div className="text-right min-w-[80px]">
                       <div className="flex items-center space-x-1 text-gray-400">
                         <Clock className="h-4 w-4" />
-                        <span className="text-sm">{event.duration || 0}min</span>
+                        <span className="text-sm">{sessionMinutes(event)}min</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center space-x-2 ml-4">
-                    <Button variant="ghost" size="sm" className="glass hover:bg-white/10 text-white border border-white/20">
-                      <Eye className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(event)} title="Eliminar sesión" className="glass hover:bg-white/10 text-red-400 border border-red-500/20">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

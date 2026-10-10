@@ -59,8 +59,30 @@ export function slugify(text: string): string {
     .replace(/ +/g, '-');
 }
 
+/** Fecha local en formato YYYY-MM-DD (no UTC: cerca de medianoche toISOString cae en otro día). */
 export function getDateString(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+const toDayNumber = (dateString: string) => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return Date.UTC(year, month - 1, day) / 86_400_000;
+};
+
+/** Racha actual (que llega hasta hoy o ayer) y mejor racha de días consecutivos con actividad. */
+export function calculateStreaks(dates: string[], today: string = getDateString(new Date())) {
+  const days = [...new Set(dates)].map(toDayNumber).sort((a, b) => a - b);
+  let best = 0;
+  let run = 0;
+  days.forEach((day, i) => {
+    run = i > 0 && day === days[i - 1] + 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+  });
+
+  const last = days[days.length - 1];
+  const current = last !== undefined && toDayNumber(today) - last <= 1 ? run : 0;
+  return { current, best };
 }
 
 export function parseDateString(dateString: string): Date {

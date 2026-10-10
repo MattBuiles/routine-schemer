@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import SupabaseAuthForm from '@/components/auth/SupabaseAuthForm';
+import { useSession } from '@/lib/auth/client';
+import NeonAuthForm from '@/components/auth/NeonAuthForm';
 import DashboardComplete from '@/components/DashboardComplete';
 import DashboardPlanOverview from '@/components/DashboardPlanOverview';
 import { Toaster } from 'react-hot-toast';
@@ -12,12 +12,10 @@ import viewConfig from '@/config/viewConfig';
 const VIEW_PREFERENCE_KEY = 'routine-schemer-view-preference';
 
 export default function Home() {
-  const { user, loading, initialize } = useSupabaseAuth();
+  const { data: session, isPending } = useSession();
   const [usePlanningView, setUsePlanningView] = useState(viewConfig.defaultToPlanningView);
 
   useEffect(() => {
-    initialize();
-    
     // Cargar preferencia guardada si está habilitado
     if (viewConfig.rememberViewPreference && typeof window !== 'undefined') {
       const savedPreference = localStorage.getItem(VIEW_PREFERENCE_KEY);
@@ -25,7 +23,7 @@ export default function Home() {
         setUsePlanningView(savedPreference === 'true');
       }
     }
-  }, [initialize]);
+  }, []);
 
   const handleToggleView = () => {
     const newValue = !usePlanningView;
@@ -37,7 +35,7 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  if (isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -51,11 +49,11 @@ export default function Home() {
   return (
     <>
       <main className="min-h-screen relative">
-        {user ? (
+        {session?.user ? (
           <>
             {/* Toggle Button - Solo visible cuando hay usuario y está habilitado */}
             {viewConfig.showViewToggle && (
-              <div className="fixed top-4 right-4 z-50">
+              <div className="fixed bottom-4 right-4 z-[60]">
                 <button
                   onClick={handleToggleView}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-semibold"
@@ -80,7 +78,7 @@ export default function Home() {
             {usePlanningView ? <DashboardPlanOverview /> : <DashboardComplete />}
           </>
         ) : (
-          <SupabaseAuthForm />
+          <NeonAuthForm />
         )}
       </main>
       <Toaster 

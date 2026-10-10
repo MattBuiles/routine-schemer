@@ -1,34 +1,41 @@
 ﻿'use client';
 
 import React, { useState } from 'react';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
-import { useSupabaseDashboardData } from '@/hooks/useSupabaseDashboardData';
+import { useAuth } from '@/hooks/useAuth';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import type { Program } from '@/types/program';
 import { Navigation, NavigationView } from '@/components/ui/navigation';
 import { MyRoutines } from '@/components/routine/MyRoutines';
 import CreateProgram from '@/components/routine/CreateProgram';
 import { Profile } from '@/components/routine/Profile';
+import { HabitsAndNotes } from '@/components/routine/HabitsAndNotes';
+import { History } from '@/components/routine/History';
 import { Settings } from '@/components/routine/Settings';
 import { DashboardWeeklyPlanner } from '@/components/DashboardWeeklyPlanner';
 import { toast } from 'react-hot-toast';
 import { Plus, Target, TrendingUp, Activity, Zap, LayoutGrid } from 'lucide-react';
 
 export default function DashboardComplete() {
-  const { user, signOut } = useSupabaseAuth();
+  const { user, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<NavigationView>('dashboard');
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
 
   const handleViewChange = (view: NavigationView) => {
+    setEditingProgram(null);
     setCurrentView(view);
     setShowWeeklyPlanner(false); // Reset planner when switching views
   };
 
   const handleProgramCreated = () => {
+    const wasEditing = editingProgram !== null;
+    setEditingProgram(null);
     setCurrentView('programs');
-    toast.success('Programa creado exitosamente');
+    toast.success(wasEditing ? 'Programa actualizado exitosamente' : 'Programa creado exitosamente');
   };
 
   const DashboardHome = () => {
-    const { stats, programs, loading, error } = useSupabaseDashboardData();
+    const { stats, programs, loading, error } = useDashboardData();
 
     if (loading) {
       return (
@@ -350,9 +357,19 @@ export default function DashboardComplete() {
       case 'dashboard':
         return <DashboardHome />;
       case 'programs':
-        return <MyRoutines onCreateNew={() => setCurrentView('create-program')} />;
+        return <MyRoutines
+          onCreateNew={() => handleViewChange('create-program')}
+          onEditProgram={program => {
+            setEditingProgram(program);
+            setCurrentView('create-program');
+          }}
+        />;
       case 'create-program':
-        return <CreateProgram onProgramCreated={handleProgramCreated} onBack={() => setCurrentView('programs')} />;
+        return <CreateProgram editingProgram={editingProgram ?? undefined} onProgramCreated={handleProgramCreated} onBack={() => handleViewChange('programs')} />;
+      case 'habits':
+        return <HabitsAndNotes />;
+      case 'history':
+        return <History />;
       case 'profile':
         return <Profile />;
       case 'settings':

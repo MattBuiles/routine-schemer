@@ -7,14 +7,14 @@ import { Flame, TrendingUp, Dumbbell, Activity, Target } from 'lucide-react';
 interface WeeklyStatsWidgetsProps {
   currentStreak: number;
   weeklyCompletion: number;
-  totalVolume: number;
+  totalSets: number;
   workoutDistribution: { type: string; count: number; color: string }[];
 }
 
 export function WeeklyStatsWidgets({
   currentStreak,
   weeklyCompletion,
-  totalVolume,
+  totalSets,
   workoutDistribution
 }: WeeklyStatsWidgetsProps) {
   const completionPercentage = Math.round(weeklyCompletion);
@@ -111,10 +111,9 @@ export function WeeklyStatsWidgets({
           </div>
         </div>
         <h3 className="text-3xl font-bold text-white mb-1">
-          {(totalVolume / 1000).toFixed(1)}
-          <span className="text-xl text-gray-400 ml-1">t</span>
+          {totalSets}
         </h3>
-        <p className="text-sm text-gray-400">volumen total</p>
+        <p className="text-sm text-gray-400">series planificadas</p>
         <div className="mt-3 flex gap-1">
           {[...Array(7)].map((_, i) => (
             <div

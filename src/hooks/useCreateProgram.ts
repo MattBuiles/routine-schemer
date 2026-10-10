@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
-import { supabaseService } from '@/lib/supabaseService';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { createCompleteProgram as createCompleteProgramAction } from '@/app/actions/programs';
+import { useAuth } from '@/hooks/useAuth';
 import { PhaseType, SessionType, SplitType, DayOfWeek } from '@/types/program';
 
 export interface CreateCompleteProgramData {
@@ -60,8 +60,8 @@ export interface CreateCompleteProgramData {
   }>;
 }
 
-export function useSupabaseCreateProgram() {
-  const { user } = useSupabaseAuth();
+export function useCreateProgram() {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,10 +75,7 @@ export function useSupabaseCreateProgram() {
     setError(null);
 
     try {
-      const programId = await supabaseService.createCompleteProgram({
-        userId: user.id,
-        ...data,
-      });
+      const programId = await createCompleteProgramAction(data);
 
       setIsLoading(false);
       return programId;

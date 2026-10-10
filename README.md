@@ -4,7 +4,7 @@
 
 Una aplicación web completa para diseñar, estructurar y gestionar programas de entrenamiento, enfocada en profesionales del fitness y atletas serios que buscan un enfoque estructurado y científico del entrenamiento.
 
-> **✅ Completamente migrado a Supabase:** Backend PostgreSQL con autenticación, RLS security, y real-time sync.
+> **Estado:** identidad con Neon Auth y persistencia en Neon + Drizzle. Pendiente: biblioteca de ejercicios.
 
 ## 🎯 Características Principales
 
@@ -71,18 +71,17 @@ Una aplicación web completa para diseñar, estructurar y gestionar programas de
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Styling**: Tailwind CSS 4
 - **State Management**: Zustand
-- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
+- **Backend objetivo**: Neon (PostgreSQL) + Drizzle
+- **Identidad**: Neon Auth
 - **UI Components**: Lucide React, React Calendar
 - **Notifications**: React Hot Toast
 
-### 🎯 Ventajas de Supabase
+### Estado técnico
 
-- ✅ **PostgreSQL** con queries SQL optimizadas
-- ✅ **Row Level Security** para máxima seguridad de datos
-- ✅ **Real-time subscriptions** para sincronización instantánea
-- ✅ **Autenticación integrada** (Google OAuth, Email/Password)
-- ✅ **Triggers automáticos** para gestión de perfiles
-- ✅ **Open source** y self-hostable
+- ✅ Neon Auth está integrado en el layout, middleware y flujo de acceso.
+- ✅ Perfil, programas, hábitos, notas y calendario persisten en Neon mediante server actions.
+- ⏳ Falta la biblioteca de ejercicios (tabla y UI).
+- ⏳ No hay evidencia pública de un despliegue activo ni dominio configurado en Vercel.
 
 ## 🏗️ Arquitectura
 
@@ -91,7 +90,8 @@ src/
 ├── app/                      # App Router de Next.js
 │   ├── page.tsx             # Dashboard principal
 │   ├── layout.tsx           # Layout raíz
-│   └── auth/callback/       # Callback OAuth de Supabase
+│   ├── actions/             # Server actions (acceso a Neon con el usuario de la sesión)
+│   └── auth/[path]/         # Vistas de Neon Auth (registro, recuperación, etc.)
 ├── components/              
 │   ├── ui/                  # Componentes base (Button, Card, Input)
 │   ├── auth/                # Formulario de autenticación
@@ -99,33 +99,29 @@ src/
 │   ├── planner/             # Planificador semanal y sesiones
 │   └── Dashboard*.tsx       # Componentes del dashboard
 ├── hooks/                   # Custom React Hooks
-│   ├── useSupabaseAuth.ts   # Hook de autenticación
-│   ├── useSupabaseDashboardData.ts
-│   └── useSupabaseCreateProgram.ts
+│   ├── useAuth.ts           # Sesión y cierre de sesión (Neon Auth)
+│   ├── useDashboardData.ts  # Perfil y programas del usuario
+│   └── useCreateProgram.ts  # Creación de programas
 ├── lib/                        # Utilidades y servicios
-│   ├── supabase.ts            # Cliente de Supabase
-│   ├── supabaseService.ts     # Servicio completo de datos (CRUD)
 │   ├── exerciseService.ts     # Gestión de ejercicios
 │   └── utils.ts               # Utilidades generales
 ├── store/                      # Estado global (Zustand)
-│   └── supabaseAuthStore.ts   # Store de autenticación
+│   └── (sin store de autenticación; Neon Auth gestiona la sesión)
 ├── styles/                     # Estilos CSS por módulo
 └── types/                      # Tipos TypeScript
     ├── index.ts               # Tipos de la aplicación
-    ├── supabase.ts            # Tipos de base de datos (570+ líneas)
     └── weekly-planner.ts      # Tipos del planificador
 
-supabase/
-├── schema.sql                  # Schema completo (11 tablas)
-└── configuracion-final-rls.sql # Configuración de seguridad RLS
+drizzle/                        # Migraciones SQL (se aplican con pnpm db:migrate)
+supabase/                       # Esquema histórico, solo referencia
 ```
 
 ## 🔧 Instalación y Desarrollo
 
 ### Prerrequisitos
-- Node.js 18+
-- npm o yarn
-- Cuenta de Supabase (gratis en https://supabase.com)
+- Node.js 22+
+- pnpm 10+
+- Proyecto de Neon con Neon Auth activado
 
 ### Configuración
 
@@ -137,33 +133,32 @@ cd routine-schemer
 
 2. **Instalar dependencias**
 ```bash
-npm install
+pnpm install
 ```
 
-3. **Configurar Supabase**
+3. **Configurar Neon y Neon Auth**
 
-a) Crea un proyecto en https://supabase.com
+a) Crea un proyecto en https://neon.tech y activa Neon Auth en él.
 
-b) Ejecuta el schema SQL:
-   - Ve a SQL Editor en tu proyecto Supabase
-   - Copia el contenido de `supabase/schema.sql`
-   - Ejecuta el script
-
-c) Configura variables de entorno:
+b) Configura variables de entorno:
 ```bash
 # Copiar archivo de configuración
-cp .env.local.example .env.local
-
-c) Configura variables de entorno:
+cp .env.example .env.local
 ```bash
-# Editar .env.local con tus credenciales de Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-clave-anon-aqui
+# Editar .env.local con tus credenciales
+DATABASE_URL=postgresql://...
+NEON_AUTH_BASE_URL=https://...neonauth.../auth
+NEON_AUTH_COOKIE_SECRET=...   # mínimo 32 caracteres: openssl rand -base64 32
+```
+
+c) Aplica las migraciones (`db:migrate` lee `DATABASE_URL` del entorno):
+```bash
+pnpm exec tsx --env-file=.env.local scripts/migrate.ts
 ```
 
 4. **Ejecutar en desarrollo**
 ```bash
-npm run dev
+pnpm dev
 ```
 
 La aplicación estará disponible en `http://localhost:3000`
@@ -171,26 +166,22 @@ La aplicación estará disponible en `http://localhost:3000`
 ### Scripts Disponibles
 
 ```bash
-npm run dev          # Servidor de desarrollo (con Turbopack)
-npm run build        # Build de producción
-npm run start        # Servidor de producción
-npm run lint         # Linting
+pnpm dev             # Servidor de desarrollo
+pnpm build           # Build de producción
+pnpm start           # Servidor de producción
+pnpm lint            # Linting
+pnpm typecheck       # TypeScript
+pnpm db:migrate      # Aplicar migraciones de drizzle/ (requiere DATABASE_URL en el entorno)
 ```
 
 ## 📚 Documentación Adicional
 
-### � Guía de Integración Supabase
+### Documentación técnica
 
-Consulta el estado completo de la integración:
+Consulta la decisión y el estado de la migración en
+[`docs/adr/0001-neon-migration.md`](./docs/adr/0001-neon-migration.md).
 
-� **[INTEGRACION-SUPABASE.md](./INTEGRACION-SUPABASE.md)**
-
-Incluye:
-- ✅ Features completadas (100% core, 40% avanzado)
-- ⏳ Features pendientes (calendario, historial, nutrición)
-- 🔧 Configuración de RLS y permisos
-- 🎯 Próximos pasos recomendados
-- 📝 Notas importantes de implementación
+Incluye el contexto, la decisión, el estado actual y la situación del despliegue.
 
 ## 📱 Funcionalidades por Módulo
 
@@ -261,7 +252,7 @@ La aplicación utiliza un diseño **glass morphism** con:
 ## 🔐 Seguridad y Privacidad
 
 - Autenticación segura con Google
-- Datos encriptados en Firebase
+- Datos protegidos por PostgreSQL y las políticas de acceso de la aplicación
 - Configuración granular de privacidad
 - Cumplimiento con estándares de protección de datos
 

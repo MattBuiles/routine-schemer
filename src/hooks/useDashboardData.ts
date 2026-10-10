@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
-import { supabaseService } from '@/lib/supabaseService';
-import { useSupabaseAuth } from '@/store/supabaseAuthStore';
+import { getPrograms } from '@/app/actions/programs';
+import { getUserProfile } from '@/app/actions/profile';
+import { useAuth } from '@/hooks/useAuth';
 import type { Program } from '@/types/program';
 
 interface DashboardData {
@@ -13,8 +14,8 @@ interface DashboardData {
   };
 }
 
-export function useSupabaseDashboardData() {
-  const { user } = useSupabaseAuth();
+export function useDashboardData() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData>({
     userProfile: null,
     programs: [],
@@ -41,8 +42,8 @@ export function useSupabaseDashboardData() {
 
         // Parallel data fetching for better performance
         const [userProfile, programs] = await Promise.all([
-          supabaseService.getUserProfile(user.id),
-          supabaseService.getProgramsByUser(user.id),
+          getUserProfile(),
+          getPrograms(),
         ]);
 
         // Calculate stats
@@ -92,7 +93,7 @@ export function useSupabaseDashboardData() {
 
     try {
       setLoading(true);
-      const programs = await supabaseService.getProgramsByUser(user.id);
+      const programs = await getPrograms();
       
       const activePrograms = programs.filter(p => p.isActive).length;
       const totalWeeks = programs.reduce((sum, p) => {
