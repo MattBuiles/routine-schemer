@@ -6,10 +6,13 @@ import { db } from '@/db/client';
 import { notes } from '@/db/schema';
 import { assertOwnsSessionTemplate } from '@/lib/auth/ownership';
 import { requireUserId } from '@/lib/auth/session';
+import { pick } from '@/lib/pick';
 import type { Note, NoteType } from '@/types';
 
 export type NoteInput = Pick<Note, 'title' | 'content'> &
   Partial<Pick<Note, 'type' | 'tags' | 'workoutSessionId' | 'isPinned'>>;
+
+const NOTE_FIELDS = ['title', 'content', 'type', 'tags', 'workoutSessionId', 'isPinned'] as const;
 
 const toNote = (row: typeof notes.$inferSelect): Note => ({
   id: row.id,
@@ -33,17 +36,19 @@ export async function getNotes(): Promise<Note[]> {
 export async function createNote(input: NoteInput): Promise<Note> {
   const userId = await requireUserId();
   if (input.workoutSessionId) await assertOwnsSessionTemplate(input.workoutSessionId, userId);
-  const [row] = await db.insert(notes).values({ ...input, userId }).returning();
+  const [row] = await db
+    .insert(notes)
+    .values({ ...(pick(input, NOTE_FIELDS) as NoteInput), userId })
+    .returning();
   return toNote(row);
 }
 
 export async function updateNote(noteId: string, updates: Partial<NoteInput>): Promise<void> {
   const userId = await requireUserId();
   if (updates.workoutSessionId) await assertOwnsSessionTemplate(updates.workoutSessionId, userId);
-  const defined = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined));
   await db
     .update(notes)
-    .set({ ...defined, updatedAt: new Date() })
+    .set({ ...pick(updates, NOTE_FIELDS), updatedAt: new Date() })
     .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
 }
 

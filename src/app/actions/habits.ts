@@ -5,10 +5,13 @@ import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { habitRecords, habits } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
+import { pick } from '@/lib/pick';
 import type { Habit, HabitRecord, HabitType } from '@/types';
 
 export type HabitInput = Pick<Habit, 'name' | 'type' | 'target' | 'unit' | 'color' | 'icon'> &
   Partial<Pick<Habit, 'description' | 'isActive' | 'isFavorite'>>;
+
+const HABIT_FIELDS = ['name', 'description', 'type', 'target', 'unit', 'color', 'icon', 'isActive', 'isFavorite'] as const;
 
 const toHabit = (row: typeof habits.$inferSelect): Habit => ({
   id: row.id,
@@ -44,16 +47,18 @@ export async function getHabits(): Promise<Habit[]> {
 
 export async function createHabit(input: HabitInput): Promise<Habit> {
   const userId = await requireUserId();
-  const [row] = await db.insert(habits).values({ ...input, userId }).returning();
+  const [row] = await db
+    .insert(habits)
+    .values({ ...(pick(input, HABIT_FIELDS) as HabitInput), userId })
+    .returning();
   return toHabit(row);
 }
 
 export async function updateHabit(habitId: string, updates: Partial<HabitInput>): Promise<void> {
   const userId = await requireUserId();
-  const defined = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined));
   await db
     .update(habits)
-    .set({ ...defined, updatedAt: new Date() })
+    .set({ ...pick(updates, HABIT_FIELDS), updatedAt: new Date() })
     .where(and(eq(habits.id, habitId), eq(habits.userId, userId)));
 }
 

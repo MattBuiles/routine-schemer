@@ -6,15 +6,18 @@ import { db } from '@/db/client';
 import { calendarEvents } from '@/db/schema';
 import { assertOwnsSessionTemplate } from '@/lib/auth/ownership';
 import { requireUserId } from '@/lib/auth/session';
+import { pick } from '@/lib/pick';
 import type { CalendarEvent } from '@/types';
 
 export type CalendarEventInput = Pick<CalendarEvent, 'date' | 'title'> &
   Partial<Pick<CalendarEvent, 'time' | 'type' | 'duration' | 'description' | 'sessionId' | 'completed' | 'actualDuration' | 'notes' | 'category'>>;
 
+const EVENT_FIELDS = ['date', 'time', 'title', 'type', 'duration', 'description', 'completed', 'actualDuration', 'notes', 'category'] as const;
+
 // `sessionId` del tipo de la app es el id de la plantilla de sesión (session_templates).
-const toColumns = ({ sessionId, ...rest }: Partial<CalendarEventInput>) => ({
-  ...rest,
-  ...(sessionId !== undefined && { sessionTemplateId: sessionId }),
+const toColumns = (input: Partial<CalendarEventInput>) => ({
+  ...pick(input, EVENT_FIELDS),
+  ...(input.sessionId !== undefined && { sessionTemplateId: input.sessionId }),
 });
 
 const toEvent = (row: typeof calendarEvents.$inferSelect): CalendarEvent => ({
@@ -60,10 +63,9 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Ca
 export async function updateCalendarEvent(eventId: string, updates: Partial<CalendarEventInput>): Promise<void> {
   const userId = await requireUserId();
   if (updates.sessionId) await assertOwnsSessionTemplate(updates.sessionId, userId);
-  const defined = Object.fromEntries(Object.entries(toColumns(updates)).filter(([, v]) => v !== undefined));
   await db
     .update(calendarEvents)
-    .set({ ...defined, updatedAt: new Date() })
+    .set({ ...toColumns(updates), updatedAt: new Date() })
     .where(and(eq(calendarEvents.id, eventId), eq(calendarEvents.userId, userId)));
 }
 
