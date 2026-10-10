@@ -179,7 +179,7 @@ export default function BoardEngine() {
     update({ ...present, blocks: present.blocks.map((b) => (b.id === selected.id ? { ...b, ...patch } : b)) });
   };
 
-  // Cambiar de tipo conserva lo que el usuario ya personalizó: el nombre solo se actualiza si seguía siendo el del tipo anterior.
+  // Cambiar de enfoque conserva lo que el usuario ya personalizó: el nombre solo se actualiza si seguía siendo el del tipo anterior.
   const changeType = (type: BlockTypeDef) => {
     if (!selected) return;
     const previous = types.find((t) => t.key === selected.blockType);
@@ -192,9 +192,9 @@ export default function BoardEngine() {
     try {
       const created = await createBlockType({ name: selected.label, color: selected.color, icon: selected.icon });
       setCustomTypes((types) => [...types, created]);
-      toast({ tone: 'success', message: `Tipo «${created.name}» guardado en la paleta.` });
+      toast({ tone: 'success', message: `Enfoque «${created.name}» guardado en la paleta.` });
     } catch {
-      toast({ tone: 'error', message: 'No se pudo guardar el tipo.' });
+      toast({ tone: 'error', message: 'No se pudo guardar el enfoque.' });
     }
   };
 
@@ -203,7 +203,7 @@ export default function BoardEngine() {
       await deleteBlockType(id);
       setCustomTypes((types) => types.filter((t) => t.id !== id));
     } catch {
-      toast({ tone: 'error', message: 'No se pudo eliminar el tipo.' });
+      toast({ tone: 'error', message: 'No se pudo eliminar el enfoque.' });
     }
   };
 

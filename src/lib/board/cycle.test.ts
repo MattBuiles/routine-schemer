@@ -13,6 +13,7 @@ import {
   blockFromType,
   cellAt,
   resolveTypes,
+  defaultIconFor,
   DEFAULT_BLOCK_TYPES,
   resizeCycle,
   toRect,
@@ -20,9 +21,8 @@ import {
 } from './cycle';
 
 const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
-  focus: [],
+  zones: [],
   notes: '',
-  durationMinutes: 60,
   icon: 'dumbbell',
   id: 'a',
   label: 'Push',
@@ -132,7 +132,7 @@ describe('cellAt', () => {
   });
 });
 
-describe('tipos', () => {
+describe('enfoques', () => {
   it('resolveTypes añade los propios con clave custom: y icono válido', () => {
     const all = resolveTypes([{ id: 'x', name: 'Mi tipo', color: '#112233', icon: 'no-existe' }]);
     expect(all).toHaveLength(DEFAULT_BLOCK_TYPES.length + 1);
@@ -141,6 +141,14 @@ describe('tipos', () => {
 
   it('blockFromType usa los valores por defecto del tipo', () => {
     const rest = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'rest')!;
-    expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, load: 1, durationMinutes: 0, focus: [] });
+    expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, load: 1, zones: [] });
+  });
+});
+
+describe('defaultIconFor', () => {
+  it('devuelve el icono del enfoque y sparkles para claves desconocidas', () => {
+    expect(defaultIconFor('strength')).toBe('dumbbell');
+    expect(defaultIconFor('rest')).toBe('moon');
+    expect(defaultIconFor('custom:x')).toBe('sparkles');
   });
 });

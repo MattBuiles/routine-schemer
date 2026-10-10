@@ -64,7 +64,7 @@ export default function Palette({ types, onAdd, onDragMove, onDropType, onDelete
         onPointerDown={(e) => e.stopPropagation()}
         onPointerLeave={() => setHover(null)}
       >
-        <p className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted">Arrastra al ciclo</p>
+        <p className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted">Enfoques</p>
         <div className="flex max-h-[calc(100vh-15rem)] flex-col gap-1 overflow-y-auto">
           {types.map((t) => {
             const Icon = getIcon(t.icon);
@@ -99,7 +99,7 @@ export default function Palette({ types, onAdd, onDragMove, onDropType, onDelete
                 {t.key.startsWith('custom:') && (
                   <button
                     type="button"
-                    aria-label={`Eliminar tipo ${t.label}`}
+                    aria-label={`Eliminar enfoque ${t.label}`}
                     onClick={() => onDeleteCustom(t.key.slice('custom:'.length))}
                     className="rounded p-1 text-muted opacity-0 hover:text-fg group-hover:opacity-100 focus:opacity-100"
                   >

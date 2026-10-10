@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { blockTypes, boardBlocks, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
-import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, DEFAULT_DURATION, type CycleBlock } from '@/lib/board/cycle';
+import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle } from '@/lib/board/sanitize';
 
 export interface CustomBlockType {
@@ -46,10 +46,9 @@ export async function getBoard(): Promise<BoardData> {
       daySpan: r.daySpan ?? 1,
       lane: r.lane ?? 0,
       load: r.load ?? 3,
-      focus: r.focus,
+      zones: r.zones,
       notes: r.notes,
-      durationMinutes: r.durationMinutes ?? DEFAULT_DURATION,
-      icon: r.icon ?? 'sparkles',
+      icon: r.icon ?? defaultIconFor(r.blockType ?? 'free'),
     })),
   };
 }
@@ -91,9 +90,8 @@ export async function saveCycle(input: { cycleDays: number; blocks: CycleBlock[]
         daySpan: b.daySpan,
         lane: b.lane,
         load: b.load,
-        focus: b.focus,
+        zones: b.zones,
         notes: b.notes,
-        durationMinutes: b.durationMinutes,
         icon: b.icon,
       })),
     ),

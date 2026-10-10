@@ -6,17 +6,15 @@ import { Button, Field, Input, SegmentedControl, Textarea } from 'strata';
 
 import {
   BLOCK_ICONS,
-  FOCUS_SUGGESTIONS,
-  MAX_DURATION,
-  MAX_FOCUS,
   MAX_LOAD,
+  MAX_ZONES,
+  ZONE_SUGGESTIONS,
   type BlockTypeDef,
   type CycleBlock,
 } from '@/lib/board/cycle';
 import { getIcon } from './blockIcons';
 
 const SWATCHES = ['#dc2626', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#71717a', '#ec4899'];
-const DURATIONS = [0, 30, 45, 60, 75, 90];
 
 interface BlockPanelProps {
   block: CycleBlock;
@@ -36,12 +34,12 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
 
   const addTag = (raw: string) => {
     const tag = raw.trim().slice(0, 24);
-    if (!tag || block.focus.some((f) => f.toLowerCase() === tag.toLowerCase()) || block.focus.length >= MAX_FOCUS) return;
-    onChange({ focus: [...block.focus, tag] });
+    if (!tag || block.zones.some((f) => f.toLowerCase() === tag.toLowerCase()) || block.zones.length >= MAX_ZONES) return;
+    onChange({ zones: [...block.zones, tag] });
     setDraftTag('');
   };
 
-  const suggestions = FOCUS_SUGGESTIONS.filter((s) => !block.focus.some((f) => f.toLowerCase() === s.toLowerCase())).slice(0, 8);
+  const suggestions = ZONE_SUGGESTIONS.filter((s) => !block.zones.some((f) => f.toLowerCase() === s.toLowerCase())).slice(0, 8);
 
   return (
     <aside
@@ -58,7 +56,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
 
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-4">
         <div>
-          <span className={sectionTitle}>Tipo</span>
+          <span className={sectionTitle}>Enfoque</span>
           <div className="flex flex-wrap gap-1.5">
             {types.map((t) => {
               const Icon = getIcon(t.icon);
@@ -85,13 +83,13 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
         </Field>
 
         <div>
-          <span className={sectionTitle}>Enfoque</span>
-          {block.focus.length > 0 && (
+          <span className={sectionTitle}>Zonas</span>
+          {block.zones.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
-              {block.focus.map((tag) => (
+              {block.zones.map((tag) => (
                 <span key={tag} className="flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2 py-1 text-xs font-medium text-accent">
                   {tag}
-                  <button aria-label={`Quitar ${tag}`} onClick={() => onChange({ focus: block.focus.filter((f) => f !== tag) })}>
+                  <button aria-label={`Quitar ${tag}`} onClick={() => onChange({ zones: block.zones.filter((f) => f !== tag) })}>
                     <X className="h-3 w-3" />
                   </button>
                 </span>
@@ -101,8 +99,8 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
           <Input
             value={draftTag}
             maxLength={24}
-            placeholder={block.focus.length >= MAX_FOCUS ? 'Máximo alcanzado' : 'Añade un enfoque y pulsa Enter'}
-            disabled={block.focus.length >= MAX_FOCUS}
+            placeholder={block.zones.length >= MAX_ZONES ? 'Máximo alcanzado' : 'Añade una zona y pulsa Enter'}
+            disabled={block.zones.length >= MAX_ZONES}
             onChange={(e) => setDraftTag(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -111,7 +109,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
               }
             }}
           />
-          {block.focus.length < MAX_FOCUS && (
+          {block.zones.length < MAX_ZONES && (
             <div className="mt-2 flex flex-wrap gap-1">
               {suggestions.map((s) => (
                 <button key={s} type="button" onClick={() => addTag(s)} className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted hover:border-accent hover:text-accent">
@@ -133,28 +131,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
         </div>
 
         <div>
-          <span className={sectionTitle}>Duración · {block.durationMinutes > 0 ? `${block.durationMinutes} min` : 'sin definir'}</span>
-          <input
-            type="range"
-            aria-label="Duración en minutos"
-            min={0}
-            max={MAX_DURATION}
-            step={5}
-            value={block.durationMinutes}
-            onChange={(e) => onChange({ durationMinutes: Number(e.target.value) })}
-            className="w-full accent-[var(--accent)]"
-          />
-          <div className="mt-1 flex gap-1">
-            {DURATIONS.map((d) => (
-              <button key={d} type="button" onClick={() => onChange({ durationMinutes: d })} style={block.durationMinutes === d ? { color: 'var(--accent-fg)' } : undefined} className={`flex-1 rounded-md px-1 py-0.5 text-xs ${block.durationMinutes === d ? 'bg-accent' : 'bg-surface-2 text-muted hover:text-fg'}`}>
-                {d === 0 ? '—' : d}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <span className={sectionTitle}>Color e icono</span>
+          <span className={sectionTitle}>Color</span>
           <div className="flex flex-wrap gap-2">
             {SWATCHES.map((c) => (
               <button
@@ -168,7 +145,11 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
               />
             ))}
           </div>
-          <div className="mt-3 flex flex-wrap gap-1">
+        </div>
+
+        <div>
+          <span className={sectionTitle}>Icono</span>
+          <div className="grid grid-cols-6 gap-1.5">
             {BLOCK_ICONS.map((key) => {
               const Icon = getIcon(key);
               return (
@@ -178,7 +159,8 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
                   aria-label={`Icono ${key}`}
                   aria-pressed={block.icon === key}
                   onClick={() => onChange({ icon: key })}
-                  className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg aria-pressed:bg-[var(--accent-soft)] aria-pressed:text-accent"
+                  className="flex h-9 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:text-fg aria-pressed:border-transparent"
+                  style={block.icon === key ? { color: 'var(--accent-fg)', backgroundColor: 'var(--accent)' } : undefined}
                 >
                   <Icon className="h-4 w-4" />
                 </button>
@@ -194,7 +176,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
 
       <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
         <Button variant="secondary" size="sm" onClick={onSaveType} disabled={!block.label.trim()}>
-          Guardar como tipo
+          Guardar como enfoque
         </Button>
         <Button variant="ghost" size="sm" aria-label="Eliminar bloque" onClick={onDelete}>
           <Trash2 className="h-4 w-4" />
