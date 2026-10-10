@@ -5,13 +5,14 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { blockTypes, boardBlocks, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
-import { DEFAULT_CYCLE_DAYS, type CycleBlock } from '@/lib/board/cycle';
+import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, DEFAULT_DURATION, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle } from '@/lib/board/sanitize';
 
 export interface CustomBlockType {
   id: string;
   name: string;
   color: string;
+  icon: string;
 }
 
 export interface BoardData {
@@ -25,7 +26,7 @@ export async function getBoard(): Promise<BoardData> {
   const userId = await requireUserId();
   const [board] = await db.select().from(boards).where(eq(boards.userId, userId));
   const customTypes = (await db.select().from(blockTypes).where(eq(blockTypes.userId, userId))).map(
-    ({ id, name, color }) => ({ id, name, color }),
+    ({ id, name, color, icon }) => ({ id, name, color, icon }),
   );
   if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], customTypes };
 
@@ -45,6 +46,10 @@ export async function getBoard(): Promise<BoardData> {
       daySpan: r.daySpan ?? 1,
       lane: r.lane ?? 0,
       load: r.load ?? 3,
+      focus: r.focus,
+      notes: r.notes,
+      durationMinutes: r.durationMinutes ?? DEFAULT_DURATION,
+      icon: r.icon ?? 'sparkles',
     })),
   };
 }
@@ -86,18 +91,23 @@ export async function saveCycle(input: { cycleDays: number; blocks: CycleBlock[]
         daySpan: b.daySpan,
         lane: b.lane,
         load: b.load,
+        focus: b.focus,
+        notes: b.notes,
+        durationMinutes: b.durationMinutes,
+        icon: b.icon,
       })),
     ),
   ]);
 }
 
-export async function createBlockType(input: { name: string; color: string }): Promise<CustomBlockType> {
+export async function createBlockType(input: { name: string; color: string; icon?: string }): Promise<CustomBlockType> {
   const userId = await requireUserId();
   const name = typeof input?.name === 'string' ? input.name.trim().slice(0, 40) : '';
   if (!name) throw new Error('El tipo necesita un nombre');
   const color = isHexColor(input.color) ? input.color : '#3b82f6';
-  const [row] = await db.insert(blockTypes).values({ userId, name, color }).returning();
-  return { id: row.id, name: row.name, color: row.color };
+  const icon = (BLOCK_ICONS as readonly string[]).includes(input.icon as string) ? (input.icon as string) : 'sparkles';
+  const [row] = await db.insert(blockTypes).values({ userId, name, color, icon }).returning();
+  return { id: row.id, name: row.name, color: row.color, icon: row.icon };
 }
 
 export async function deleteBlockType(id: string): Promise<void> {

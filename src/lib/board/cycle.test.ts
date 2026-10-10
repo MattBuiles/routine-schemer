@@ -10,12 +10,20 @@ import {
   findFreeSlot,
   fromRect,
   placeBlock,
+  blockFromType,
+  cellAt,
+  resolveTypes,
+  DEFAULT_BLOCK_TYPES,
   resizeCycle,
   toRect,
   type CycleBlock,
 } from './cycle';
 
 const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
+  focus: [],
+  notes: '',
+  durationMinutes: 60,
+  icon: 'dumbbell',
   id: 'a',
   label: 'Push',
   color: '#000',
@@ -111,5 +119,28 @@ describe('resizeCycle', () => {
     expect(resizeCycle(blocks, 0).cycleDays).toBe(1);
     expect(resizeCycle(blocks, 99).cycleDays).toBe(28);
     expect(resizeCycle(blocks, 10).blocks).toEqual(blocks);
+  });
+});
+
+describe('cellAt', () => {
+  it('devuelve día y carril bajo el punto y null fuera', () => {
+    expect(cellAt(DAY_W * 2 + 5, HEADER_H + LANE_H + 5, 7)).toEqual({ dayStart: 2, lane: 1 });
+    expect(cellAt(-1, HEADER_H, 7)).toBeNull();
+    expect(cellAt(5, HEADER_H - 1, 7)).toBeNull();
+    expect(cellAt(DAY_W * 7, HEADER_H, 7)).toBeNull();
+    expect(cellAt(5, HEADER_H + LANE_H * MAX_LANES, 7)).toBeNull();
+  });
+});
+
+describe('tipos', () => {
+  it('resolveTypes añade los propios con clave custom: y icono válido', () => {
+    const all = resolveTypes([{ id: 'x', name: 'Mi tipo', color: '#112233', icon: 'no-existe' }]);
+    expect(all).toHaveLength(DEFAULT_BLOCK_TYPES.length + 1);
+    expect(all.at(-1)).toMatchObject({ key: 'custom:x', label: 'Mi tipo', icon: 'sparkles' });
+  });
+
+  it('blockFromType usa los valores por defecto del tipo', () => {
+    const rest = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'rest')!;
+    expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, load: 1, durationMinutes: 0, focus: [] });
   });
 });

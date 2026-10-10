@@ -4,24 +4,25 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Redo2, Undo2 } from 'lucide-react';
 import { Alert, Skeleton, ThemeToggle, useConfirm, useToast } from 'strata';
 
+import { authClient } from '@/lib/auth/client';
+
 import { createBlockType, deleteBlockType, getBoard, saveCycle, type CustomBlockType } from '@/app/actions/board';
 import {
-  DAY_W,
-  DEFAULT_BLOCK_TYPES,
-  HEADER_H,
-  LANE_H,
-  MAX_LANES,
+  blockFromType,
   blocksBeyond,
+  cellAt,
   findFreeSlot,
   placeBlock,
   resizeCycle,
+  resolveTypes,
+  type BlockTypeDef,
   type CycleBlock,
 } from '@/lib/board/cycle';
 import { commit, createHistory, redo, undo, type History } from '@/lib/board/history';
 import BlockPanel from './BlockPanel';
 import Canvas, { type CanvasApi } from './Canvas';
-import CycleZone, { ZONE_ORIGIN } from './CycleZone';
-import Palette, { type PaletteType } from './Palette';
+import CycleZone, { ZONE_ORIGIN, type DropPreview } from './CycleZone';
+import Palette from './Palette';
 
 interface CycleState {
   cycleDays: number;
@@ -77,9 +78,16 @@ export default function BoardEngine() {
           lastSaved.current = snapshot;
           setStatus('saved');
         })
-        .catch(() => {
+        .catch(async () => {
           setStatus('error');
-          toast({ tone: 'error', message: 'No se pudo guardar el ciclo. Se reintentará con el próximo cambio.' });
+          const { data } = await authClient.getSession().catch(() => ({ data: null }));
+          toast({
+            tone: 'error',
+            duration: 8000,
+            message: data?.user
+              ? 'No se pudo guardar el ciclo. Se reintentará con el próximo cambio.'
+              : 'Tu sesión caducó y los cambios no se guardan. Inicia sesión de nuevo (recarga la página).',
+          });
         });
     }, SAVE_DELAY_MS);
     return () => clearTimeout(timer);
@@ -87,25 +95,8 @@ export default function BoardEngine() {
 
   const update = useCallback((next: CycleState) => setHistory((h) => (h ? commit(h, next) : h)), []);
 
-  const typeByKey = useMemo(() => {
-    const map = new Map<string, { label: string; color: string }>();
-    DEFAULT_BLOCK_TYPES.forEach((t) => map.set(t.key, t));
-    return map;
-  }, []);
-
-  const makeBlock = useCallback(
-    (type: PaletteType, dayStart: number, lane: number): CycleBlock => ({
-      id: crypto.randomUUID(),
-      label: type.label,
-      color: type.color,
-      blockType: type.key,
-      dayStart,
-      daySpan: 1,
-      lane,
-      load: type.key === 'rest' ? 1 : 3,
-    }),
-    [],
-  );
+  const types = useMemo(() => resolveTypes(customTypes), [customTypes]);
+  const [dropPreview, setDropPreview] = useState<DropPreview | null>(null);
 
   const addBlock = useCallback(
     (block: CycleBlock | null) => {
@@ -122,24 +113,39 @@ export default function BoardEngine() {
   );
 
   const onAddType = useCallback(
-    (type: PaletteType) => {
+    (type: BlockTypeDef) => {
       if (!present) return;
       const slot = findFreeSlot(present.blocks, present.cycleDays);
-      addBlock(slot ? makeBlock(type, slot.dayStart, slot.lane) : null);
+      addBlock(slot ? blockFromType(type, crypto.randomUUID(), slot.dayStart, slot.lane) : null);
     },
-    [addBlock, makeBlock, present],
+    [addBlock, present],
+  );
+
+  const cellUnder = useCallback(
+    (clientX: number, clientY: number) => {
+      const world = apiRef.current?.toWorld(clientX, clientY);
+      return world && present ? cellAt(world.x - ZONE_ORIGIN.x, world.y - ZONE_ORIGIN.y, present.cycleDays) : null;
+    },
+    [present],
+  );
+
+  const onDragMove = useCallback(
+    (type: BlockTypeDef | null, clientX: number, clientY: number) => {
+      const cell = type ? cellUnder(clientX, clientY) : null;
+      if (!type || !cell || !present) return setDropPreview(null);
+      // La vista previa muestra dónde caerá de verdad (carril libre si el hueco está ocupado).
+      const landing = placeBlock(present.blocks, blockFromType(type, 'preview', cell.dayStart, cell.lane));
+      setDropPreview(landing ? { dayStart: landing.dayStart, lane: landing.lane, color: type.color, label: type.label, icon: type.icon } : null);
+    },
+    [cellUnder, present],
   );
 
   const onDropType = useCallback(
-    (type: PaletteType, clientX: number, clientY: number) => {
-      const world = apiRef.current?.toWorld(clientX, clientY);
-      if (!world || !present) return;
-      const x = world.x - ZONE_ORIGIN.x;
-      const y = world.y - ZONE_ORIGIN.y - HEADER_H;
-      if (x < 0 || y < 0 || x >= present.cycleDays * DAY_W || y >= MAX_LANES * LANE_H) return;
-      addBlock(makeBlock(type, Math.floor(x / DAY_W), Math.floor(y / LANE_H)));
+    (type: BlockTypeDef, clientX: number, clientY: number) => {
+      const cell = cellUnder(clientX, clientY);
+      if (cell) addBlock(blockFromType(type, crypto.randomUUID(), cell.dayStart, cell.lane));
     },
-    [addBlock, makeBlock, present],
+    [addBlock, cellUnder],
   );
 
   const deleteBlock = useCallback(
@@ -173,10 +179,18 @@ export default function BoardEngine() {
     update({ ...present, blocks: present.blocks.map((b) => (b.id === selected.id ? { ...b, ...patch } : b)) });
   };
 
+  // Cambiar de tipo conserva lo que el usuario ya personalizó: el nombre solo se actualiza si seguía siendo el del tipo anterior.
+  const changeType = (type: BlockTypeDef) => {
+    if (!selected) return;
+    const previous = types.find((t) => t.key === selected.blockType);
+    const keepLabel = selected.label.trim() && selected.label !== previous?.label;
+    patchSelected({ blockType: type.key, color: type.color, icon: type.icon, ...(keepLabel ? {} : { label: type.label }) });
+  };
+
   const saveAsType = async () => {
     if (!selected) return;
     try {
-      const created = await createBlockType({ name: selected.label, color: selected.color });
+      const created = await createBlockType({ name: selected.label, color: selected.color, icon: selected.icon });
       setCustomTypes((types) => [...types, created]);
       toast({ tone: 'success', message: `Tipo «${created.name}» guardado en la paleta.` });
     } catch {
@@ -213,8 +227,6 @@ export default function BoardEngine() {
   }
   if (!history || !present) return <Skeleton className="h-screen w-full" />;
 
-  const palette: PaletteType[] = customTypes.map((t) => ({ key: `custom:${t.id}`, label: t.name, color: t.color, customId: t.id }));
-
   return (
     <div className="relative h-screen w-full">
       <Canvas apiRef={apiRef} onBackgroundClick={() => setSelectedId(null)}>
@@ -226,11 +238,12 @@ export default function BoardEngine() {
           onBlocksChange={(blocks) => update({ ...present, blocks })}
           onDelete={deleteBlock}
           onCycleDaysChange={changeCycleDays}
-          onCreateAt={(dayStart, lane) => addBlock(makeBlock({ key: 'free', ...typeByKey.get('free')! }, dayStart, lane))}
+          dropPreview={dropPreview}
+          onCreateAt={(dayStart, lane) => addBlock(blockFromType(types.find((t) => t.key === 'free')!, crypto.randomUUID(), dayStart, lane))}
         />
       </Canvas>
 
-      <Palette customTypes={palette} onAdd={onAddType} onDropType={onDropType} onDeleteCustom={removeCustomType} />
+      <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} />
 
       <div className="absolute left-4 top-4 flex items-center gap-1 rounded-xl border border-border bg-surface/90 p-1 shadow-[var(--shadow)] backdrop-blur">
         <button aria-label="Deshacer" disabled={!history.past.length} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => setHistory((h) => (h ? undo(h) : h))}>
@@ -243,9 +256,20 @@ export default function BoardEngine() {
           {STATUS_LABEL[status]}
         </span>
       </div>
-      <ThemeToggle className="absolute right-4 top-4" />
+      <ThemeToggle className="absolute right-4 top-4 z-20" />
 
-      {selected && <BlockPanel block={selected} onChange={patchSelected} onDelete={() => deleteBlock(selected.id)} onSaveType={saveAsType} />}
+      {selected && (
+        <BlockPanel
+          key={selected.id}
+          block={selected}
+          types={types}
+          onChange={patchSelected}
+          onChangeType={changeType}
+          onDelete={() => deleteBlock(selected.id)}
+          onSaveType={saveAsType}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
     </div>
   );
 }

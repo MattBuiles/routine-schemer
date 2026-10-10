@@ -1,4 +1,4 @@
-import { MAX_LANES, MAX_LOAD, placeBlock, resizeCycle, type CycleBlock } from './cycle';
+import { BLOCK_ICONS, DEFAULT_DURATION, MAX_DURATION, MAX_FOCUS, MAX_LANES, MAX_LOAD, placeBlock, resizeCycle, type CycleBlock } from './cycle';
 import { clamp } from './geometry';
 
 export const MAX_BLOCKS = 100;
@@ -13,6 +13,17 @@ const int = (value: unknown, min: number, max: number, fallback: number) =>
   typeof value === 'number' && Number.isFinite(value) ? clamp(Math.round(value), min, max) : fallback;
 
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+
+const cleanFocus = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const tag = text(item, 24);
+    if (tag) seen.add(tag);
+    if (seen.size >= MAX_FOCUS) break;
+  }
+  return [...seen];
+};
 
 /**
  * Normaliza el ciclo recibido del cliente (JSON no confiable): descarta entradas inválidas,
@@ -38,6 +49,10 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
       daySpan,
       lane: int(item.lane, 0, MAX_LANES - 1, 0),
       load: int(item.load, 1, MAX_LOAD, 3),
+      focus: cleanFocus(item.focus),
+      notes: text(item.notes, 500),
+      durationMinutes: int(item.durationMinutes, 0, MAX_DURATION, DEFAULT_DURATION),
+      icon: (BLOCK_ICONS as readonly string[]).includes(item.icon as string) ? (item.icon as string) : 'sparkles',
     };
     const result = placeBlock(placed, block);
     if (result) placed.push(result);

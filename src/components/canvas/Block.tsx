@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { GRID, moveRect, resizeRect, type Rect, type ResizeHandle } from '@/lib/board/geometry';
 import { useCanvasZoom } from './Canvas';
@@ -10,7 +10,8 @@ interface BlockProps {
   color: string;
   selected: boolean;
   label: string;
-  children?: React.ReactNode;
+  /** Contenido del bloque; por defecto, su etiqueta. */
+  content?: React.ReactNode;
   onSelect: () => void;
   onGestureStart: () => void;
   onRectChange: (rect: Rect) => void;
@@ -37,7 +38,7 @@ export default function Block({
   color,
   selected,
   label,
-  children,
+  content,
   onSelect,
   onGestureStart,
   onRectChange,
@@ -46,11 +47,13 @@ export default function Block({
 }: BlockProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const begin = (mode: Gesture['mode']) => (e: React.PointerEvent) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     gesture.current = { pointerId: e.pointerId, mode, startX: e.clientX, startY: e.clientY, origin: rect };
+    setDragging(true);
     onSelect();
     onGestureStart();
   };
@@ -66,6 +69,7 @@ export default function Block({
   const end = (e: React.PointerEvent) => {
     if (gesture.current?.pointerId !== e.pointerId) return;
     gesture.current = null;
+    setDragging(false);
     onGestureEnd();
   };
 
@@ -93,12 +97,12 @@ export default function Block({
       onPointerMove={onPointerMove}
       onPointerUp={end}
       onPointerCancel={end}
-      className={`absolute cursor-move rounded-xl border-2 text-white shadow-md outline-none transition-shadow ${
-        selected ? 'shadow-xl ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''
-      }`}
+      className={`block-in absolute rounded-xl border-2 text-white outline-none transition-[box-shadow,transform] duration-150 motion-reduce:transition-none ${
+        dragging ? 'z-20 scale-[1.03] cursor-grabbing shadow-2xl' : 'cursor-grab shadow-md hover:shadow-lg'
+      } ${selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''}`}
       style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, backgroundColor: color, borderColor: color }}
     >
-      <div className="pointer-events-none h-full w-full overflow-hidden p-2 text-sm font-semibold">{children ?? label}</div>
+      <div className="pointer-events-none h-full w-full overflow-hidden p-2 text-sm font-semibold">{content ?? label}</div>
       {selected &&
         HANDLES.map(({ handle, className }) => (
           <div
