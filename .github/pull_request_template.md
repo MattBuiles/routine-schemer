@@ -12,7 +12,8 @@
 
 ## Checklist
 
-- [ ] `pnpm lint`, `pnpm typecheck` y `pnpm build` pasan
+- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test` y `pnpm build` pasan
+- [ ] Los cambios con lógica tienen tests
 - [ ] Si toca datos, la acción filtra por el `userId` de la sesión
 - [ ] Si añade tablas, hay un nuevo `drizzle/NNNN_*.sql` y se actualizó `src/db/schema.ts`
 - [ ] Sin secretos ni archivos `.env*` en el diff

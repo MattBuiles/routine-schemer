@@ -171,6 +171,7 @@ pnpm build           # Build de producción
 pnpm start           # Servidor de producción
 pnpm lint            # Linting
 pnpm typecheck       # TypeScript
+pnpm test            # Tests (Vitest)
 pnpm db:migrate      # Aplicar migraciones de drizzle/ (requiere DATABASE_URL en el entorno)
 ```
 

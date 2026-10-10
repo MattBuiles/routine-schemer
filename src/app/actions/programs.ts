@@ -14,6 +14,7 @@ import {
   weeklySplits,
 } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
+import { resolveSplitDays, WEEKDAYS, type SplitDayInput } from '@/lib/programStructure';
 import type {
   DayOfWeek,
   Mesocycle,
@@ -57,13 +58,7 @@ export interface CreateProgramInput {
   weeklySplit: {
     name: string;
     type: SplitType;
-    days: Array<{
-      dayOfWeek: DayOfWeek;
-      sessionTemplateName?: string;
-      sessionTemplateId?: string | null;
-      isRestDay: boolean;
-      notes?: string;
-    }>;
+    days: SplitDayInput[];
   };
   mesocycles: Array<{
     name: string;
@@ -77,8 +72,6 @@ export interface CreateProgramInput {
   }>;
   progressionRules?: Array<Omit<ProgressionRule, 'id'>>;
 }
-
-const WEEKDAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 async function requireOwnedProgram(programId: string, userId: string) {
   const [row] = await db
@@ -250,32 +243,6 @@ export async function getProgram(programId: string): Promise<Program | null> {
     .from(trainingPrograms)
     .where(and(eq(trainingPrograms.id, programId), eq(trainingPrograms.userId, userId)));
   return (await loadPrograms(rows))[0] ?? null;
-}
-
-const TRAINING_DAYS: Record<number, DayOfWeek[]> = {
-  1: ['monday'],
-  2: ['monday', 'thursday'],
-  3: ['monday', 'wednesday', 'friday'],
-  4: ['monday', 'tuesday', 'thursday', 'friday'],
-  5: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-  6: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-  7: WEEKDAYS,
-};
-
-/** Si el split no asigna sesiones a ningún día, reparte las plantillas en los días de entreno según `sessionsPerWeek`. */
-function resolveSplitDays(input: CreateProgramInput): CreateProgramInput['weeklySplit']['days'] {
-  const given = input.weeklySplit.days;
-  if (given.some(day => day.sessionTemplateName || day.sessionTemplateId)) return given;
-
-  const trainingDays = TRAINING_DAYS[Math.min(Math.max(input.sessionsPerWeek, 1), 7)];
-  const templates = input.sessionTemplates;
-  return WEEKDAYS.map(dayOfWeek => {
-    const index = trainingDays.indexOf(dayOfWeek);
-    const template = index >= 0 && templates.length > 0 ? templates[index % templates.length] : undefined;
-    return template
-      ? { dayOfWeek, sessionTemplateName: template.name, isRestDay: false }
-      : { dayOfWeek, isRestDay: true };
-  });
 }
 
 /** Sentencias que (re)crean todo lo que cuelga de un programa. Los ids se generan aquí para poder lanzarlas en un solo batch. */

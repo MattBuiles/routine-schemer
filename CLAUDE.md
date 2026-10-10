@@ -6,10 +6,11 @@ Next.js 15 (App Router) + React 19 + Tailwind 4 + Zustand. Documentación del pr
 
 ## Comandos
 Gestor: pnpm (`package-lock.json` está obsoleto; ignorarlo).
-- `pnpm dev` (turbopack), `pnpm build`, `pnpm lint`, `pnpm typecheck`
+- `pnpm dev` (turbopack), `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (Vitest; un archivo: `pnpm exec vitest run src/lib/utils.test.ts`)
 - `pnpm db:generate` (drizzle-kit, lee `DATABASE_URL` de `.env.local`)
 - `pnpm db:migrate` ejecuta `scripts/migrate.ts`: aplica en orden los `drizzle/*.sql` pendientes (registro en la tabla `_app_migrations`). Lee `DATABASE_URL` del entorno, no de `.env.local`: `pnpm exec tsx --env-file=.env.local scripts/migrate.ts`. Las migraciones son SQL escrito a mano (no hay `drizzle/meta`), así que `db:generate` no es la vía; al añadir tablas, actualizar `src/db/schema.ts` y crear el siguiente `.sql`.
-- No hay tests ni CI.
+- Tests `*.test.ts` junto al código (utilidades, validación de entorno, acciones con la BD simulada). CI en `.github/workflows/ci.yml` (`ci`: lint, typecheck, test, build). `main` solo admite PRs con Squash and merge.
+- Las server actions de escritura nunca vuelcan la entrada del cliente a la BD: usar `pick()` con una lista de columnas (`src/lib/pick.ts`) y tomar el `userId` de `requireUserId()`.
 
 ## Arquitectura: Neon (DB) + Neon Auth (migrada desde Supabase)
 Proveedor de auth vigente: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{client,server}.ts`, `src/middleware.ts`, `src/app/api/auth/[...path]`, `NeonAuthUIProvider` en `src/app/providers.tsx`; vistas de login en `/` y el resto en `src/app/auth/[path]/page.tsx`). Variables requeridas: `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (`serverEnv()` falla con 500 si falta alguna). Clerk es residuo de un plan anterior (README y ADR 0001 están desactualizados); no usarlo.
@@ -26,4 +27,4 @@ Proveedor de auth vigente: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{c
 - Sin dependencias, abstracciones ni documentación nuevas salvo que la tarea lo pida.
 
 ## Terminado cuando
-`typecheck` y `lint` pasan.
+`typecheck`, `lint` y `test` pasan.

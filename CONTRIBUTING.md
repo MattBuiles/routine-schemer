@@ -19,11 +19,12 @@ integra con **Squash and merge** (es el único método habilitado).
 
 1. Crea una rama desde `main` actualizada: `feat/…`, `fix/…`, `chore/…` o `docs/…`.
 2. Mantén los cambios acotados a una responsabilidad.
-3. Ejecuta `pnpm lint`, `pnpm typecheck` y `pnpm build` antes de abrir el PR.
+3. Ejecuta `pnpm lint`, `pnpm typecheck`, `pnpm test` y `pnpm build` antes de abrir el PR.
+   Si cambias lógica, añade o actualiza sus tests (`*.test.ts` junto al código, con Vitest).
 4. Abre el PR contra `main`. Su **título** será el mensaje del commit en `main`
    (por ejemplo `feat: registrar sesiones de entrenamiento`), así que escríbelo
    como tal; la descripción pasa a ser el cuerpo del commit.
-5. El check `ci` (lint, typecheck y build) debe estar en verde para fusionar.
+5. El check `ci` (lint, typecheck, test y build) debe estar en verde para fusionar.
 6. Haz *Squash and merge*. La rama se borra sola al fusionar.
 7. No uses `npm` ni `yarn`.
 
