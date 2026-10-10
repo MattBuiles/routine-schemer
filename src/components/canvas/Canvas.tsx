@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Minus, Plus, Maximize2 } from 'lucide-react';
 
-import { DEFAULT_VIEWPORT, GRID, panBy, sanitizeViewport, zoomAt, type Viewport } from '@/lib/board/geometry';
+import { DEFAULT_VIEWPORT, GRID, panBy, sanitizeViewport, screenToWorld, zoomAt, type Viewport } from '@/lib/board/geometry';
 
 const VIEWPORT_KEY = 'routine-schemer-viewport';
 
@@ -19,12 +19,18 @@ function loadViewport(): Viewport {
   }
 }
 
+export interface CanvasApi {
+  /** Convierte coordenadas de pantalla (clientX/Y) a coordenadas del lienzo. */
+  toWorld: (clientX: number, clientY: number) => { x: number; y: number };
+}
+
 interface CanvasProps {
   children: React.ReactNode;
   onBackgroundClick?: () => void;
+  apiRef?: React.MutableRefObject<CanvasApi | null>;
 }
 
-export default function Canvas({ children, onBackgroundClick }: CanvasProps) {
+export default function Canvas({ children, onBackgroundClick, apiRef }: CanvasProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [vp, setVp] = useState<Viewport>(DEFAULT_VIEWPORT);
   const vpRef = useRef(vp);
@@ -35,6 +41,19 @@ export default function Canvas({ children, onBackgroundClick }: CanvasProps) {
   useEffect(() => {
     setVp(loadViewport());
   }, []);
+
+  useEffect(() => {
+    if (!apiRef) return;
+    apiRef.current = {
+      toWorld: (clientX, clientY) => {
+        const box = ref.current!.getBoundingClientRect();
+        return screenToWorld(vpRef.current, clientX - box.left, clientY - box.top);
+      },
+    };
+    return () => {
+      apiRef.current = null;
+    };
+  }, [apiRef]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

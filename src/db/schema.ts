@@ -203,3 +203,40 @@ export const calendarEvents = pgTable('calendar_events', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const boards = pgTable('boards', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  cycleDays: integer('cycle_days').notNull().default(7),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const boardBlocks = pgTable('board_blocks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(),
+  label: text('label').notNull().default(''),
+  color: text('color').notNull().default('#3b82f6'),
+  blockType: text('block_type'),
+  dayStart: integer('day_start'),
+  daySpan: integer('day_span'),
+  lane: integer('lane'),
+  load: integer('load'),
+  widgetType: text('widget_type'),
+  x: integer('x'),
+  y: integer('y'),
+  w: integer('w'),
+  h: integer('h'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const blockTypes = pgTable('block_types', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  color: text('color').notNull().default('#3b82f6'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
