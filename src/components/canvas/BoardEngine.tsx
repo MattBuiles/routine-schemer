@@ -39,7 +39,7 @@ import Palette from './Palette';
 import PhasePanel from './PhasePanel';
 import PhaseStrip from './PhaseStrip';
 import WidgetFrame from './WidgetFrame';
-import CalendarWidget from './widgets/CalendarWidget';
+import CalendarWidget, { type PlanAnchorWithBlocks } from './widgets/CalendarWidget';
 import HabitsWidget from './widgets/HabitsWidget';
 import NotesWidget from './widgets/NotesWidget';
 
@@ -48,13 +48,15 @@ interface BoardState {
   blocks: CycleBlock[];
   widgets: BoardWidget[];
   phases: Phase[];
+  /** Fecha en la que empieza la semana 1 del plan (ancla las fases al calendario). */
+  planStart: string | null;
 }
 
 const WIDGET_ICONS: Record<WidgetType, LucideIcon> = { habits: ListChecks, notes: StickyNote, calendar: CalendarDays };
-const WIDGET_BODIES: Record<WidgetType, () => React.ReactElement> = {
+const WIDGET_BODIES: Record<WidgetType, (plan: PlanAnchorWithBlocks | null) => React.ReactElement> = {
   habits: () => <HabitsWidget />,
   notes: () => <NotesWidget />,
-  calendar: () => <CalendarWidget />,
+  calendar: (plan) => <CalendarWidget plan={plan} />,
 };
 // La franja de fases va sobre la zona del ciclo y los widgets nacen bajo ella.
 const STRIP_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y - 150 };
@@ -68,7 +70,7 @@ const STATUS_LABEL: Record<SaveStatus, string> = { idle: '', saving: 'Guardando‚
 const snapshots = (state: BoardState) => ({
   cycle: JSON.stringify({ cycleDays: state.cycleDays, blocks: state.blocks }),
   widgets: JSON.stringify(state.widgets),
-  phases: JSON.stringify(state.phases),
+  phases: JSON.stringify({ phases: state.phases, planStart: state.planStart }),
 });
 
 /** Lienzo del ciclo de entrenamiento: carga, edita y guarda el tablero del usuario. */
@@ -92,7 +94,7 @@ export default function BoardEngine() {
     getBoard()
       .then((board) => {
         if (cancelled) return;
-        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases };
+        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases, planStart: board.planStart };
         lastSaved.current = snapshots(state);
         setHistory(createHistory(state));
         setCustomTypes(board.customTypes);
@@ -128,7 +130,7 @@ export default function BoardEngine() {
             lastSaved.current = { ...lastSaved.current, widgets: snapshot.widgets };
           }
           if (phasesChanged) {
-            await savePhases(present.phases);
+            await savePhases({ phases: present.phases, planStart: present.planStart });
             lastSaved.current = { ...lastSaved.current, phases: snapshot.phases };
           }
           setStatus('saved');
@@ -344,6 +346,11 @@ export default function BoardEngine() {
   }
   if (!history || !present) return <Skeleton className="h-screen w-full" />;
 
+  // El calendario ense√±a el plan solo si tiene fecha de inicio.
+  const plan: PlanAnchorWithBlocks | null = present.planStart
+    ? { planStart: present.planStart, cycleDays: present.cycleDays, phases: present.phases, blocks: present.blocks }
+    : null;
+
   return (
     <div className="relative h-screen w-full">
       <Canvas
@@ -367,6 +374,8 @@ export default function BoardEngine() {
           }}
           onPhasesChange={(phases) => update({ ...present, phases })}
           onCreateAt={(week) => addPhase(PHASE_TYPES[0], week)}
+          planStart={present.planStart}
+          onPlanStartChange={(planStart) => update({ ...present, planStart })}
         />
         <CycleZone
           cycleDays={present.cycleDays}
@@ -404,7 +413,7 @@ export default function BoardEngine() {
               onGestureEnd={onWidgetGestureEnd}
               onClose={() => toggleWidget(w.type)}
             >
-              {WIDGET_BODIES[w.type]()}
+              {WIDGET_BODIES[w.type](plan)}
             </WidgetFrame>
           );
         })}

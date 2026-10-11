@@ -108,21 +108,37 @@ describe('savePhases', () => {
   const phase = (n: number, over: Record<string, unknown> = {}) => ({ id: id(n), name: 'Bloque A', kind: 'volume', startWeek: (n - 1) * 4, weeks: 4, color: '#112233', volumePct: 10, intensityPct: -5, rampSets: 1, rampLoad: 0, deloadLast: true, ...over });
 
   it('toma el userId de la sesión y descarta userId/boardId del cliente', async () => {
-    await savePhases(as([{ ...phase(1), userId: 'atacante', boardId: 'ajeno' }]));
+    await savePhases(as({ phases: [{ ...phase(1), userId: 'atacante', boardId: 'ajeno' }], planStart: null }));
     expect(state.boardValues[0]).toMatchObject({ userId: 'user-1' });
     const [row] = state.blockValues[0];
     expect(row).toMatchObject({ userId: 'user-1', boardId: 'board-1', kind: 'volume', weeks: 4 });
   });
 
   it('normaliza: rangos, ids inválidos y solapes', async () => {
-    await savePhases(as([phase(1, { weeks: 999 }), phase(2, { id: 'no-uuid' }), phase(3, { startWeek: 0, volumePct: 9999 })]));
+    await savePhases(as({ phases: [phase(1, { weeks: 999 }), phase(2, { id: 'no-uuid' }), phase(3, { startWeek: 0, volumePct: 9999 })], planStart: null }));
     const rows = state.blockValues[0];
     expect(rows.map((r) => r.id)).toEqual([id(1)]);
     expect(rows[0].weeks).toBe(52);
   });
 
+  it('guarda la fecha de inicio si es válida y la descarta si no lo es', async () => {
+    await savePhases({ phases: [], planStart: '2026-10-12' });
+    expect(state.boardValues[0]).toMatchObject({ userId: 'user-1', planStart: '2026-10-12' });
+    for (const bad of ['2026-02-30', '12/10/2026', 'mañana', 20261012, null, undefined]) {
+      state.boardValues = [];
+      await savePhases(as({ phases: [], planStart: bad }));
+      expect(state.boardValues[0]).toMatchObject({ planStart: null });
+    }
+  });
+
+  it('una entrada que no es un objeto no rompe ni guarda nada raro', async () => {
+    await savePhases(null as never);
+    expect(state.boardValues[0]).toMatchObject({ planStart: null });
+    expect(state.blockValues).toEqual([]);
+  });
+
   it('sin fases solo borra y no inserta filas vacías', async () => {
-    await savePhases([]);
+    await savePhases({ phases: [], planStart: null });
     expect(state.blockValues).toEqual([]);
     expect(state.batches).toBe(0);
   });

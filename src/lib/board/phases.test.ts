@@ -7,6 +7,7 @@ import {
   movePhase,
   nextFreeStart,
   phaseFromType,
+  exerciseSetsInWeek,
   projectPhase,
   resizePhase,
   resizePhaseStart,
@@ -136,5 +137,20 @@ describe('sanitizePhases', () => {
     const [p] = sanitizePhases([{ ...raw(1), userId: 'atacante', boardId: 'x' }]);
     expect(Object.keys(p).sort()).toEqual(['color', 'deloadLast', 'id', 'intensityPct', 'kind', 'name', 'rampLoad', 'rampSets', 'startWeek', 'volumePct', 'weeks']);
     expect(sanitizePhases(Array.from({ length: MAX_PHASES + 20 }, (_, i) => raw(i + 1, { startWeek: i, weeks: 1 })))).toHaveLength(MAX_PHASES);
+  });
+});
+
+describe('exerciseSetsInWeek', () => {
+  it('aplica la rampa y el volumen a un ejercicio y no baja de una serie', () => {
+    const p = phase(1, 0, 4, { volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: true });
+    expect([0, 1, 2].map((i) => exerciseSetsInWeek(p, i, 3).sets)).toEqual([3, 4, 5]);
+    expect(exerciseSetsInWeek(p, 1, 3).loadPct).toBe(102.5);
+    expect(exerciseSetsInWeek(phase(2, 0, 2, { volumePct: -60, rampSets: 0 }), 0, 1).sets).toBe(1);
+  });
+
+  it('la última semana de descarga recorta series y carga', () => {
+    const p = phase(1, 0, 4, { volumePct: 0, intensityPct: 0, rampSets: 0, rampLoad: 0, deloadLast: true });
+    expect(exerciseSetsInWeek(p, 3, 5)).toEqual({ sets: 3, loadPct: 90, deload: true });
+    expect(exerciseSetsInWeek(p, 2, 5)).toEqual({ sets: 5, loadPct: 100, deload: false });
   });
 });
