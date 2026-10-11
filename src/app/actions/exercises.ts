@@ -60,8 +60,8 @@ export async function searchExercises(input: unknown): Promise<{ items: Exercise
       .select()
       .from(exercises)
       .where(where)
-      // Primero los que empiezan por el texto buscado, luego el resto por nombre.
-      .orderBy(query ? desc(sql`lower(${exercises.nameEn}) like ${escapeLike(query.toLowerCase()) + '%'}`) : sql`true`, asc(exercises.nameEn))
+      // Con texto, primero los que empiezan por él; sin texto no hay nada que priorizar (Postgres no admite `ORDER BY true`).
+      .orderBy(...(query ? [desc(sql`lower(${exercises.nameEn}) like ${escapeLike(query.toLowerCase()) + '%'}`)] : []), asc(exercises.nameEn))
       .limit(limit)
       .offset(offset),
     db.select({ total: sql<number>`count(*)::int` }).from(exercises).where(where),

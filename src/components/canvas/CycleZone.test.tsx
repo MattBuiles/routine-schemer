@@ -44,7 +44,8 @@ describe('CycleZone', () => {
   it('pinta los bloques en su día y carril', () => {
     setup({ blocks: [block('a', 2, 1)] });
     const el = screen.getByRole('group', { name: 'Bloque a' });
-    expect([el.style.left, el.style.top]).toEqual([`${2 * DAY_W}px`, `${HEADER_H + LANE_H}px`]);
+    // El bloque se pinta 5 px más pequeño por lado para separarlo de sus vecinos.
+    expect([el.style.left, el.style.top, el.style.width]).toEqual([`${2 * DAY_W + 5}px`, `${HEADER_H + LANE_H + 5}px`, `${DAY_W - 10}px`]);
   });
 
   it('los botones piden añadir o quitar un día y respetan los límites', () => {
@@ -108,6 +109,6 @@ describe('CycleZone', () => {
   it('muestra la vista previa del hueco cuando se arrastra desde la paleta', () => {
     setup({ dropPreview: { dayStart: 4, lane: 1, color: '#2563eb', label: 'Hipertrofia', icon: 'flame' } });
     const preview = screen.getByTestId('drop-preview');
-    expect([preview.style.left, preview.style.top, preview.textContent]).toEqual([`${4 * DAY_W}px`, `${HEADER_H + LANE_H}px`, 'Hipertrofia']);
+    expect([preview.style.left, preview.style.top, preview.textContent]).toEqual([`${4 * DAY_W + 5}px`, `${HEADER_H + LANE_H + 5}px`, 'Hipertrofia']);
   });
 });

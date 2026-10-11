@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ calls: 0, rows: [] as Record<string, unknown>[] }));
+const state = vi.hoisted(() => ({ calls: 0, orderBy: [] as unknown[][], rows: [] as Record<string, unknown>[] }));
 
 vi.mock('@/db/client', () => ({
   db: {
@@ -9,7 +9,11 @@ vi.mock('@/db/client', () => ({
       // Cada consulta es una cadena simulada: la de listado pasa por limit() y la de recuento no.
       let listing = false;
       const chain: Record<string, unknown> = {};
-      for (const method of ['from', 'where', 'orderBy', 'offset']) chain[method] = () => chain;
+      for (const method of ['from', 'where', 'offset']) chain[method] = () => chain;
+      chain.orderBy = (...args: unknown[]) => {
+        state.orderBy.push(args);
+        return chain;
+      };
       chain.limit = () => {
         listing = true;
         return chain;
@@ -29,6 +33,7 @@ const row = { id: 'e1', userId: null, nameEn: 'Barbell Curl', nameEs: 'Curl con 
 
 beforeEach(() => {
   state.calls = 0;
+  state.orderBy = [];
   state.rows = [];
   requireUserId.mockClear();
 });
@@ -43,6 +48,17 @@ describe('searchExercises', () => {
 
   it('con entrada basura no falla: usa la búsqueda por defecto', async () => {
     await expect(searchExercises({ query: 5, muscle: '; drop', limit: 'x' })).resolves.toEqual({ items: [], total: 0 });
+  });
+
+  it('sin texto solo ordena por nombre: un ORDER BY con constante lo rechaza Postgres', async () => {
+    await searchExercises({ muscle: 'abductors' });
+    expect(state.orderBy).toHaveLength(1);
+    expect(state.orderBy[0]).toHaveLength(1);
+  });
+
+  it('con texto prioriza los que empiezan por él y luego ordena por nombre', async () => {
+    await searchExercises({ query: 'curl' });
+    expect(state.orderBy[0]).toHaveLength(2);
   });
 
   it('sin sesión no consulta', async () => {

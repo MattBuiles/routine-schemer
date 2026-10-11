@@ -21,8 +21,9 @@ describe('PhaseStrip', () => {
     setup();
     const a = screen.getByRole('group', { name: 'Fase Volumen' });
     const b = screen.getByRole('group', { name: 'Fase Descarga' });
-    expect([a.style.left, a.style.width]).toEqual(['0px', '160px']);
-    expect([b.style.left, b.style.width]).toEqual(['240px', '40px']);
+    // Cada fase se pinta 3 px más pequeña por lado para separarla de las contiguas.
+    expect([a.style.left, a.style.width]).toEqual(['3px', '154px']);
+    expect([b.style.left, b.style.width]).toEqual(['243px', '34px']);
   });
 
   it('las flechas mueven la fase y Mayús+flecha cambia su duración', () => {

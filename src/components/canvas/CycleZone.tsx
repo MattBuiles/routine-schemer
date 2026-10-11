@@ -29,6 +29,9 @@ export interface DropPreview {
   icon: string;
 }
 
+/** Separación visual entre bloques contiguos (px a cada lado). */
+const BLOCK_GAP = 5;
+
 export const ZONE_ORIGIN = { x: 240, y: 260 };
 
 interface CycleZoneProps {
@@ -137,6 +140,7 @@ export default function CycleZone({
             onGestureEnd={() => settle(b.id)}
             onDelete={() => onDelete(b.id)}
             keyStep={{ x: DAY_W, y: LANE_H }}
+            inset={BLOCK_GAP}
           />
         ))}
 
@@ -145,10 +149,10 @@ export default function CycleZone({
             data-testid="drop-preview"
             className="pointer-events-none absolute flex items-center gap-1.5 rounded-xl border-2 border-dashed px-2 text-sm font-semibold"
             style={{
-              left: dropPreview.dayStart * DAY_W,
-              top: HEADER_H + dropPreview.lane * LANE_H,
-              width: DAY_W,
-              height: 80,
+              left: dropPreview.dayStart * DAY_W + BLOCK_GAP,
+              top: HEADER_H + dropPreview.lane * LANE_H + BLOCK_GAP,
+              width: DAY_W - BLOCK_GAP * 2,
+              height: 80 - BLOCK_GAP * 2,
               borderColor: dropPreview.color,
               backgroundColor: `${dropPreview.color}22`,
               color: dropPreview.color,
