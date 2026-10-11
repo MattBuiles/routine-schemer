@@ -6,7 +6,7 @@ import { db } from '@/db/client';
 import { blockTypes, boardBlocks, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
 import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
-import { isHexColor, isUuid, sanitizeCycle } from '@/lib/board/sanitize';
+import { isHexColor, isUuid, sanitizeCycle, sanitizeExercises } from '@/lib/board/sanitize';
 import { sanitizeWidgets, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 
 export interface CustomBlockType {
@@ -53,6 +53,7 @@ export async function getBoard(): Promise<BoardData> {
       lane: r.lane ?? 0,
       load: r.load ?? 3,
       zones: r.zones,
+      exercises: sanitizeExercises(r.exercises),
       notes: r.notes,
       icon: r.icon ?? defaultIconFor(r.blockType ?? 'free'),
     })),
@@ -97,6 +98,7 @@ export async function saveCycle(input: { cycleDays: number; blocks: CycleBlock[]
         lane: b.lane,
         load: b.load,
         zones: b.zones,
+        exercises: b.exercises,
         notes: b.notes,
         icon: b.icon,
       })),

@@ -31,22 +31,23 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Scrollbar personalizada */
+/* Scrollbar con los tokens de strata */
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--dark-bg);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, var(--luxury-gold), var(--luxury-orange));
+  background: var(--border-strong);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, var(--luxury-gold-light), var(--luxury-orange));
+  background: var(--fg-subtle);
 }
 
 /* ============================================

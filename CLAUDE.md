@@ -20,7 +20,8 @@ Proveedor de auth: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{client,se
 - El script de migraciones separa las sentencias por `;`: no usar `;` dentro de los comentarios de los `.sql`.
 - **UI:** sistema de diseño `strata` (repo `MattBuiles/strata-ui`, dependencia git; tokens `bg-bg/surface/border-border/text-fg/text-muted/bg-accent`, componentes `Button`, `Input`, `Field`, `Modal`, `useToast`, `useConfirm`…). Código nuevo usa strata, no colores sueltos de Tailwind. Los estilos de `auth-ui` se importan en la capa `base` desde `globals.css` (sin capa pisan las utilidades de padding y margen).
 - **Biblioteca de ejercicios:** tabla `exercises` (user_id nulo = común, con valor = ejercicio propio), cargada con `pnpm exec tsx --env-file=.env.local scripts/seed-exercises.ts` (idempotente) desde free-exercise-db (Unlicense) y wger (CC-BY-SA, exige mostrar los autores de `attribution`). Normalización y fusión en `src/lib/exercises/library.ts`; búsqueda en la acción `searchExercises` (`sanitizeSearch`).
-- **Pendiente:** ejercicios por bloque (la columna `board_blocks.exercises` ya existe); mesociclos y progresión.
+- **Ejercicios por bloque:** `board_blocks.exercises` (jsonb: `exerciseId`, copia del nombre, series, repeticiones, notas; normalizado por `sanitizeExercises`). Se editan en `BlockPanel` y se eligen en `ExercisePicker` (portal a `body`, porque el panel tiene `backdrop-filter`/transform que atrapan a un `fixed`).
+- **Pendiente:** mesociclos y progresión.
 
 ## Estructura
 - `src/app/` rutas y `api/`; `src/components/{auth,canvas}`; `src/lib/{auth,board}`; `src/types/index.ts` (hábitos, notas, calendario).
