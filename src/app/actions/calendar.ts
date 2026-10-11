@@ -4,21 +4,16 @@ import { and, asc, eq, gte, lte } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { calendarEvents } from '@/db/schema';
-import { assertOwnsSessionTemplate } from '@/lib/auth/ownership';
 import { requireUserId } from '@/lib/auth/session';
 import { pick } from '@/lib/pick';
 import type { CalendarEvent } from '@/types';
 
 export type CalendarEventInput = Pick<CalendarEvent, 'date' | 'title'> &
-  Partial<Pick<CalendarEvent, 'time' | 'type' | 'duration' | 'description' | 'sessionId' | 'completed' | 'actualDuration' | 'notes' | 'category'>>;
+  Partial<Pick<CalendarEvent, 'time' | 'type' | 'duration' | 'description' | 'completed' | 'actualDuration' | 'notes' | 'category'>>;
 
 const EVENT_FIELDS = ['date', 'time', 'title', 'type', 'duration', 'description', 'completed', 'actualDuration', 'notes', 'category'] as const;
 
-// `sessionId` del tipo de la app es el id de la plantilla de sesión (session_templates).
-const toColumns = (input: Partial<CalendarEventInput>) => ({
-  ...pick(input, EVENT_FIELDS),
-  ...(input.sessionId !== undefined && { sessionTemplateId: input.sessionId }),
-});
+const toColumns = (input: Partial<CalendarEventInput>) => pick(input, EVENT_FIELDS);
 
 const toEvent = (row: typeof calendarEvents.$inferSelect): CalendarEvent => ({
   id: row.id,
@@ -29,7 +24,6 @@ const toEvent = (row: typeof calendarEvents.$inferSelect): CalendarEvent => ({
   type: row.type as CalendarEvent['type'],
   duration: row.duration ?? undefined,
   description: row.description ?? undefined,
-  sessionId: row.sessionTemplateId ?? undefined,
   completed: row.completed,
   actualDuration: row.actualDuration ?? undefined,
   notes: row.notes ?? undefined,
@@ -55,14 +49,12 @@ export async function getCalendarEvents(range: { from?: string; to?: string } = 
 
 export async function createCalendarEvent(input: CalendarEventInput): Promise<CalendarEvent> {
   const userId = await requireUserId();
-  if (input.sessionId) await assertOwnsSessionTemplate(input.sessionId, userId);
   const [row] = await db.insert(calendarEvents).values({ ...toColumns(input), date: input.date, title: input.title, userId }).returning();
   return toEvent(row);
 }
 
 export async function updateCalendarEvent(eventId: string, updates: Partial<CalendarEventInput>): Promise<void> {
   const userId = await requireUserId();
-  if (updates.sessionId) await assertOwnsSessionTemplate(updates.sessionId, userId);
   await db
     .update(calendarEvents)
     .set({ ...toColumns(updates), updatedAt: new Date() })
