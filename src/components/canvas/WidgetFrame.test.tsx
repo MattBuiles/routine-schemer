@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { stubPointerCapture } from '@/test-utils';
+import { act } from '@testing-library/react';
+import { pointer, stubPointerCapture } from '@/test-utils';
 import WidgetFrame from './WidgetFrame';
 
 beforeEach(stubPointerCapture);
@@ -54,5 +55,42 @@ describe('WidgetFrame', () => {
   it('resalta el widget seleccionado', () => {
     setup(true);
     expect(screen.getByRole('region', { name: 'Notas' }).className).toContain('ring-accent');
+  });
+
+  const handle = (name: string) => document.querySelector(`[data-handle="${name}"]`)!;
+  const drag = (name: string, dx: number, dy: number) => {
+    act(() => {
+      pointer(handle(name), 'pointerdown', { clientX: 0, clientY: 0 });
+      pointer(handle(name), 'pointermove', { clientX: dx, clientY: dy });
+      pointer(handle(name), 'pointerup', { clientX: dx, clientY: dy });
+    });
+  };
+
+  it('tiene asas en los cuatro lados y las cuatro esquinas', () => {
+    setup();
+    expect([...document.querySelectorAll('[data-handle]')].map((h) => h.getAttribute('data-handle')).sort()).toEqual(['e', 'n', 'ne', 'nw', 's', 'se', 'sw', 'w']);
+  });
+
+  it.each([
+    ['e', 40, 0, { x: 100, y: 200, w: 360, h: 400 }],
+    ['s', 0, 60, { x: 100, y: 200, w: 320, h: 460 }],
+    ['w', -40, 0, { x: 60, y: 200, w: 360, h: 400 }],
+    ['n', 0, -60, { x: 100, y: 140, w: 320, h: 460 }],
+    ['nw', -20, -20, { x: 80, y: 180, w: 340, h: 420 }],
+    ['se', 20, 20, { x: 100, y: 200, w: 340, h: 420 }],
+  ] as const)('arrastrar el asa %s redimensiona y desplaza lo justo', (name, dx, dy, expected) => {
+    const { onRectChange, onGestureStart, onGestureEnd } = setup();
+    drag(name, dx, dy);
+    expect(onGestureStart).toHaveBeenCalledOnce();
+    expect(onRectChange).toHaveBeenLastCalledWith(expected);
+    expect(onGestureEnd).toHaveBeenCalledOnce();
+  });
+
+  it('respeta el tamaño mínimo y el máximo y el lado opuesto no se mueve', () => {
+    const { onRectChange } = setup();
+    drag('w', 5000, 0);
+    expect(onRectChange).toHaveBeenLastCalledWith({ x: 180, y: 200, w: 240, h: 400 }); // borde derecho fijo en 420
+    drag('e', 5000, 0);
+    expect(onRectChange).toHaveBeenLastCalledWith({ x: 100, y: 200, w: 800, h: 400 });
   });
 });

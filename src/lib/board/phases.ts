@@ -88,16 +88,52 @@ export function movePhase(phases: Phase[], id: string, startWeek: number): Phase
   return phases.map((p) => (p.id === id ? moved : p)).sort((a, b) => a.startWeek - b.startWeek);
 }
 
-/** Cambia la duración de una fase hasta donde permitan la siguiente fase y el final del plan. */
+/**
+ * Empuja hacia la derecha las fases posteriores que `phase` pisaría tras cambiar de tamaño, conservando los
+ * huecos que ya había entre ellas. Devuelve null si alguna se saldría del plan de 52 semanas.
+ */
+function pushRight(phases: Phase[], phase: Phase): Phase[] | null {
+  const others = phases.filter((p) => p.id !== phase.id).sort((a, b) => a.startWeek - b.startWeek);
+  const result: Phase[] = [];
+  let cursor = phaseEnd(phase);
+  for (const p of others) {
+    if (phaseEnd(p) <= phase.startWeek) {
+      result.push(p); // anterior: no se toca
+      continue;
+    }
+    const startWeek = Math.max(p.startWeek, cursor);
+    if (startWeek + p.weeks > MAX_PLAN_WEEKS) return null;
+    result.push(startWeek === p.startWeek ? p : { ...p, startWeek });
+    cursor = startWeek + p.weeks;
+  }
+  return [...result, phase].sort((a, b) => a.startWeek - b.startWeek);
+}
+
+/**
+ * Cambia la duración de una fase por su final. Al alargarla empuja a las siguientes (no se queda bloqueada contra
+ * una fase contigua); si no cabe en las 52 semanas, se queda en el máximo posible. Al acortarla no mueve a nadie.
+ */
 export function resizePhase(phases: Phase[], id: string, weeks: number): Phase[] {
   const phase = phases.find((p) => p.id === id);
   if (!phase) return phases;
-  const nextStart = Math.min(
-    MAX_PLAN_WEEKS,
-    ...phases.filter((p) => p.id !== id && p.startWeek >= phaseEnd(phase)).map((p) => p.startWeek),
-  );
-  const clamped = clamp(Math.round(weeks), 1, nextStart - phase.startWeek);
-  return phases.map((p) => (p.id === id ? { ...p, weeks: clamped } : p));
+  for (let w = clamp(Math.round(weeks), 1, MAX_PLAN_WEEKS - phase.startWeek); w >= 1; w--) {
+    const next = pushRight(phases, { ...phase, weeks: w });
+    if (next) return next;
+  }
+  return phases;
+}
+
+/**
+ * Cambia el comienzo de una fase manteniendo su final (tirar del borde izquierdo). No puede invadir a la fase
+ * anterior ni pasar de la semana 0.
+ */
+export function resizePhaseStart(phases: Phase[], id: string, startWeek: number): Phase[] {
+  const phase = phases.find((p) => p.id === id);
+  if (!phase) return phases;
+  const end = phaseEnd(phase);
+  const previousEnd = Math.max(0, ...phases.filter((p) => p.id !== id && phaseEnd(p) <= phase.startWeek).map(phaseEnd));
+  const start = clamp(Math.round(startWeek), previousEnd, end - 1);
+  return phases.map((p) => (p.id === id ? { ...p, startWeek: start, weeks: end - start } : p));
 }
 
 export interface WeekProjection {

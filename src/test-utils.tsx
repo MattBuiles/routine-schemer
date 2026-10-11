@@ -30,3 +30,8 @@ export function stubPointerCapture() {
   Element.prototype.setPointerCapture = () => {};
   Element.prototype.releasePointerCapture = () => {};
 }
+
+/** Lanza un evento de puntero con coordenadas (jsdom no trae PointerEvent: un MouseEvent con ese nombre llega igual a React). */
+export function pointer(el: Element | Window, type: 'pointerdown' | 'pointermove' | 'pointerup', init: { clientX?: number; clientY?: number } = {}) {
+  el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, ...init }));
+}

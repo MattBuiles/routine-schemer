@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PHASE_TYPES, phaseFromType, type Phase } from '@/lib/board/phases';
+import { pointer, stubPointerCapture } from '@/test-utils';
 import PhaseStrip from './PhaseStrip';
 
+beforeEach(stubPointerCapture);
 afterEach(cleanup);
 
 const type = (kind: string) => PHASE_TYPES.find((t) => t.kind === kind)!;
@@ -51,5 +53,46 @@ describe('PhaseStrip', () => {
   it('el plan indica cuántas semanas ocupa', () => {
     setup();
     expect(screen.getByText(/Plan de 7 semanas/)).toBeTruthy();
+  });
+
+  const weeks = (call: Phase[]) => call.map((p) => [p.id, p.startWeek, p.weeks]);
+  const dragHandle = (phaseName: string, side: 'w' | 'e', dx: number) => {
+    const handle = screen.getByRole('group', { name: `Fase ${phaseName}` }).querySelector(`[data-handle="${side}"]`)!;
+    act(() => {
+      pointer(handle, 'pointerdown', { clientX: 0 });
+      pointer(handle, 'pointermove', { clientX: dx });
+      pointer(handle, 'pointerup', { clientX: dx });
+    });
+  };
+
+  it('tiene un asa visible en cada extremo de la fase', () => {
+    setup();
+    const group = screen.getByRole('group', { name: 'Fase Volumen' });
+    expect([...group.querySelectorAll('[data-handle]')].map((h) => h.getAttribute('data-handle')).sort()).toEqual(['e', 'w']);
+  });
+
+  it('arrastrar el asa derecha suma semanas (cada semana son 40 px) y empuja a la fase contigua', () => {
+    const contiguous = [phaseFromType(type('volume'), 'a', 0), phaseFromType(type('deload'), 'b', 4)];
+    const { onPhasesChange } = setup(contiguous);
+    dragHandle('Volumen', 'e', 80);
+    expect(weeks(onPhasesChange.mock.calls[0][0])).toEqual([['a', 0, 6], ['b', 6, 1]]);
+  });
+
+  it('arrastrar el asa derecha hacia la izquierda recorta semanas', () => {
+    const { onPhasesChange } = setup();
+    dragHandle('Volumen', 'e', -80);
+    expect(weeks(onPhasesChange.mock.calls[0][0]).slice(0, 1)).toEqual([['a', 0, 2]]);
+  });
+
+  it('arrastrar el asa izquierda cambia la primera semana y deja fijo el final', () => {
+    const { onPhasesChange } = setup([phaseFromType(type('volume'), 'a', 4)]);
+    dragHandle('Volumen', 'w', -80);
+    expect(weeks(onPhasesChange.mock.calls[0][0])).toEqual([['a', 2, 6]]);
+  });
+
+  it('el asa izquierda no invade a la fase anterior', () => {
+    const { onPhasesChange } = setup([phaseFromType(type('volume'), 'a', 0), phaseFromType(type('intensity'), 'b', 4)]);
+    dragHandle('Intensidad', 'w', -400);
+    expect(onPhasesChange).not.toHaveBeenCalled(); // ya estaba pegada a la anterior: nada cambia
   });
 });

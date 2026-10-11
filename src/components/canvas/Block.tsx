@@ -32,6 +32,7 @@ interface Gesture {
 }
 
 const HANDLES: { handle: ResizeHandle; className: string }[] = [
+  { handle: 'w', className: 'left-0 top-2 bottom-2 w-2 cursor-ew-resize' },
   { handle: 'e', className: 'right-0 top-2 bottom-2 w-2 cursor-ew-resize' },
   { handle: 's', className: 'bottom-0 left-2 right-2 h-2 cursor-ns-resize' },
   { handle: 'se', className: 'bottom-0 right-0 h-4 w-4 cursor-nwse-resize' },
