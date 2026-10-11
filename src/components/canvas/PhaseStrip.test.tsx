@@ -14,7 +14,7 @@ const phases: Phase[] = [phaseFromType(type('volume'), 'a', 0), phaseFromType(ty
 
 function setup(list = phases) {
   const handlers = { onSelect: vi.fn(), onPhasesChange: vi.fn(), onCreateAt: vi.fn() };
-  render(<PhaseStrip origin={{ x: 0, y: 0 }} phases={list} selectedId={null} {...handlers} />);
+  render(<PhaseStrip origin={{ x: 0, y: 0 }} phases={list} selectedId={null} planStart={null} onPlanStartChange={vi.fn()} {...handlers} />);
   return handlers;
 }
 

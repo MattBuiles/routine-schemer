@@ -2,6 +2,8 @@
 
 import React, { useRef, useState } from 'react';
 
+import { getDateString } from '@/lib/utils';
+import { addDays, formatShort, planWeekOf, weekRange } from '@/lib/board/plan';
 import {
   MAX_PLAN_WEEKS,
   PHASE_H,
@@ -15,7 +17,7 @@ import {
 } from '@/lib/board/phases';
 import { useCanvasZoom } from './Canvas';
 
-const TICKS_H = 24;
+const TICKS_H = 40;
 /** Separación visual entre fases contiguas (px a cada lado). */
 const PHASE_GAP = 3;
 
@@ -27,6 +29,9 @@ interface PhaseStripProps {
   onPhasesChange: (phases: Phase[]) => void;
   /** Doble clic en un hueco: semana bajo el cursor. */
   onCreateAt: (week: number) => void;
+  /** Fecha en la que empieza la semana 1 (AAAA-MM-DD) o null si el plan no está anclado al calendario. */
+  planStart: string | null;
+  onPlanStartChange: (date: string | null) => void;
 }
 
 interface Gesture {
@@ -37,7 +42,7 @@ interface Gesture {
 }
 
 /** Franja de fases sobre el ciclo: semanas en columnas; arrastrar mueve la fase y el borde derecho cambia su duración. */
-export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPhasesChange, onCreateAt }: PhaseStripProps) {
+export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPhasesChange, onCreateAt, planStart, onPlanStartChange }: PhaseStripProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
   const [preview, setPreview] = useState<Phase[] | null>(null);
@@ -46,6 +51,7 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
   // Se muestran unas semanas de más tras la última fase para poder seguir añadiendo.
   const visibleWeeks = Math.min(MAX_PLAN_WEEKS, Math.max(16, (nextFreeStart(phases, 1) ?? MAX_PLAN_WEEKS) + 8));
   const shown = preview ?? phases;
+  const todayWeek = planStart ? planWeekOf(planStart, getDateString(new Date())) : null;
 
   const begin = (phase: Phase, mode: Gesture['mode']) => (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -84,6 +90,30 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
   return (
     <div className="absolute" style={{ left: origin.x, top: origin.y }}>
       <div
+        className="absolute -top-11 left-0 flex items-center gap-2 text-xs text-muted"
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <label className="flex items-center gap-2">
+          Inicio del plan
+          <input
+            type="date"
+            aria-label="Inicio del plan"
+            value={planStart ?? ''}
+            onChange={(e) => onPlanStartChange(e.target.value || null)}
+            className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-fg focus:border-accent focus:outline-none"
+          />
+        </label>
+        <button type="button" className="rounded-lg border border-border bg-surface px-2 py-1 hover:text-fg" onClick={() => onPlanStartChange(getDateString(new Date()))}>
+          Hoy
+        </button>
+        {planStart && (
+          <button type="button" className="rounded-lg px-2 py-1 hover:text-fg" onClick={() => onPlanStartChange(null)}>
+            Quitar fecha
+          </button>
+        )}
+      </div>
+      <div
         data-testid="phase-strip"
         className="relative rounded-2xl border border-border bg-surface/70 shadow-[var(--shadow)]"
         style={{ width: visibleWeeks * WEEK_W, height: TICKS_H + PHASE_H + 8 }}
@@ -103,9 +133,14 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
             className="absolute top-0 flex items-center justify-center border-l border-border text-[10px] text-muted first:border-l-0"
             style={{ left: week * WEEK_W, width: WEEK_W, height: TICKS_H + PHASE_H + 8 }}
           >
-            <span data-tick className="absolute top-1">
+            <span data-tick className={`absolute top-1 ${todayWeek === week ? 'font-bold text-accent' : ''}`}>
               {week + 1}
             </span>
+            {planStart && (
+              <span data-tick className={`absolute top-5 text-[9px] leading-none ${todayWeek === week ? 'font-semibold text-accent' : 'text-muted'}`}>
+                {formatShort(addDays(planStart, week * 7))}
+              </span>
+            )}
           </div>
         ))}
 
@@ -133,7 +168,10 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
             <div className="pointer-events-none truncate">{p.name}</div>
             {p.weeks >= 3 && (
               <div className="pointer-events-none text-[10px] font-medium opacity-90">
-                {p.weeks} sem · sem {p.startWeek + 1}–{phaseEnd(p)}
+                {planStart ? (() => {
+                  const range = weekRange(planStart, p.startWeek, p.weeks);
+                  return `${formatShort(range.start)} – ${formatShort(range.end)}`;
+                })() : `${p.weeks} sem · sem ${p.startWeek + 1}–${phaseEnd(p)}`}
               </div>
             )}
             {(['w', 'e'] as const).map((side) => (
@@ -155,6 +193,8 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
       </div>
       <p className="mt-2 text-xs text-muted">
         Plan de {Math.max(0, phases.reduce((end, p) => Math.max(end, phaseEnd(p)), 0))} semanas · cada fase repite el ciclo
+        {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1}`}
+        {planStart && todayWeek === null && ' · hoy está fuera del plan'}
       </p>
     </div>
   );

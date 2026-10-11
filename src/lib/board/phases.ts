@@ -152,24 +152,33 @@ export interface WeekProjection {
 export const DELOAD_VOLUME = 0.6;
 export const DELOAD_LOAD = 10;
 
+/** Factores de una semana de la fase: multiplicador de volumen, carga relativa y si es de descarga. */
+function weekFactors(phase: Phase, index: number) {
+  const deload = phase.kind === 'deload' || (phase.deloadLast && phase.weeks > 1 && index === phase.weeks - 1);
+  const extra = deload && phase.kind !== 'deload';
+  return {
+    deload,
+    volume: (1 + phase.volumePct / 100) * (extra ? DELOAD_VOLUME : 1),
+    loadPct: Math.round((100 + phase.intensityPct + phase.rampLoad * index - (extra ? DELOAD_LOAD : 0)) * 2) / 2,
+  };
+}
+
 /**
  * Proyecta semana a semana lo que supone la fase sobre el ciclo base. `exerciseSets` son las series de
  * cada ejercicio del ciclo; cada semana se suma `rampSets` a cada uno y se aplica el ajuste de volumen.
  */
 export function projectPhase(phase: Phase, exerciseSets: number[]): WeekProjection[] {
   return Array.from({ length: phase.weeks }, (_, i) => {
-    const deload = phase.kind === 'deload' || (phase.deloadLast && phase.weeks > 1 && i === phase.weeks - 1);
+    const { deload, volume, loadPct } = weekFactors(phase, i);
     const base = exerciseSets.reduce((total, sets) => total + Math.max(1, sets + phase.rampSets * i), 0);
-    const volume = (1 + phase.volumePct / 100) * (deload && phase.kind !== 'deload' ? DELOAD_VOLUME : 1);
-    const load = 100 + phase.intensityPct + phase.rampLoad * i - (deload && phase.kind !== 'deload' ? DELOAD_LOAD : 0);
-    return {
-      week: i + 1,
-      planWeek: phase.startWeek + i + 1,
-      sets: Math.round(base * volume),
-      loadPct: Math.round(load * 2) / 2,
-      deload,
-    };
+    return { week: i + 1, planWeek: phase.startWeek + i + 1, sets: Math.round(base * volume), loadPct, deload };
   });
+}
+
+/** Series de un ejercicio concreto en la semana `index` (desde 0) de la fase: la rampa y el volumen, nunca menos de una. */
+export function exerciseSetsInWeek(phase: Phase, index: number, sets: number): { sets: number; loadPct: number; deload: boolean } {
+  const { deload, volume, loadPct } = weekFactors(phase, index);
+  return { sets: Math.max(1, Math.round(Math.max(1, sets + phase.rampSets * index) * volume)), loadPct, deload };
 }
 
 const int = (value: unknown, min: number, max: number, fallback: number) =>

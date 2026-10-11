@@ -5,11 +5,19 @@ import { Check, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, useToast } from 'strata';
 
 import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from '@/app/actions/calendar';
+import { exerciseSetsInWeek } from '@/lib/board/phases';
+import { blocksOnCycleDay, formatShort, locateDate, type PlanAnchor } from '@/lib/board/plan';
+import type { CycleBlock } from '@/lib/board/cycle';
 import { getDateString } from '@/lib/utils';
 import type { CalendarEvent } from '@/types';
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/** Plan anclado al calendario más los bloques del ciclo que se repite. */
+export interface PlanAnchorWithBlocks extends PlanAnchor {
+  blocks: CycleBlock[];
+}
 
 /** Casillas del mes (lunes primero): `null` rellena los huecos antes del día 1. */
 function monthCells(year: number, month: number): (string | null)[] {
@@ -19,7 +27,7 @@ function monthCells(year: number, month: number): (string | null)[] {
 }
 
 /** Calendario mensual con eventos del día seleccionado. */
-export default function CalendarWidget() {
+export default function CalendarWidget({ plan = null }: { plan?: PlanAnchorWithBlocks | null }) {
   const toast = useToast();
   const today = getDateString(new Date());
   const [cursor, setCursor] = useState(() => ({ year: new Date().getFullYear(), month: new Date().getMonth() }));
@@ -82,6 +90,7 @@ export default function CalendarWidget() {
   };
 
   const withEvents = new Set(events.map((e) => e.date));
+  const here = plan ? locateDate(plan, selected) : null;
   const dayEvents = events.filter((e) => e.date === selected).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
 
   return (
@@ -116,12 +125,24 @@ export default function CalendarWidget() {
             >
               {Number(date.slice(8))}
               {withEvents.has(date) && <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current opacity-70" />}
+              {plan && (
+                <span
+                  data-phase-day={locateDate(plan, date)?.phase?.id ?? ''}
+                  aria-hidden
+                  className="absolute inset-x-1 bottom-0 h-0.5 rounded-full"
+                  style={{ backgroundColor: locateDate(plan, date)?.phase?.color ?? 'transparent' }}
+                />
+              )}
             </button>
           ) : (
             <span key={`blank-${i}`} />
           ),
         )}
       </div>
+
+      {plan ? <PlanDay plan={plan} date={selected} position={here} /> : (
+        <p className="text-xs text-muted">Fija el inicio del plan en la franja de fases para verlo aquí.</p>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">{selected === today ? 'Hoy' : selected}</p>
@@ -147,5 +168,57 @@ export default function CalendarWidget() {
         </form>
       </div>
     </div>
+  );
+}
+
+/** Qué toca un día según el plan: fase, semana, día del ciclo, sus bloques y los ejercicios con las series de esa semana. */
+function PlanDay({ plan, date, position }: { plan: PlanAnchorWithBlocks; date: string; position: ReturnType<typeof locateDate> }) {
+  if (!position) {
+    return (
+      <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">
+        {date < plan.planStart ? `Antes del inicio del plan (empieza el ${formatShort(plan.planStart)}).` : 'Después de las 52 semanas del plan.'}
+      </p>
+    );
+  }
+  const { phase, weekInPhase, cycleDay } = position;
+  const blocks = blocksOnCycleDay(plan.blocks, cycleDay);
+  const week = phase && weekInPhase !== null ? exerciseSetsInWeek(phase, weekInPhase, 3) : null;
+
+  return (
+    <section aria-label="Plan del día" className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="flex items-center gap-1.5 font-semibold">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: phase?.color ?? 'var(--border-strong)' }} />
+          {phase ? `${phase.name} · semana ${weekInPhase! + 1} de ${phase.weeks}` : 'Sin fase esta semana'}
+        </span>
+        <span className="iv-tabular text-muted">Día {cycleDay + 1} del ciclo</span>
+      </div>
+      {week && (
+        <p className="text-[11px] text-muted">
+          Carga {week.loadPct}%{week.deload ? ' · semana de descarga' : ''}
+        </p>
+      )}
+      {blocks.length === 0 && <p className="text-xs text-muted">Nada planificado este día del ciclo.</p>}
+      {blocks.map((b) => (
+        <div key={b.id}>
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: b.color }} />
+            {b.label || 'Sin nombre'}
+          </p>
+          {b.exercises.length > 0 && (
+            <ul className="mt-1 flex flex-col gap-0.5 pl-4 text-xs text-muted">
+              {b.exercises.map((e, i) => (
+                <li key={`${e.exerciseId}-${i}`} className="flex justify-between gap-2">
+                  <span className="truncate">{e.name}</span>
+                  <span className="iv-tabular shrink-0">
+                    {phase && weekInPhase !== null ? exerciseSetsInWeek(phase, weekInPhase, e.sets).sets : e.sets}×{e.reps}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
   );
 }

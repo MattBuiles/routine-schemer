@@ -25,7 +25,7 @@ import BoardEngine from './BoardEngine';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
 const savedBlock = { ...blockFromType(strength, '00000000-0000-4000-8000-000000000001', 0, 0), label: 'Empuje' };
-const emptyBoard = { cycleDays: 7, blocks: [], widgets: [], phases: [], customTypes: [] };
+const emptyBoard = { cycleDays: 7, blocks: [], widgets: [], phases: [], planStart: null, customTypes: [] };
 
 beforeEach(() => {
   stubPointerCapture();
@@ -154,9 +154,48 @@ describe('BoardEngine', () => {
     expect(screen.getByRole('complementary', { name: 'Propiedades de la fase' })).toBeTruthy();
     fireEvent.click(chip('intensity'));
     fireEvent.click(chip('deload'));
-    await waitFor(() => expect(board.savePhases.mock.calls.at(-1)![0]).toHaveLength(3), SAVED);
-    const phases = board.savePhases.mock.calls.at(-1)![0];
+    await waitFor(() => expect(board.savePhases.mock.calls.at(-1)![0].phases).toHaveLength(3), SAVED);
+    const { phases } = board.savePhases.mock.calls.at(-1)![0];
     expect(phases.map((p: { kind: string; startWeek: number; weeks: number }) => [p.kind, p.startWeek, p.weeks])).toEqual([['volume', 0, 4], ['intensity', 4, 4], ['deload', 8, 1]]);
+  });
+
+  it('fijar el inicio del plan lo guarda con las fases y quitarlo lo borra', async () => {
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.change(screen.getByLabelText('Inicio del plan'), { target: { value: '2026-10-12' } });
+    await waitFor(() => expect(board.savePhases).toHaveBeenCalledTimes(1), SAVED);
+    expect(board.savePhases.mock.calls[0][0]).toEqual({ phases: [], planStart: '2026-10-12' });
+    expect(board.saveCycle).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar fecha' }));
+    await waitFor(() => expect(board.savePhases).toHaveBeenLastCalledWith({ phases: [], planStart: null }), SAVED);
+  });
+
+  it('con el plan anclado, las semanas del plan muestran su fecha de inicio', async () => {
+    board.getBoard.mockResolvedValue({ ...emptyBoard, planStart: '2026-10-12' });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    expect(screen.getByText('12 oct')).toBeTruthy();
+    expect(screen.getByText('19 oct')).toBeTruthy();
+    expect((screen.getByLabelText('Inicio del plan') as HTMLInputElement).value).toBe('2026-10-12');
+  });
+
+  it('el calendario del tablero enseña el plan del día cuando hay fecha de inicio', async () => {
+    const start = new Date();
+    const iso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    board.getBoard.mockResolvedValue({
+      ...emptyBoard,
+      planStart: iso,
+      blocks: [{ ...savedBlock, exercises: [{ exerciseId: '00000000-0000-4000-8000-000000000009', name: 'Press de Banca', sets: 3, reps: '8-12', notes: '' }] }],
+      widgets: [{ id: '00000000-0000-4000-8000-0000000000aa', type: 'calendar', x: 0, y: 800, w: 380, h: 440 }],
+      phases: [{ id: '00000000-0000-4000-8000-0000000000bb', name: 'Volumen', kind: 'volume', startWeek: 0, weeks: 4, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 0, deloadLast: false }],
+    });
+    renderWithStrata(<BoardEngine />);
+    const plan = await screen.findByRole('region', { name: 'Plan del día' });
+    expect(plan.textContent).toContain('Volumen · semana 1 de 4');
+    expect(plan.textContent).toContain('Día 1 del ciclo');
+    expect(plan.textContent).toContain('Press de Banca');
+    expect(plan.textContent).toContain('3×8-12');
   });
 
   it('acortar el ciclo pide confirmación si se pierden bloques y respeta un «Cancelar»', async () => {

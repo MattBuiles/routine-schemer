@@ -108,3 +108,67 @@ describe('CalendarWidget', () => {
     expect(await screen.findByText('No se pudieron cargar los eventos.')).toBeTruthy();
   });
 });
+
+describe('CalendarWidget · plan anclado', () => {
+  const block = (id: string, label: string, dayStart: number, daySpan: number, exercises = [] as { exerciseId: string; name: string; sets: number; reps: string; notes: string }[]) => ({
+    id, label, color: '#dc2626', blockType: 'strength', dayStart, daySpan, lane: 0, load: 3, zones: [], notes: '', icon: 'dumbbell', exercises,
+  });
+  const phase = (over = {}) => ({ id: 'p1', name: 'Volumen', kind: 'volume' as const, startWeek: 0, weeks: 4, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: true, ...over });
+  const press = { exerciseId: 'e1', name: 'Press de Banca', sets: 3, reps: '8-12', notes: '' };
+  // El plan arranca el lunes 12 de octubre: hoy (jueves 15) es el día 4 del plan, semana 1.
+  const anchor = (over = {}) => ({ planStart: '2026-10-12', cycleDays: 7, phases: [phase()], blocks: [block('b1', 'Empuje', 3, 1, [press]), block('b2', 'Tirón', 0, 2)], ...over });
+
+  it('sin plan lo explica y no pinta fases', async () => {
+    renderWithStrata(<CalendarWidget />);
+    await screen.findByText('Pierna');
+    expect(screen.getByText(/Fija el inicio del plan/)).toBeTruthy();
+    expect(document.querySelector('[data-phase-day]')).toBeNull();
+  });
+
+  it('muestra fase, semana, día del ciclo y los ejercicios con las series de esa semana', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    const day = await screen.findByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('Volumen · semana 1 de 4');
+    expect(day.textContent).toContain('Día 4 del ciclo');
+    expect(day.textContent).toContain('Empuje');
+    expect(day.textContent).not.toContain('Tirón');
+    expect(day.textContent).toContain('3×8-12');
+  });
+
+  it('otra semana de la fase aplica la rampa a las series y a la carga', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    await screen.findByText('Pierna');
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-22' })); // jueves de la semana 2
+    const day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('semana 2 de 4');
+    expect(day.textContent).toContain('4×8-12');
+    expect(day.textContent).toContain('Carga 102.5%');
+  });
+
+  it('la última semana de descarga lo indica y recorta las series', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    await screen.findByText('Pierna');
+    fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: '2026-11-05' })); // jueves de la semana 4
+    const day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('semana de descarga');
+    expect(day.textContent).toContain('4×8-12'); // 3 + 3 de rampa = 6, recortado a 4 por la descarga
+  });
+
+  it('un día del ciclo sin bloques o antes del inicio lo dice', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    await screen.findByText('Pierna');
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-17' })); // sábado: día 6 del ciclo, sin bloques
+    expect(screen.getByText('Nada planificado este día del ciclo.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-05' }));
+    expect(screen.getByText(/Antes del inicio del plan \(empieza el 12 oct\)/)).toBeTruthy();
+  });
+
+  it('una semana sin fase se indica y las fases se marcan en los días del mes', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor({ phases: [phase({ weeks: 1 })] })} />);
+    await screen.findByText('Pierna');
+    expect(document.querySelectorAll('[data-phase-day="p1"]').length).toBe(7); // solo la primera semana
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-22' }));
+    expect(screen.getByText('Sin fase esta semana')).toBeTruthy();
+  });
+});

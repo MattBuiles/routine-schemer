@@ -8,6 +8,7 @@ import { requireUserId } from '@/lib/auth/session';
 import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle, sanitizeExercises } from '@/lib/board/sanitize';
 import { sanitizePhases, type Phase } from '@/lib/board/phases';
+import { isIsoDate } from '@/lib/board/plan';
 import { sanitizeWidgets, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 
 export interface CustomBlockType {
@@ -22,6 +23,8 @@ export interface BoardData {
   blocks: CycleBlock[];
   widgets: BoardWidget[];
   phases: Phase[];
+  /** Fecha (AAAA-MM-DD) en la que empieza la semana 1 del plan, o null si no está anclado al calendario. */
+  planStart: string | null;
   customTypes: CustomBlockType[];
 }
 
@@ -32,7 +35,7 @@ export async function getBoard(): Promise<BoardData> {
   const customTypes = (await db.select().from(blockTypes).where(eq(blockTypes.userId, userId))).map(
     ({ id, name, color, icon }) => ({ id, name, color, icon }),
   );
-  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], phases: [], customTypes };
+  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], phases: [], planStart: null, customTypes };
 
   const rows = await db
     .select()
@@ -46,6 +49,7 @@ export async function getBoard(): Promise<BoardData> {
     cycleDays: board.cycleDays,
     customTypes,
     widgets,
+    planStart: isIsoDate(board.planStart) ? board.planStart : null,
     phases: sanitizePhases(phaseRows.map((p) => ({ ...p, kind: p.kind }))),
     blocks: rows.filter((r) => r.kind === 'cycle').map((r) => ({
       id: r.id,
@@ -148,15 +152,19 @@ export async function saveWidgets(input: BoardWidget[]): Promise<void> {
   ]);
 }
 
-/** Guarda las fases del plan (reemplaza todas); no toca el ciclo ni los widgets. */
-export async function savePhases(input: Phase[]): Promise<void> {
+/**
+ * Guarda el plan: las fases (reemplaza todas) y la fecha de inicio. No toca el ciclo ni los widgets.
+ * Una fecha que no sea AAAA-MM-DD real se guarda como «sin anclar».
+ */
+export async function savePhases(input: { phases: Phase[]; planStart: string | null }): Promise<void> {
   const userId = await requireUserId();
-  const phases = sanitizePhases(input);
+  const phases = sanitizePhases(input?.phases);
+  const planStart = isIsoDate(input?.planStart) ? input.planStart : null;
 
   const [board] = await db
     .insert(boards)
-    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS })
-    .onConflictDoUpdate({ target: boards.userId, set: { updatedAt: new Date() } })
+    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS, planStart })
+    .onConflictDoUpdate({ target: boards.userId, set: { planStart, updatedAt: new Date() } })
     .returning({ id: boards.id });
 
   const clear = db.delete(boardPhases).where(and(eq(boardPhases.boardId, board.id), eq(boardPhases.userId, userId)));
