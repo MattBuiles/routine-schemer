@@ -7,7 +7,6 @@ export interface CalendarEvent {
   type: 'routine' | 'habit' | 'note' | 'workout' | 'nutrition' | 'other';
   duration?: number; // in minutes
   description?: string;
-  sessionId?: string; // plantilla de sesión enlazada (session_templates)
   completed?: boolean;
   actualDuration?: number;
   notes?: string;
@@ -61,7 +60,6 @@ export interface Note {
   content: string;
   type: NoteType;
   tags: string[];
-  workoutSessionId?: string; // si está relacionada con un entrenamiento específico
   createdAt: Date;
   updatedAt: Date;
   isPinned: boolean;

@@ -4,15 +4,14 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { notes } from '@/db/schema';
-import { assertOwnsSessionTemplate } from '@/lib/auth/ownership';
 import { requireUserId } from '@/lib/auth/session';
 import { pick } from '@/lib/pick';
 import type { Note, NoteType } from '@/types';
 
 export type NoteInput = Pick<Note, 'title' | 'content'> &
-  Partial<Pick<Note, 'type' | 'tags' | 'workoutSessionId' | 'isPinned'>>;
+  Partial<Pick<Note, 'type' | 'tags' | 'isPinned'>>;
 
-const NOTE_FIELDS = ['title', 'content', 'type', 'tags', 'workoutSessionId', 'isPinned'] as const;
+const NOTE_FIELDS = ['title', 'content', 'type', 'tags', 'isPinned'] as const;
 
 const toNote = (row: typeof notes.$inferSelect): Note => ({
   id: row.id,
@@ -21,7 +20,6 @@ const toNote = (row: typeof notes.$inferSelect): Note => ({
   content: row.content,
   type: row.type as NoteType,
   tags: row.tags,
-  workoutSessionId: row.workoutSessionId ?? undefined,
   isPinned: row.isPinned,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -35,7 +33,6 @@ export async function getNotes(): Promise<Note[]> {
 
 export async function createNote(input: NoteInput): Promise<Note> {
   const userId = await requireUserId();
-  if (input.workoutSessionId) await assertOwnsSessionTemplate(input.workoutSessionId, userId);
   const [row] = await db
     .insert(notes)
     .values({ ...(pick(input, NOTE_FIELDS) as NoteInput), userId })
@@ -45,7 +42,6 @@ export async function createNote(input: NoteInput): Promise<Note> {
 
 export async function updateNote(noteId: string, updates: Partial<NoteInput>): Promise<void> {
   const userId = await requireUserId();
-  if (updates.workoutSessionId) await assertOwnsSessionTemplate(updates.workoutSessionId, userId);
   await db
     .update(notes)
     .set({ ...pick(updates, NOTE_FIELDS), updatedAt: new Date() })
