@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { blockFromType, DEFAULT_BLOCK_TYPES, DAY_W, HEADER_H, LANE_H, type CycleBlock } from '@/lib/board/cycle';
-import { stubPointerCapture } from '@/test-utils';
+import { pointer, stubPointerCapture } from '@/test-utils';
 import CycleZone from './CycleZone';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
@@ -110,5 +110,33 @@ describe('CycleZone', () => {
     setup({ dropPreview: { dayStart: 4, lane: 1, color: '#2563eb', label: 'Hipertrofia', icon: 'flame' } });
     const preview = screen.getByTestId('drop-preview');
     expect([preview.style.left, preview.style.top, preview.textContent]).toEqual([`${4 * DAY_W + 5}px`, `${HEADER_H + LANE_H + 5}px`, 'Hipertrofia']);
+  });
+
+  it('el bloque seleccionado se ensancha tirando de su borde izquierdo (cambia el día de inicio y los días que abarca)', () => {
+    const { onBlocksChange } = setup({ blocks: [block('a', 2, 0)], selectedId: 'a' });
+    const handle = screen.getByRole('group', { name: 'Bloque a' }).querySelector('[data-handle="w"]')!;
+    act(() => {
+      pointer(handle, 'pointerdown', { clientX: 0 });
+      pointer(handle, 'pointermove', { clientX: -DAY_W });
+      pointer(handle, 'pointerup', { clientX: -DAY_W });
+    });
+    expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ dayStart: 1, daySpan: 2 });
+  });
+
+  it('tirar del borde derecho añade días y del inferior cambia la carga', () => {
+    const { onBlocksChange } = setup({ blocks: [block('a', 2, 0)], selectedId: 'a' });
+    const el = screen.getByRole('group', { name: 'Bloque a' });
+    const drag = (name: string, dx: number, dy: number) => {
+      const handle = el.querySelector(`[data-handle="${name}"]`)!;
+      act(() => {
+        pointer(handle, 'pointerdown', { clientX: 0, clientY: 0 });
+        pointer(handle, 'pointermove', { clientX: dx, clientY: dy });
+        pointer(handle, 'pointerup', { clientX: dx, clientY: dy });
+      });
+    };
+    drag('e', DAY_W * 2, 0);
+    drag('s', 0, 20);
+    expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ dayStart: 2, daySpan: 3 });
+    expect(onBlocksChange.mock.calls[1][0][0]).toMatchObject({ load: strength.defaultLoad + 1 });
   });
 });

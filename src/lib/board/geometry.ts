@@ -54,18 +54,43 @@ export function moveRect(rect: Rect, dx: number, dy: number, step: number = GRID
   return { ...rect, x: snap(rect.x + dx, step), y: snap(rect.y + dy, step) };
 }
 
-export type ResizeHandle = 'e' | 's' | 'se';
+/** Asas de redimensionado: lados (n, s, e, w) y esquinas. */
+export type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
-/** Redimensiona desde el borde derecho/inferior con ajuste a la cuadrícula y tamaño mínimo. */
+export interface SizeLimits {
+  min: { w: number; h: number };
+  max: { w: number; h: number };
+}
+
+export const BLOCK_LIMITS: SizeLimits = {
+  min: { w: MIN_BLOCK, h: MIN_BLOCK },
+  max: { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY },
+};
+
+/**
+ * Redimensiona arrastrando un lado o una esquina, con ajuste a la cuadrícula y límites de tamaño.
+ * El lado opuesto al asa se queda quieto: al tirar del borde izquierdo o superior cambia también la posición.
+ */
 export function resizeRect(
   rect: Rect,
   handle: ResizeHandle,
   dx: number,
   dy: number,
   step: number = GRID,
-  min: number = MIN_BLOCK,
+  limits: SizeLimits = BLOCK_LIMITS,
 ): Rect {
-  const w = handle === 's' ? rect.w : Math.max(min, snap(rect.w + dx, step));
-  const h = handle === 'e' ? rect.h : Math.max(min, snap(rect.h + dy, step));
-  return { ...rect, w, h };
+  const grows = (size: number, delta: number, min: number, max: number) => clamp(snap(size + delta, step), min, max);
+  let { x, y, w, h } = rect;
+
+  if (handle.includes('e')) w = grows(rect.w, dx, limits.min.w, limits.max.w);
+  if (handle.includes('w')) {
+    w = grows(rect.w, -dx, limits.min.w, limits.max.w);
+    x = rect.x + rect.w - w;
+  }
+  if (handle.includes('s')) h = grows(rect.h, dy, limits.min.h, limits.max.h);
+  if (handle.includes('n')) {
+    h = grows(rect.h, -dy, limits.min.h, limits.max.h);
+    y = rect.y + rect.h - h;
+  }
+  return { x, y, w, h };
 }

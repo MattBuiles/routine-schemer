@@ -9,12 +9,14 @@ import {
   phaseFromType,
   projectPhase,
   resizePhase,
+  resizePhaseStart,
   sanitizePhases,
   type Phase,
 } from './phases';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const type = (kind: string) => PHASE_TYPES.find((t) => t.kind === kind)!;
+const phaseEndMax = (ps: Phase[]) => Math.max(...ps.map((p) => p.startWeek + p.weeks));
 const phase = (n: number, start: number, weeks: number, over: Partial<Phase> = {}): Phase => ({ ...phaseFromType(type('volume'), id(n), start), weeks, ...over });
 
 describe('plan de fases', () => {
@@ -37,11 +39,42 @@ describe('plan de fases', () => {
     expect(movePhase(phases, 'no-existe', 0)).toBeNull();
   });
 
-  it('resizePhase no pisa a la siguiente ni sale del plan y mantiene al menos una semana', () => {
-    const phases = [phase(1, 0, 4), phase(2, 6, 2)];
-    expect(resizePhase(phases, id(1), 10).find((p) => p.id === id(1))!.weeks).toBe(6);
+  it('resizePhase alarga empujando a las contiguas y conserva los huecos posteriores', () => {
+    const phases = [phase(1, 0, 4), phase(2, 4, 2), phase(3, 10, 2)];
+    const out = resizePhase(phases, id(1), 6);
+    expect(out.map((p) => [p.id, p.startWeek, p.weeks])).toEqual([[id(1), 0, 6], [id(2), 6, 2], [id(3), 10, 2]]);
+    const more = resizePhase(phases, id(1), 9);
+    expect(more.map((p) => [p.startWeek, p.weeks])).toEqual([[0, 9], [9, 2], [11, 2]]);
+  });
+
+  it('resizePhase acortar no mueve a nadie y mantiene al menos una semana', () => {
+    const phases = [phase(1, 0, 4), phase(2, 4, 2)];
+    expect(resizePhase(phases, id(1), 2).map((p) => [p.startWeek, p.weeks])).toEqual([[0, 2], [4, 2]]);
     expect(resizePhase(phases, id(1), 0).find((p) => p.id === id(1))!.weeks).toBe(1);
-    expect(resizePhase(phases, id(2), 99).find((p) => p.id === id(2))!.weeks).toBe(MAX_PLAN_WEEKS - 6);
+  });
+
+  it('resizePhase se queda en el máximo que cabe cuando empujar sacaría fases del plan', () => {
+    const phases = [phase(1, 0, 4), phase(2, 4, 24), phase(3, 28, 24)];
+    const out = resizePhase(phases, id(1), 30);
+    expect(out.find((p) => p.id === id(1))!.weeks).toBe(4); // no hay un solo hueco libre
+    const roomy = [phase(1, 0, 4), phase(2, 4, 40)];
+    const grown = resizePhase(roomy, id(1), 30);
+    expect(grown.find((p) => p.id === id(1))!.weeks).toBe(12);
+    expect(phaseEndMax(grown)).toBe(MAX_PLAN_WEEKS);
+  });
+
+  it('resizePhase de una fase sola llega hasta el final del plan', () => {
+    expect(resizePhase([phase(1, 10, 2)], id(1), 99).find((p) => p.id === id(1))!.weeks).toBe(MAX_PLAN_WEEKS - 10);
+    expect(resizePhase([phase(1, 0, 4)], 'no-existe', 3)).toEqual([phase(1, 0, 4)]);
+  });
+
+  it('resizePhaseStart mueve el comienzo y deja fijo el final, sin pisar a la anterior', () => {
+    const phases = [phase(1, 0, 4), phase(2, 6, 4)];
+    expect(resizePhaseStart(phases, id(2), 4).find((p) => p.id === id(2))).toMatchObject({ startWeek: 4, weeks: 6 });
+    expect(resizePhaseStart(phases, id(2), 1).find((p) => p.id === id(2))).toMatchObject({ startWeek: 4, weeks: 6 });
+    expect(resizePhaseStart(phases, id(2), 8).find((p) => p.id === id(2))).toMatchObject({ startWeek: 8, weeks: 2 });
+    expect(resizePhaseStart(phases, id(2), 99).find((p) => p.id === id(2))).toMatchObject({ startWeek: 9, weeks: 1 });
+    expect(resizePhaseStart(phases, id(1), -5).find((p) => p.id === id(1))).toMatchObject({ startWeek: 0, weeks: 4 });
   });
 });
 

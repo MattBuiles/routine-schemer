@@ -10,6 +10,7 @@ import {
   nextFreeStart,
   phaseEnd,
   resizePhase,
+  resizePhaseStart,
   type Phase,
 } from '@/lib/board/phases';
 import { useCanvasZoom } from './Canvas';
@@ -31,7 +32,7 @@ interface PhaseStripProps {
 interface Gesture {
   pointerId: number;
   id: string;
-  mode: 'move' | 'resize';
+  mode: 'move' | 'resize' | 'resize-start';
   startX: number;
 }
 
@@ -58,7 +59,12 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
     if (!g || g.pointerId !== e.pointerId) return;
     const weeks = Math.round((e.clientX - g.startX) / zoom / WEEK_W);
     const base = phases.find((p) => p.id === g.id)!;
-    const next = g.mode === 'move' ? movePhase(phases, g.id, base.startWeek + weeks) : resizePhase(phases, g.id, base.weeks + weeks);
+    const next =
+      g.mode === 'move'
+        ? movePhase(phases, g.id, base.startWeek + weeks)
+        : g.mode === 'resize'
+          ? resizePhase(phases, g.id, base.weeks + weeks)
+          : resizePhaseStart(phases, g.id, base.startWeek + weeks);
     // Si la posición no es válida (solape) se mantiene la última vista previa válida.
     if (next) {
       previewRef.current = next;
@@ -121,7 +127,7 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
             onPointerMove={move}
             onPointerUp={end}
             onPointerCancel={end}
-            className={`absolute cursor-grab overflow-hidden rounded-xl border-2 border-transparent px-2 py-1 text-xs font-semibold text-white shadow-md outline-none active:cursor-grabbing ${p.id === selectedId ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''}`}
+            className={`absolute cursor-grab overflow-hidden rounded-xl border-2 border-transparent px-4 py-1 text-xs font-semibold text-white shadow-md outline-none active:cursor-grabbing ${p.id === selectedId ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''}`}
             style={{ left: p.startWeek * WEEK_W + PHASE_GAP, top: TICKS_H, width: p.weeks * WEEK_W - PHASE_GAP * 2, height: PHASE_H, backgroundColor: p.color }}
           >
             <div className="pointer-events-none truncate">{p.name}</div>
@@ -130,14 +136,20 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
                 {p.weeks} sem · sem {p.startWeek + 1}–{phaseEnd(p)}
               </div>
             )}
-            <div
-              data-handle="e"
-              className="absolute bottom-0 right-0 top-0 w-2 cursor-ew-resize bg-white/30"
-              onPointerDown={begin(p, 'resize')}
-              onPointerMove={move}
-              onPointerUp={end}
-              onPointerCancel={end}
-            />
+            {(['w', 'e'] as const).map((side) => (
+              <div
+                key={side}
+                data-handle={side}
+                title={side === 'e' ? 'Arrastra para cambiar la última semana' : 'Arrastra para cambiar la primera semana'}
+                className={`absolute bottom-0 top-0 flex w-3 cursor-ew-resize items-center justify-center bg-white/25 hover:bg-white/45 ${side === 'e' ? 'right-0' : 'left-0'}`}
+                onPointerDown={begin(p, side === 'e' ? 'resize' : 'resize-start')}
+                onPointerMove={move}
+                onPointerUp={end}
+                onPointerCancel={end}
+              >
+                <span aria-hidden className="pointer-events-none h-5 w-0.5 rounded-full bg-white/80" />
+              </div>
+            ))}
           </div>
         ))}
       </div>
