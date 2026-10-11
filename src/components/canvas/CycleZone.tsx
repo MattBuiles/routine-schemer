@@ -136,6 +136,7 @@ export default function CycleZone({
             onRectChange={(rect) => setLiveRect(b.id, rect)}
             onGestureEnd={() => settle(b.id)}
             onDelete={() => onDelete(b.id)}
+            keyStep={{ x: DAY_W, y: LANE_H }}
           />
         ))}
 
