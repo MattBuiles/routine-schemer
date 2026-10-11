@@ -128,3 +128,20 @@ export const exercises = pgTable('exercises', {
   attribution: text('attribution'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, table => [unique('exercises_source_key').on(table.source, table.sourceId)]);
+
+export const boardPhases = pgTable('board_phases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  kind: text('kind').notNull(),
+  startWeek: integer('start_week').notNull(),
+  weeks: integer('weeks').notNull(),
+  color: text('color').notNull().default('#3b82f6'),
+  volumePct: integer('volume_pct').notNull().default(0),
+  intensityPct: integer('intensity_pct').notNull().default(0),
+  rampSets: integer('ramp_sets').notNull().default(0),
+  rampLoad: doublePrecision('ramp_load').notNull().default(0),
+  deloadLast: boolean('deload_last').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

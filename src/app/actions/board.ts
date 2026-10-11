@@ -3,10 +3,11 @@
 import { and, eq } from 'drizzle-orm';
 
 import { db } from '@/db/client';
-import { blockTypes, boardBlocks, boards } from '@/db/schema';
+import { blockTypes, boardBlocks, boardPhases, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
 import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle, sanitizeExercises } from '@/lib/board/sanitize';
+import { sanitizePhases, type Phase } from '@/lib/board/phases';
 import { sanitizeWidgets, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 
 export interface CustomBlockType {
@@ -20,6 +21,7 @@ export interface BoardData {
   cycleDays: number;
   blocks: CycleBlock[];
   widgets: BoardWidget[];
+  phases: Phase[];
   customTypes: CustomBlockType[];
 }
 
@@ -30,7 +32,7 @@ export async function getBoard(): Promise<BoardData> {
   const customTypes = (await db.select().from(blockTypes).where(eq(blockTypes.userId, userId))).map(
     ({ id, name, color, icon }) => ({ id, name, color, icon }),
   );
-  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], customTypes };
+  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], phases: [], customTypes };
 
   const rows = await db
     .select()
@@ -39,10 +41,12 @@ export async function getBoard(): Promise<BoardData> {
   const widgets = sanitizeWidgets(
     rows.filter((r) => r.kind === 'widget').map((r) => ({ id: r.id, type: r.widgetType, x: r.x, y: r.y, w: r.w, h: r.h })),
   );
+  const phaseRows = await db.select().from(boardPhases).where(and(eq(boardPhases.boardId, board.id), eq(boardPhases.userId, userId)));
   return {
     cycleDays: board.cycleDays,
     customTypes,
     widgets,
+    phases: sanitizePhases(phaseRows.map((p) => ({ ...p, kind: p.kind }))),
     blocks: rows.filter((r) => r.kind === 'cycle').map((r) => ({
       id: r.id,
       label: r.label,
@@ -139,6 +143,44 @@ export async function saveWidgets(input: BoardWidget[]): Promise<void> {
         y: w.y,
         w: w.w,
         h: w.h,
+      })),
+    ),
+  ]);
+}
+
+/** Guarda las fases del plan (reemplaza todas); no toca el ciclo ni los widgets. */
+export async function savePhases(input: Phase[]): Promise<void> {
+  const userId = await requireUserId();
+  const phases = sanitizePhases(input);
+
+  const [board] = await db
+    .insert(boards)
+    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS })
+    .onConflictDoUpdate({ target: boards.userId, set: { updatedAt: new Date() } })
+    .returning({ id: boards.id });
+
+  const clear = db.delete(boardPhases).where(and(eq(boardPhases.boardId, board.id), eq(boardPhases.userId, userId)));
+  if (phases.length === 0) {
+    await clear;
+    return;
+  }
+  await db.batch([
+    clear,
+    db.insert(boardPhases).values(
+      phases.map((p) => ({
+        id: p.id,
+        boardId: board.id,
+        userId,
+        name: p.name,
+        kind: p.kind,
+        startWeek: p.startWeek,
+        weeks: p.weeks,
+        color: p.color,
+        volumePct: p.volumePct,
+        intensityPct: p.intensityPct,
+        rampSets: p.rampSets,
+        rampLoad: p.rampLoad,
+        deloadLast: p.deloadLast,
       })),
     ),
   ]);

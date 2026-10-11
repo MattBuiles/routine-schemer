@@ -29,7 +29,7 @@ export interface DropPreview {
   icon: string;
 }
 
-export const ZONE_ORIGIN = { x: 240, y: 100 };
+export const ZONE_ORIGIN = { x: 240, y: 260 };
 
 interface CycleZoneProps {
   cycleDays: number;

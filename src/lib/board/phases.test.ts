@@ -1,0 +1,107 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  MAX_PHASES,
+  MAX_PLAN_WEEKS,
+  PHASE_TYPES,
+  movePhase,
+  nextFreeStart,
+  phaseFromType,
+  projectPhase,
+  resizePhase,
+  sanitizePhases,
+  type Phase,
+} from './phases';
+
+const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const type = (kind: string) => PHASE_TYPES.find((t) => t.kind === kind)!;
+const phase = (n: number, start: number, weeks: number, over: Partial<Phase> = {}): Phase => ({ ...phaseFromType(type('volume'), id(n), start), weeks, ...over });
+
+describe('plan de fases', () => {
+  it('nextFreeStart va tras la última fase y es null si no cabe', () => {
+    expect(nextFreeStart([])).toBe(0);
+    expect(nextFreeStart([phase(1, 0, 4), phase(2, 6, 2)])).toBe(8);
+    expect(nextFreeStart([phase(1, 0, MAX_PLAN_WEEKS)])).toBeNull();
+    expect(nextFreeStart([phase(1, 0, 50)], 4)).toBeNull();
+  });
+
+  it('phaseFromType recorta las semanas para no salirse del plan', () => {
+    expect(phaseFromType(type('volume'), id(1), 50).weeks).toBe(2);
+  });
+
+  it('movePhase mueve, ordena y rechaza solapes y salidas del plan', () => {
+    const phases = [phase(1, 0, 4), phase(2, 6, 2)];
+    expect(movePhase(phases, id(2), 4)?.map((p) => [p.id, p.startWeek])).toEqual([[id(1), 0], [id(2), 4]]);
+    expect(movePhase(phases, id(2), 3)).toBeNull();
+    expect(movePhase(phases, id(1), 99)?.find((p) => p.id === id(1))?.startWeek).toBe(MAX_PLAN_WEEKS - 4);
+    expect(movePhase(phases, 'no-existe', 0)).toBeNull();
+  });
+
+  it('resizePhase no pisa a la siguiente ni sale del plan y mantiene al menos una semana', () => {
+    const phases = [phase(1, 0, 4), phase(2, 6, 2)];
+    expect(resizePhase(phases, id(1), 10).find((p) => p.id === id(1))!.weeks).toBe(6);
+    expect(resizePhase(phases, id(1), 0).find((p) => p.id === id(1))!.weeks).toBe(1);
+    expect(resizePhase(phases, id(2), 99).find((p) => p.id === id(2))!.weeks).toBe(MAX_PLAN_WEEKS - 6);
+  });
+});
+
+describe('projectPhase', () => {
+  it('suma las series de rampa por semana y aplica el ajuste de volumen', () => {
+    const p = phase(1, 0, 3, { volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: false });
+    expect(projectPhase(p, [3, 3]).map((w) => [w.sets, w.loadPct])).toEqual([[6, 100], [8, 102.5], [10, 105]]);
+  });
+
+  it('la última semana de descarga reduce volumen y carga', () => {
+    const p = phase(1, 4, 4, { volumePct: 0, intensityPct: 0, rampSets: 0, rampLoad: 0, deloadLast: true });
+    const weeks = projectPhase(p, [5]);
+    expect(weeks.map((w) => w.deload)).toEqual([false, false, false, true]);
+    expect(weeks[3]).toMatchObject({ sets: 3, loadPct: 90, planWeek: 8 });
+  });
+
+  it('una fase de descarga ya lleva el recorte en sus modificadores y no se aplica dos veces', () => {
+    const p = phaseFromType(type('deload'), id(1), 0);
+    expect(projectPhase(p, [5])[0]).toMatchObject({ deload: true, sets: 3, loadPct: 90 });
+  });
+
+  it('una fase de una sola semana no es de descarga por deloadLast', () => {
+    expect(projectPhase(phase(1, 0, 1, { deloadLast: true }), [3])[0].deload).toBe(false);
+  });
+
+  it('nunca baja de una serie por ejercicio y sin ejercicios no proyecta series', () => {
+    const p = phase(1, 0, 2, { volumePct: 0, rampSets: 0 });
+    expect(projectPhase(p, [0])[0].sets).toBe(1);
+    expect(projectPhase(p, [])[0].sets).toBe(0);
+  });
+});
+
+describe('sanitizePhases', () => {
+  const raw = (n: number, over: Record<string, unknown> = {}) => ({ id: id(n), name: 'Bloque A', kind: 'intensity', startWeek: 0, weeks: 4, color: '#112233', volumePct: 10, intensityPct: 5, rampSets: 1, rampLoad: 2.5, deloadLast: true, ...over });
+
+  it('tolera entradas que no son una lista', () => {
+    for (const bad of [null, undefined, 4, 'x', {}]) expect(sanitizePhases(bad)).toEqual([]);
+  });
+
+  it('descarta ids inválidos y repetidos, y usa valores por defecto del tipo', () => {
+    const out = sanitizePhases([raw(1), raw(1), raw(2, { id: 'no-uuid' }), raw(3, { name: '  ', kind: 'raro', color: 'rojo', startWeek: 4 })]);
+    expect(out.map((p) => p.id)).toEqual([id(1), id(3)]);
+    expect(out[1]).toMatchObject({ name: 'Volumen', kind: 'volume', color: '#3b82f6' });
+  });
+
+  it('acota los rangos', () => {
+    const [p] = sanitizePhases([raw(1, { volumePct: 999, intensityPct: -999, rampSets: 99, rampLoad: 99, weeks: 999, name: 'x'.repeat(99) })]);
+    expect(p).toMatchObject({ volumePct: 100, intensityPct: -50, rampSets: 3, rampLoad: 10, weeks: MAX_PLAN_WEEKS });
+    expect(p.name).toHaveLength(40);
+  });
+
+  it('resuelve solapes empujando hacia delante y descarta lo que no cabe en el plan', () => {
+    const out = sanitizePhases([raw(1, { startWeek: 0, weeks: 4 }), raw(2, { startWeek: 2, weeks: 4 }), raw(3, { startWeek: 51, weeks: 5 })]);
+    expect(out.map((p) => [p.startWeek, p.weeks])).toEqual([[0, 4], [4, 4], [51, 1]]);
+    expect(sanitizePhases([raw(1, { startWeek: 0, weeks: 52 }), raw(2, { startWeek: 10 })])).toHaveLength(1);
+  });
+
+  it('ignora claves ajenas y limita la cantidad', () => {
+    const [p] = sanitizePhases([{ ...raw(1), userId: 'atacante', boardId: 'x' }]);
+    expect(Object.keys(p).sort()).toEqual(['color', 'deloadLast', 'id', 'intensityPct', 'kind', 'name', 'rampLoad', 'rampSets', 'startWeek', 'volumePct', 'weeks']);
+    expect(sanitizePhases(Array.from({ length: MAX_PHASES + 20 }, (_, i) => raw(i + 1, { startWeek: i, weeks: 1 })))).toHaveLength(MAX_PHASES);
+  });
+});
