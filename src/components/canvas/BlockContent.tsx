@@ -24,6 +24,11 @@ export default function BlockContent({ block }: { block: CycleBlock }) {
           {block.zones.length > (wide ? 5 : 2) && <span className="text-[10px] opacity-80">+{block.zones.length - (wide ? 5 : 2)}</span>}
         </div>
       )}
+      {roomy && block.exercises.length > 0 && (
+        <span className="text-[10px] font-medium opacity-90">
+          {block.exercises.length} {block.exercises.length === 1 ? 'ejercicio' : 'ejercicios'}
+        </span>
+      )}
       <div className="mt-auto flex items-center text-[10px] font-medium opacity-90">
         <span className="flex gap-0.5" aria-hidden>
           {Array.from({ length: MAX_LOAD }, (_, i) => (

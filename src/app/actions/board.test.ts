@@ -40,7 +40,7 @@ import { createBlockType, saveCycle, saveWidgets } from './board';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const block = (n: number, over: Record<string, unknown> = {}) => ({
-  id: id(n), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, load: 3, zones: ['Pecho'], notes: '', icon: 'dumbbell', ...over,
+  id: id(n), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, load: 3, zones: ['Pecho'], notes: '', icon: 'dumbbell', exercises: [], ...over,
 });
 const as = <T>(value: object) => value as unknown as T;
 

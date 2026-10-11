@@ -11,6 +11,8 @@ export const MAX_CYCLE_DAYS = 28;
 export const DEFAULT_CYCLE_DAYS = 7;
 
 export const MAX_ZONES = 6;
+export const MAX_EXERCISES = 30;
+export const MAX_SETS = 20;
 
 /** Iconos disponibles para un bloque (se resuelven a componentes en la UI). */
 export const BLOCK_ICONS = ['dumbbell', 'flame', 'zap', 'heart-pulse', 'target', 'leaf', 'moon', 'sparkles', 'mountain', 'swords', 'timer', 'bike'] as const;
@@ -18,6 +20,16 @@ export type BlockIconKey = (typeof BLOCK_ICONS)[number];
 
 /** Zonas sugeridas (el usuario también puede escribir las suyas). */
 export const ZONE_SUGGESTIONS = ['Pecho', 'Espalda', 'Hombros', 'Brazos', 'Piernas', 'Glúteos', 'Core', 'Cardio', 'Movilidad', 'Técnica', 'Empuje', 'Tracción'] as const;
+
+/** Ejercicio dentro de un bloque; guarda una copia del nombre para mostrarlo sin consultar la biblioteca. */
+export interface BlockExercise {
+  exerciseId: string;
+  name: string;
+  sets: number;
+  /** Repeticiones como texto libre: "8-12", "5", "AMRAP". */
+  reps: string;
+  notes: string;
+}
 
 export interface CycleBlock {
   id: string;
@@ -33,6 +45,7 @@ export interface CycleBlock {
   zones: string[];
   notes: string;
   icon: string;
+  exercises: BlockExercise[];
 }
 
 export interface BlockTypeDef {
@@ -94,7 +107,7 @@ export function placeBlock(others: CycleBlock[], block: CycleBlock): CycleBlock 
 /** Primer hueco libre de `span` días (carril por carril) para crear bloques sin posición explícita. */
 export function findFreeSlot(blocks: CycleBlock[], cycleDays: number, span = 1): { dayStart: number; lane: number } | null {
   const daySpan = Math.min(span, cycleDays);
-  const probe = { id: '', label: '', color: '', blockType: '', daySpan, load: 1, zones: [], notes: '', icon: '' };
+  const probe = { id: '', label: '', color: '', blockType: '', daySpan, load: 1, zones: [], notes: '', icon: '', exercises: [] };
   for (let lane = 0; lane < MAX_LANES; lane++) {
     for (let dayStart = 0; dayStart + daySpan <= cycleDays; dayStart++) {
       if (!blocks.some((o) => overlaps({ ...probe, dayStart, lane }, o))) return { dayStart, lane };
@@ -156,6 +169,7 @@ export function blockFromType(type: BlockTypeDef, id: string, dayStart: number, 
     zones: [],
     notes: '',
     icon: type.icon,
+    exercises: [],
   };
 }
 

@@ -1,4 +1,4 @@
-import { BLOCK_ICONS, MAX_LANES, MAX_LOAD, MAX_ZONES, defaultIconFor, placeBlock, resizeCycle, type CycleBlock } from './cycle';
+import { BLOCK_ICONS, MAX_EXERCISES, MAX_LANES, MAX_LOAD, MAX_SETS, MAX_ZONES, defaultIconFor, placeBlock, resizeCycle, type BlockExercise, type CycleBlock } from './cycle';
 import { clamp } from './geometry';
 
 export const MAX_BLOCKS = 100;
@@ -24,6 +24,25 @@ const cleanZones = (value: unknown): string[] => {
   }
   return [...seen];
 };
+
+/** Normaliza la lista de ejercicios de un bloque: solo ids de uuid, rangos acotados y textos recortados. */
+export function sanitizeExercises(value: unknown): BlockExercise[] {
+  if (!Array.isArray(value)) return [];
+  const result: BlockExercise[] = [];
+  for (const item of value.slice(0, MAX_EXERCISES) as Record<string, unknown>[]) {
+    if (!item || !isUuid(item.exerciseId)) continue;
+    const name = text(item.name, 120);
+    if (!name) continue;
+    result.push({
+      exerciseId: item.exerciseId.toLowerCase(),
+      name,
+      sets: int(item.sets, 1, MAX_SETS, 3),
+      reps: text(item.reps, 12) || '8-12',
+      notes: text(item.notes, 200),
+    });
+  }
+  return result;
+}
 
 /**
  * Normaliza el ciclo recibido del cliente (JSON no confiable): descarta entradas inválidas,
@@ -52,6 +71,7 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
       load: int(item.load, 1, MAX_LOAD, 3),
       zones: cleanZones(item.zones),
       notes: text(item.notes, 500),
+      exercises: sanitizeExercises(item.exercises),
       icon: (BLOCK_ICONS as readonly string[]).includes(item.icon as string) ? (item.icon as string) : defaultIconFor(blockType),
     };
     const result = placeBlock(placed, block);

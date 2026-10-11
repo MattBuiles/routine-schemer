@@ -24,6 +24,7 @@ const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
   zones: [],
   notes: '',
   icon: 'dumbbell',
+  exercises: [],
   id: 'a',
   label: 'Push',
   color: '#000',

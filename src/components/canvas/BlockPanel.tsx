@@ -1,18 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
 import { Button, Field, Input, SegmentedControl, Textarea } from 'strata';
 
 import {
   BLOCK_ICONS,
+  MAX_EXERCISES,
   MAX_LOAD,
+  MAX_SETS,
   MAX_ZONES,
   ZONE_SUGGESTIONS,
   type BlockTypeDef,
   type CycleBlock,
 } from '@/lib/board/cycle';
 import { getIcon } from './blockIcons';
+import ExercisePicker, { exerciseName } from './ExercisePicker';
 
 const SWATCHES = ['#dc2626', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#71717a', '#ec4899'];
 
@@ -31,12 +34,24 @@ const sectionTitle = 'mb-1.5 block text-xs font-medium uppercase tracking-wide t
 /** Panel del bloque seleccionado: tipo, nombre, enfoque, carga, duración, color, icono y notas. */
 export default function BlockPanel({ block, types, onChange, onChangeType, onDelete, onSaveType, onClose }: BlockPanelProps) {
   const [draftTag, setDraftTag] = useState('');
+  const [picking, setPicking] = useState(false);
 
   const addTag = (raw: string) => {
     const tag = raw.trim().slice(0, 24);
     if (!tag || block.zones.some((f) => f.toLowerCase() === tag.toLowerCase()) || block.zones.length >= MAX_ZONES) return;
     onChange({ zones: [...block.zones, tag] });
     setDraftTag('');
+  };
+
+  const patchExercise = (index: number, patch: Partial<CycleBlock['exercises'][number]>) =>
+    onChange({ exercises: block.exercises.map((e, i) => (i === index ? { ...e, ...patch } : e)) });
+
+  const moveExercise = (index: number, delta: number) => {
+    const next = [...block.exercises];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange({ exercises: next });
   };
 
   const suggestions = ZONE_SUGGESTIONS.filter((s) => !block.zones.some((f) => f.toLowerCase() === s.toLowerCase())).slice(0, 8);
@@ -118,6 +133,47 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
               ))}
             </div>
           )}
+        </div>
+
+        <div>
+          <span className={sectionTitle}>Ejercicios · {block.exercises.length}</span>
+          <ol className="flex flex-col gap-2">
+            {block.exercises.map((e, i) => (
+              <li key={`${e.exerciseId}-${i}`} className="rounded-xl border border-border p-2">
+                <div className="flex items-start gap-1">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium" title={e.name}>
+                    {e.name}
+                  </span>
+                  <button aria-label={`Subir ${e.name}`} disabled={i === 0} className="rounded p-0.5 text-muted hover:text-fg disabled:opacity-30" onClick={() => moveExercise(i, -1)}>
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button aria-label={`Bajar ${e.name}`} disabled={i === block.exercises.length - 1} className="rounded p-0.5 text-muted hover:text-fg disabled:opacity-30" onClick={() => moveExercise(i, 1)}>
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button aria-label={`Quitar ${e.name}`} className="rounded p-0.5 text-muted hover:text-fg" onClick={() => onChange({ exercises: block.exercises.filter((_, j) => j !== i) })}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+                  <Input aria-label={`Series de ${e.name}`} type="number" min={1} max={MAX_SETS} className="w-14 px-2 py-1" value={e.sets} onChange={(ev) => patchExercise(i, { sets: Math.min(MAX_SETS, Math.max(1, Number(ev.target.value) || 1)) })} />
+                  ×
+                  <Input aria-label={`Repeticiones de ${e.name}`} maxLength={12} className="w-20 px-2 py-1" value={e.reps} onChange={(ev) => patchExercise(i, { reps: ev.target.value })} />
+                  <Input aria-label={`Notas de ${e.name}`} maxLength={200} placeholder="Notas" className="min-w-0 flex-1 px-2 py-1" value={e.notes} onChange={(ev) => patchExercise(i, { notes: ev.target.value })} />
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Button variant="secondary" size="sm" className="mt-2 w-full" disabled={block.exercises.length >= MAX_EXERCISES} onClick={() => setPicking(true)}>
+            <Plus className="h-4 w-4" /> Añadir ejercicio
+          </Button>
+          <ExercisePicker
+            open={picking}
+            onClose={() => setPicking(false)}
+            onPick={(exercise) => {
+              onChange({ exercises: [...block.exercises, { exerciseId: exercise.id, name: exerciseName(exercise), sets: 3, reps: '8-12', notes: '' }] });
+              setPicking(false);
+            }}
+          />
         </div>
 
         <div>
