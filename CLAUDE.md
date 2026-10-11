@@ -12,17 +12,17 @@ Gestor: pnpm (`package-lock.json` está obsoleto; ignorarlo).
 - Tests `*.test.ts` junto al código (utilidades, validación de entorno, acciones con la BD simulada). CI en `.github/workflows/ci.yml` (`ci`: lint, typecheck, test, build). `main` solo admite PRs con Squash and merge.
 - Las server actions de escritura nunca vuelcan la entrada del cliente a la BD: usar `pick()` con una lista de columnas (`src/lib/pick.ts`) y tomar el `userId` de `requireUserId()`.
 
-## Arquitectura: Neon (DB) + Neon Auth (migrada desde Supabase)
-Proveedor de auth vigente: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{client,server}.ts`, `src/middleware.ts`, `src/app/api/auth/[...path]`, `NeonAuthUIProvider` en `src/app/providers.tsx`; vistas de login en `/` y el resto en `src/app/auth/[path]/page.tsx`). Variables requeridas: `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (`serverEnv()` falla con 500 si falta alguna). Clerk es residuo de un plan anterior (README y ADR 0001 están desactualizados); no usarlo.
-- **DB:** Neon + Drizzle. `src/db/schema.ts` (14 tablas: perfil, metas, programas y sus sesiones/splits/mesociclos/reglas, hábitos, registros de hábitos, notas y eventos de calendario) y `src/db/client.ts` (server-only, driver HTTP: sin transacciones interactivas, usar `db.batch` y generar los UUID en código). Todo el acceso va por server actions en `src/app/actions/{profile,programs,habits,notes,calendar}.ts`, que sacan el `userId` con `requireUserId()` (`src/lib/auth/session.ts`) (nunca del cliente) y filtran por él: no hay RLS efectivo que lo respalde.
-- **Pendiente:** tabla y UI de ejercicios (hoy los ejercicios de una sesión son texto libre; `lib/exerciseService.ts` es una API externa sin usar). `routine/WorkoutCalendar.tsx` y `lib/exerciseService.ts` no los importa nadie.
+## Arquitectura: Neon (DB) + Neon Auth + lienzo de bloques
+Proveedor de auth: **Neon Auth** (`@neondatabase/auth`; `src/lib/auth/{client,server}.ts`, `src/middleware.ts`, `src/app/api/auth/[...path]`, `NeonAuthUIProvider` en `src/app/providers.tsx`; login en `/` y el resto en `src/app/auth/[path]/page.tsx`). Variables requeridas: `DATABASE_URL`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (`serverEnv()` falla con 500 si falta alguna). El ADR 0001 describe la migración y está parcialmente desactualizado (menciona Clerk, que no se usa).
+- **App:** `/` es un lienzo (`src/components/canvas/BoardEngine.tsx`) con zoom/pan, la zona del ciclo de N días (`CycleZone`, bloques con enfoque, zonas, carga, icono y notas) y widgets de Hábitos, Notas y Calendario (`canvas/widgets/`). Lógica pura y testeable en `src/lib/board/` (`geometry`, `cycle`, `history`, `sanitize`, `widgets`); `/board` solo redirige a `/`.
+- **DB:** Neon + Drizzle. `src/db/schema.ts` y `src/db/client.ts` (server-only, driver HTTP: sin transacciones interactivas, usar `db.batch` y generar los UUID en código). Tablas vivas: `boards`, `board_blocks` (`kind` = `cycle` | `widget`), `block_types`, `habits`, `habit_records`, `notes`, `calendar_events`. Las tablas de programas (`training_programs`, `session_templates`, `weekly_splits`, `mesocycles`…) y de perfil quedaron sin código que las use; se conservan hasta decidir su destino. Todo el acceso va por server actions en `src/app/actions/{board,habits,notes,calendar}.ts`, que sacan el `userId` con `requireUserId()` (nunca del cliente), filtran por él y normalizan la entrada del cliente (`sanitizeCycle`, `sanitizeWidgets`, `pick`): no hay RLS efectivo que lo respalde.
 - `drizzle/0000` activa `FORCE ROW LEVEL SECURITY` sin políticas en las 3 primeras tablas; funciona porque el rol `neondb_owner` tiene BYPASSRLS (comprobado). Con otro rol, las consultas no verían filas.
-
-- **UI:** el sistema de diseño es `strata` (repo `MattBuiles/strata-ui`, dependencia git; tokens `bg-bg/surface/border-border/text-fg/text-muted/bg-accent`, componentes `Button`, `Card`, `Modal`, `Switch`, `useToast`…). Código nuevo usa strata, no colores sueltos de Tailwind.
+- El script de migraciones separa las sentencias por `;`: no usar `;` dentro de los comentarios de los `.sql`.
+- **UI:** sistema de diseño `strata` (repo `MattBuiles/strata-ui`, dependencia git; tokens `bg-bg/surface/border-border/text-fg/text-muted/bg-accent`, componentes `Button`, `Input`, `Field`, `Modal`, `useToast`, `useConfirm`…). Código nuevo usa strata, no colores sueltos de Tailwind. Los estilos de `auth-ui` se importan en la capa `base` desde `globals.css` (sin capa pisan las utilidades de padding y margen).
+- **Pendiente:** biblioteca de ejercicios y ejercicios por bloque; mesociclos y progresión.
 
 ## Estructura
-- `src/app/` rutas (`page.tsx` es el dashboard; navegación por vistas, ver `src/config/viewConfig.ts` y `useRoutineNavigation`) y `api/`.
-- `src/components/{routine,planner,auth,ui}`; estilos CSS por módulo en `src/styles/`.
+- `src/app/` rutas y `api/`; `src/components/{auth,canvas}`; `src/lib/{auth,board}`; `src/types/index.ts` (hábitos, notas, calendario).
 
 ## Reglas
 - Nunca leer ni editar `.env*`. No ejecutar `db:migrate` contra datos reales sin autorización.
