@@ -19,6 +19,8 @@ interface BlockProps {
   onDelete?: () => void;
   /** Paso de las flechas al mover (horizontal y vertical); por defecto, la cuadrícula. */
   keyStep?: { x: number; y: number };
+  /** Margen visual en px: el bloque se pinta más pequeño que su rectángulo lógico para que dos contiguos no se toquen. */
+  inset?: number;
 }
 
 interface Gesture {
@@ -47,6 +49,7 @@ export default function Block({
   onGestureEnd,
   onDelete,
   keyStep = { x: GRID, y: GRID },
+  inset = 0,
 }: BlockProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
@@ -108,7 +111,7 @@ export default function Block({
       className={`block-in absolute rounded-xl border-2 text-white outline-none transition-[box-shadow,transform] duration-150 motion-reduce:transition-none ${
         dragging ? 'z-20 scale-[1.03] cursor-grabbing shadow-2xl' : 'cursor-grab shadow-md hover:shadow-lg'
       } ${selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''}`}
-      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, backgroundColor: color, borderColor: color }}
+      style={{ left: rect.x + inset, top: rect.y + inset, width: rect.w - inset * 2, height: rect.h - inset * 2, backgroundColor: color, borderColor: color }}
     >
       <div className="pointer-events-none h-full w-full overflow-hidden p-2 text-sm font-semibold">{content ?? label}</div>
       {selected &&

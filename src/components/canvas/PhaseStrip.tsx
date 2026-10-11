@@ -15,6 +15,8 @@ import {
 import { useCanvasZoom } from './Canvas';
 
 const TICKS_H = 24;
+/** Separación visual entre fases contiguas (px a cada lado). */
+const PHASE_GAP = 3;
 
 interface PhaseStripProps {
   origin: { x: number; y: number };
@@ -120,7 +122,7 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
             onPointerUp={end}
             onPointerCancel={end}
             className={`absolute cursor-grab overflow-hidden rounded-xl border-2 border-transparent px-2 py-1 text-xs font-semibold text-white shadow-md outline-none active:cursor-grabbing ${p.id === selectedId ? 'ring-2 ring-accent ring-offset-2 ring-offset-bg' : ''}`}
-            style={{ left: p.startWeek * WEEK_W, top: TICKS_H, width: p.weeks * WEEK_W, height: PHASE_H, backgroundColor: p.color }}
+            style={{ left: p.startWeek * WEEK_W + PHASE_GAP, top: TICKS_H, width: p.weeks * WEEK_W - PHASE_GAP * 2, height: PHASE_H, backgroundColor: p.color }}
           >
             <div className="pointer-events-none truncate">{p.name}</div>
             {p.weeks >= 3 && (
