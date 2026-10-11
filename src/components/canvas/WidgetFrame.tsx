@@ -100,7 +100,7 @@ export default function WidgetFrame({ rect, title, icon, selected, onSelect, onG
         <h3 className="flex-1 truncate text-sm font-semibold">{title}</h3>
         <GripHorizontal className="h-4 w-4 text-muted" aria-hidden />
         <button
-          aria-label={`Quitar ${title}`}
+          aria-label={`Cerrar ${title}`}
           className="rounded p-1 text-muted hover:text-fg"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onClose}

@@ -17,6 +17,8 @@ interface BlockProps {
   onRectChange: (rect: Rect) => void;
   onGestureEnd: () => void;
   onDelete?: () => void;
+  /** Paso de las flechas al mover (horizontal y vertical); por defecto, la cuadrícula. */
+  keyStep?: { x: number; y: number };
 }
 
 interface Gesture {
@@ -44,6 +46,7 @@ export default function Block({
   onRectChange,
   onGestureEnd,
   onDelete,
+  keyStep = { x: GRID, y: GRID },
 }: BlockProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
@@ -74,11 +77,16 @@ export default function Block({
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const step = { ArrowLeft: [-GRID, 0], ArrowRight: [GRID, 0], ArrowUp: [0, -GRID], ArrowDown: [0, GRID] }[e.key];
-    if (step) {
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (dir) {
       e.preventDefault();
       onGestureStart();
-      onRectChange(e.shiftKey ? resizeRect(rect, 'se', step[0], step[1]) : moveRect(rect, step[0], step[1]));
+      // Con Mayús se redimensiona: el alto cambia de una en una cuadrícula y el ancho de un paso horizontal.
+      onRectChange(
+        e.shiftKey
+          ? resizeRect(rect, 'se', dir[0] * keyStep.x, dir[1] * GRID)
+          : moveRect(rect, dir[0] * keyStep.x, dir[1] * keyStep.y),
+      );
       onGestureEnd();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && onDelete) {
       e.preventDefault();

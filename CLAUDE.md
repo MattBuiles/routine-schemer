@@ -9,7 +9,7 @@ Gestor: pnpm (`package-lock.json` está obsoleto; ignorarlo).
 - `pnpm dev` (turbopack), `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (Vitest; un archivo: `pnpm exec vitest run src/lib/utils.test.ts`)
 - `pnpm db:generate` (drizzle-kit, lee `DATABASE_URL` de `.env.local`)
 - `pnpm db:migrate` ejecuta `scripts/migrate.ts`: aplica en orden los `drizzle/*.sql` pendientes (registro en la tabla `_app_migrations`). Lee `DATABASE_URL` del entorno, no de `.env.local`: `pnpm exec tsx --env-file=.env.local scripts/migrate.ts`. Las migraciones son SQL escrito a mano (no hay `drizzle/meta`), así que `db:generate` no es la vía; al añadir tablas, actualizar `src/db/schema.ts` y crear el siguiente `.sql`.
-- Tests `*.test.ts` junto al código (utilidades, validación de entorno, acciones con la BD simulada). CI en `.github/workflows/ci.yml` (`ci`: lint, typecheck, test, build). `main` solo admite PRs con Squash and merge.
+- Tests `*.test.ts` y `*.test.tsx` junto al código (utilidades, validación de entorno, acciones con la BD simulada y componentes con Testing Library). Los de componentes llevan `// @vitest-environment jsdom` en la primera línea y usan `renderWithStrata` y `stubPointerCapture` de `src/test-utils.tsx` (tema, avisos y confirmaciones de strata; jsdom no trae `matchMedia` ni captura de puntero). Las server actions se simulan con `vi.mock('@/app/actions/...')`. CI en `.github/workflows/ci.yml` (`ci`: lint, typecheck, test, build). `main` solo admite PRs con Squash and merge.
 - Las server actions de escritura nunca vuelcan la entrada del cliente a la BD: usar `pick()` con una lista de columnas (`src/lib/pick.ts`) y tomar el `userId` de `requireUserId()`.
 
 ## Arquitectura: Neon (DB) + Neon Auth + lienzo de bloques
