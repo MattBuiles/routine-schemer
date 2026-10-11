@@ -15,7 +15,7 @@ vi.mock('@/db/client', () => {
       const name = getTableName(table);
       if (name === 'boards') state.boardValues.push(values as Record<string, unknown>);
       if (name === 'block_types') state.typeValues.push(values as Record<string, unknown>);
-      if (name === 'board_blocks') state.blockValues.push(values as Record<string, unknown>[]);
+      if (name === 'board_blocks' || name === 'board_phases') state.blockValues.push(values as Record<string, unknown>[]);
       const rows = name === 'boards' ? [{ id: 'board-1' }] : [{ id: 't1', name: (values as { name?: string }).name, color: (values as { color?: string }).color }];
       return {
         onConflictDoUpdate: () => ({ returning: async () => rows }),
@@ -36,7 +36,7 @@ vi.mock('@/db/client', () => {
 
 vi.mock('@/lib/auth/session', () => ({ requireUserId: vi.fn(async () => 'user-1') }));
 
-import { createBlockType, saveCycle, saveWidgets } from './board';
+import { createBlockType, savePhases, saveCycle, saveWidgets } from './board';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const block = (n: number, over: Record<string, unknown> = {}) => ({
@@ -99,6 +99,30 @@ describe('saveWidgets', () => {
 
   it('sin widgets solo borra y no inserta filas vacías', async () => {
     await saveWidgets([]);
+    expect(state.blockValues).toEqual([]);
+    expect(state.batches).toBe(0);
+  });
+});
+
+describe('savePhases', () => {
+  const phase = (n: number, over: Record<string, unknown> = {}) => ({ id: id(n), name: 'Bloque A', kind: 'volume', startWeek: (n - 1) * 4, weeks: 4, color: '#112233', volumePct: 10, intensityPct: -5, rampSets: 1, rampLoad: 0, deloadLast: true, ...over });
+
+  it('toma el userId de la sesión y descarta userId/boardId del cliente', async () => {
+    await savePhases(as([{ ...phase(1), userId: 'atacante', boardId: 'ajeno' }]));
+    expect(state.boardValues[0]).toMatchObject({ userId: 'user-1' });
+    const [row] = state.blockValues[0];
+    expect(row).toMatchObject({ userId: 'user-1', boardId: 'board-1', kind: 'volume', weeks: 4 });
+  });
+
+  it('normaliza: rangos, ids inválidos y solapes', async () => {
+    await savePhases(as([phase(1, { weeks: 999 }), phase(2, { id: 'no-uuid' }), phase(3, { startWeek: 0, volumePct: 9999 })]));
+    const rows = state.blockValues[0];
+    expect(rows.map((r) => r.id)).toEqual([id(1)]);
+    expect(rows[0].weeks).toBe(52);
+  });
+
+  it('sin fases solo borra y no inserta filas vacías', async () => {
+    await savePhases([]);
     expect(state.blockValues).toEqual([]);
     expect(state.batches).toBe(0);
   });

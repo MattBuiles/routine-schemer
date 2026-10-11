@@ -6,7 +6,7 @@ import { Alert, Skeleton, ThemeToggle, useConfirm, useToast } from 'strata';
 
 import { authClient } from '@/lib/auth/client';
 
-import { createBlockType, deleteBlockType, getBoard, saveCycle, saveWidgets, type CustomBlockType } from '@/app/actions/board';
+import { createBlockType, deleteBlockType, getBoard, saveCycle, saveWidgets, savePhases, type CustomBlockType } from '@/app/actions/board';
 import {
   HEADER_H,
   LANE_H,
@@ -23,11 +23,21 @@ import {
 } from '@/lib/board/cycle';
 import { commit, commitFrom, createHistory, redo, replace, undo, type History } from '@/lib/board/history';
 import type { Rect } from '@/lib/board/geometry';
+import {
+  PHASE_TYPES,
+  nextFreeStart,
+  phaseFromType,
+  resizePhase,
+  type Phase,
+  type PhaseTypeDef,
+} from '@/lib/board/phases';
 import { WIDGET_INFO, WIDGET_TYPES, defaultWidgetRect, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 import BlockPanel from './BlockPanel';
 import Canvas, { type CanvasApi } from './Canvas';
 import CycleZone, { ZONE_ORIGIN, type DropPreview } from './CycleZone';
 import Palette from './Palette';
+import PhasePanel from './PhasePanel';
+import PhaseStrip from './PhaseStrip';
 import WidgetFrame from './WidgetFrame';
 import CalendarWidget from './widgets/CalendarWidget';
 import HabitsWidget from './widgets/HabitsWidget';
@@ -37,6 +47,7 @@ interface BoardState {
   cycleDays: number;
   blocks: CycleBlock[];
   widgets: BoardWidget[];
+  phases: Phase[];
 }
 
 const WIDGET_ICONS: Record<WidgetType, LucideIcon> = { habits: ListChecks, notes: StickyNote, calendar: CalendarDays };
@@ -45,7 +56,8 @@ const WIDGET_BODIES: Record<WidgetType, () => React.ReactElement> = {
   notes: () => <NotesWidget />,
   calendar: () => <CalendarWidget />,
 };
-// Los widgets nacen bajo la zona del ciclo.
+// La franja de fases va sobre la zona del ciclo y los widgets nacen bajo ella.
+const STRIP_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y - 150 };
 const WIDGET_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y + HEADER_H + MAX_LANES * LANE_H + 80 };
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -56,6 +68,7 @@ const STATUS_LABEL: Record<SaveStatus, string> = { idle: '', saving: 'Guardando�
 const snapshots = (state: BoardState) => ({
   cycle: JSON.stringify({ cycleDays: state.cycleDays, blocks: state.blocks }),
   widgets: JSON.stringify(state.widgets),
+  phases: JSON.stringify(state.phases),
 });
 
 /** Lienzo del ciclo de entrenamiento: carga, edita y guarda el tablero del usuario. */
@@ -68,9 +81,10 @@ export default function BoardEngine() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const apiRef = useRef<CanvasApi | null>(null);
-  const lastSaved = useRef({ cycle: '', widgets: '' });
+  const lastSaved = useRef({ cycle: '', widgets: '', phases: '' });
   const gestureBase = useRef<BoardState | null>(null);
   const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
   const saving = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
@@ -78,7 +92,7 @@ export default function BoardEngine() {
     getBoard()
       .then((board) => {
         if (cancelled) return;
-        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets };
+        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases };
         lastSaved.current = snapshots(state);
         setHistory(createHistory(state));
         setCustomTypes(board.customTypes);
@@ -99,7 +113,8 @@ export default function BoardEngine() {
     const snapshot = snapshots(present);
     const cycleChanged = snapshot.cycle !== lastSaved.current.cycle;
     const widgetsChanged = snapshot.widgets !== lastSaved.current.widgets;
-    if (!cycleChanged && !widgetsChanged) return;
+    const phasesChanged = snapshot.phases !== lastSaved.current.phases;
+    if (!cycleChanged && !widgetsChanged && !phasesChanged) return;
     const timer = setTimeout(() => {
       setStatus('saving');
       saving.current = saving.current
@@ -111,6 +126,10 @@ export default function BoardEngine() {
           if (widgetsChanged) {
             await saveWidgets(present.widgets);
             lastSaved.current = { ...lastSaved.current, widgets: snapshot.widgets };
+          }
+          if (phasesChanged) {
+            await savePhases(present.phases);
+            lastSaved.current = { ...lastSaved.current, phases: snapshot.phases };
           }
           setStatus('saved');
         })
@@ -236,6 +255,40 @@ export default function BoardEngine() {
     if (base) setHistory((h) => (h ? commitFrom(h, base) : h));
   }, []);
 
+  const selectedPhaseData = present?.phases.find((p) => p.id === selectedPhase) ?? null;
+
+  const addPhase = (type: PhaseTypeDef, atWeek?: number) => {
+    if (!present) return;
+    const start = atWeek ?? nextFreeStart(present.phases, type.weeks) ?? nextFreeStart(present.phases, 1);
+    if (start === null || start === undefined) {
+      toast({ tone: 'info', message: 'El plan ya ocupa las 52 semanas.' });
+      return;
+    }
+    const phase = phaseFromType(type, crypto.randomUUID(), start);
+    // Un hueco intermedio puede ser más corto que la fase por defecto: se recorta para no pisar a la siguiente.
+    const next = present.phases.filter((p) => p.startWeek >= start).sort((a, b) => a.startWeek - b.startWeek)[0];
+    const fits = { ...phase, weeks: Math.max(1, Math.min(phase.weeks, (next?.startWeek ?? 52) - start)) };
+    if (present.phases.some((p) => p.startWeek < start + fits.weeks && start < p.startWeek + p.weeks)) {
+      toast({ tone: 'info', message: 'Ahí ya hay una fase.' });
+      return;
+    }
+    update({ ...present, phases: [...present.phases, fits].sort((a, b) => a.startWeek - b.startWeek) });
+    setSelectedPhase(fits.id);
+    setSelectedId(null);
+    setSelectedWidget(null);
+  };
+
+  const patchPhase = (patch: Partial<Phase>) => {
+    if (!present || !selectedPhaseData) return;
+    update({ ...present, phases: present.phases.map((p) => (p.id === selectedPhaseData.id ? { ...p, ...patch } : p)) });
+  };
+
+  const deletePhase = () => {
+    if (!present || !selectedPhaseData) return;
+    update({ ...present, phases: present.phases.filter((p) => p.id !== selectedPhaseData.id) });
+    setSelectedPhase(null);
+  };
+
   const selected = present?.blocks.find((b) => b.id === selectedId) ?? null;
 
   const patchSelected = (patch: Partial<CycleBlock>) => {
@@ -298,15 +351,33 @@ export default function BoardEngine() {
         onBackgroundClick={() => {
           setSelectedId(null);
           setSelectedWidget(null);
+          setSelectedPhase(null);
         }}
       >
+        <PhaseStrip
+          origin={STRIP_ORIGIN}
+          phases={present.phases}
+          selectedId={selectedPhase}
+          onSelect={(id) => {
+            setSelectedPhase(id);
+            if (id) {
+              setSelectedId(null);
+              setSelectedWidget(null);
+            }
+          }}
+          onPhasesChange={(phases) => update({ ...present, phases })}
+          onCreateAt={(week) => addPhase(PHASE_TYPES[0], week)}
+        />
         <CycleZone
           cycleDays={present.cycleDays}
           blocks={present.blocks}
           selectedId={selectedId}
           onSelect={(id) => {
             setSelectedId(id);
-            if (id) setSelectedWidget(null);
+            if (id) {
+              setSelectedWidget(null);
+              setSelectedPhase(null);
+            }
           }}
           onBlocksChange={(blocks) => update({ ...present, blocks })}
           onDelete={deleteBlock}
@@ -326,6 +397,7 @@ export default function BoardEngine() {
               onSelect={() => {
                 setSelectedWidget(w.id);
                 setSelectedId(null);
+                setSelectedPhase(null);
               }}
               onGestureStart={onWidgetGestureStart}
               onRectChange={(rect) => onWidgetRect(w.id, rect)}
@@ -338,7 +410,7 @@ export default function BoardEngine() {
         })}
       </Canvas>
 
-      <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} />
+      <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} phaseTypes={PHASE_TYPES} onAddPhase={addPhase} />
 
       <div className="absolute left-4 top-4 flex items-center gap-1 rounded-xl border border-border bg-surface/90 p-1 shadow-[var(--shadow)] backdrop-blur">
         <button aria-label="Deshacer" disabled={!history.past.length} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => setHistory((h) => (h ? undo(h) : h))}>
@@ -369,6 +441,18 @@ export default function BoardEngine() {
         })}
       </div>
       <ThemeToggle className="absolute right-4 top-4 z-20" />
+
+      {selectedPhaseData && (
+        <PhasePanel
+          key={selectedPhaseData.id}
+          phase={selectedPhaseData}
+          exerciseSets={present.blocks.flatMap((b) => b.exercises.map((e) => e.sets))}
+          onResize={(weeks) => update({ ...present, phases: resizePhase(present.phases, selectedPhaseData.id, weeks) })}
+          onChange={patchPhase}
+          onDelete={deletePhase}
+          onClose={() => setSelectedPhase(null)}
+        />
+      )}
 
       {selected && (
         <BlockPanel

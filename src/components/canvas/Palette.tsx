@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GripVertical, X } from 'lucide-react';
 
 import type { BlockTypeDef } from '@/lib/board/cycle';
+import type { PhaseTypeDef } from '@/lib/board/phases';
 import { getIcon } from './blockIcons';
 
 interface PaletteProps {
@@ -13,12 +14,14 @@ interface PaletteProps {
   onDragMove: (type: BlockTypeDef | null, clientX: number, clientY: number) => void;
   onDropType: (type: BlockTypeDef, clientX: number, clientY: number) => void;
   onDeleteCustom: (customId: string) => void;
+  phaseTypes: readonly PhaseTypeDef[];
+  onAddPhase: (type: PhaseTypeDef) => void;
 }
 
 const DRAG_THRESHOLD = 6;
 
 /** Bandeja de tipos: clic = añadir en el primer hueco; arrastrar y soltar sobre el ciclo = crear ahí. */
-export default function Palette({ types, onAdd, onDragMove, onDropType, onDeleteCustom }: PaletteProps) {
+export default function Palette({ types, onAdd, onDragMove, onDropType, onDeleteCustom, phaseTypes, onAddPhase }: PaletteProps) {
   const [ghost, setGhost] = useState<{ type: BlockTypeDef; x: number; y: number } | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const drag = useRef<{ type: BlockTypeDef; startX: number; startY: number; active: boolean } | null>(null);
@@ -109,6 +112,22 @@ export default function Palette({ types, onAdd, onDragMove, onDropType, onDelete
               </div>
             );
           })}
+        </div>
+        <p className="px-2 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted">Fases del plan</p>
+        <div className="flex flex-wrap gap-1 px-1">
+          {phaseTypes.map((t) => (
+            <button
+              key={t.kind}
+              type="button"
+              data-phase-type={t.kind}
+              title={t.hint}
+              onClick={() => onAddPhase(t)}
+              className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-fg transition-transform hover:-translate-y-0.5 hover:bg-surface-2 active:scale-95 motion-reduce:transition-none"
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.color }} />
+              {t.label}
+            </button>
+          ))}
         </div>
         <p className="mt-2 min-h-8 rounded-lg bg-surface-2 px-2 py-1.5 text-xs text-muted">
           {hovered ? hovered.hint : 'Clic para añadir en el primer hueco, o arrastra a un día.'}
