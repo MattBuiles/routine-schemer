@@ -1,13 +1,16 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Redo2, Undo2 } from 'lucide-react';
+import { CalendarDays, ListChecks, Redo2, StickyNote, Undo2, type LucideIcon } from 'lucide-react';
 import { Alert, Skeleton, ThemeToggle, useConfirm, useToast } from 'strata';
 
 import { authClient } from '@/lib/auth/client';
 
-import { createBlockType, deleteBlockType, getBoard, saveCycle, type CustomBlockType } from '@/app/actions/board';
+import { createBlockType, deleteBlockType, getBoard, saveCycle, saveWidgets, type CustomBlockType } from '@/app/actions/board';
 import {
+  HEADER_H,
+  LANE_H,
+  MAX_LANES,
   blockFromType,
   blocksBeyond,
   cellAt,
@@ -18,33 +21,56 @@ import {
   type BlockTypeDef,
   type CycleBlock,
 } from '@/lib/board/cycle';
-import { commit, createHistory, redo, undo, type History } from '@/lib/board/history';
+import { commit, commitFrom, createHistory, redo, replace, undo, type History } from '@/lib/board/history';
+import type { Rect } from '@/lib/board/geometry';
+import { WIDGET_INFO, WIDGET_TYPES, defaultWidgetRect, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 import BlockPanel from './BlockPanel';
 import Canvas, { type CanvasApi } from './Canvas';
 import CycleZone, { ZONE_ORIGIN, type DropPreview } from './CycleZone';
 import Palette from './Palette';
+import WidgetFrame from './WidgetFrame';
+import CalendarWidget from './widgets/CalendarWidget';
+import HabitsWidget from './widgets/HabitsWidget';
+import NotesWidget from './widgets/NotesWidget';
 
-interface CycleState {
+interface BoardState {
   cycleDays: number;
   blocks: CycleBlock[];
+  widgets: BoardWidget[];
 }
+
+const WIDGET_ICONS: Record<WidgetType, LucideIcon> = { habits: ListChecks, notes: StickyNote, calendar: CalendarDays };
+const WIDGET_BODIES: Record<WidgetType, () => React.ReactElement> = {
+  habits: () => <HabitsWidget />,
+  notes: () => <NotesWidget />,
+  calendar: () => <CalendarWidget />,
+};
+// Los widgets nacen bajo la zona del ciclo.
+const WIDGET_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y + HEADER_H + MAX_LANES * LANE_H + 80 };
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const SAVE_DELAY_MS = 800;
 const STATUS_LABEL: Record<SaveStatus, string> = { idle: '', saving: 'Guardando…', saved: 'Guardado', error: 'Sin guardar' };
 
+const snapshots = (state: BoardState) => ({
+  cycle: JSON.stringify({ cycleDays: state.cycleDays, blocks: state.blocks }),
+  widgets: JSON.stringify(state.widgets),
+});
+
 /** Lienzo del ciclo de entrenamiento: carga, edita y guarda el tablero del usuario. */
 export default function BoardEngine() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [history, setHistory] = useState<History<CycleState> | null>(null);
+  const [history, setHistory] = useState<History<BoardState> | null>(null);
   const [customTypes, setCustomTypes] = useState<CustomBlockType[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const apiRef = useRef<CanvasApi | null>(null);
-  const lastSaved = useRef('');
+  const lastSaved = useRef({ cycle: '', widgets: '' });
+  const gestureBase = useRef<BoardState | null>(null);
+  const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
   const saving = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
@@ -52,8 +78,8 @@ export default function BoardEngine() {
     getBoard()
       .then((board) => {
         if (cancelled) return;
-        const state = { cycleDays: board.cycleDays, blocks: board.blocks };
-        lastSaved.current = JSON.stringify(state);
+        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets };
+        lastSaved.current = snapshots(state);
         setHistory(createHistory(state));
         setCustomTypes(board.customTypes);
       })
@@ -64,18 +90,28 @@ export default function BoardEngine() {
   }, []);
 
   const present = history?.present;
+  const historyRef = useRef(history);
+  historyRef.current = history;
 
   // Autoguardado con debounce; los guardados se encadenan para que nunca se crucen.
   useEffect(() => {
     if (!present) return;
-    const snapshot = JSON.stringify(present);
-    if (snapshot === lastSaved.current) return;
+    const snapshot = snapshots(present);
+    const cycleChanged = snapshot.cycle !== lastSaved.current.cycle;
+    const widgetsChanged = snapshot.widgets !== lastSaved.current.widgets;
+    if (!cycleChanged && !widgetsChanged) return;
     const timer = setTimeout(() => {
       setStatus('saving');
       saving.current = saving.current
-        .then(() => saveCycle(present))
-        .then(() => {
-          lastSaved.current = snapshot;
+        .then(async () => {
+          if (cycleChanged) {
+            await saveCycle({ cycleDays: present.cycleDays, blocks: present.blocks });
+            lastSaved.current = { ...lastSaved.current, cycle: snapshot.cycle };
+          }
+          if (widgetsChanged) {
+            await saveWidgets(present.widgets);
+            lastSaved.current = { ...lastSaved.current, widgets: snapshot.widgets };
+          }
           setStatus('saved');
         })
         .catch(async () => {
@@ -85,7 +121,7 @@ export default function BoardEngine() {
             tone: 'error',
             duration: 8000,
             message: data?.user
-              ? 'No se pudo guardar el ciclo. Se reintentará con el próximo cambio.'
+              ? 'No se pudo guardar el tablero. Se reintentará con el próximo cambio.'
               : 'Tu sesión caducó y los cambios no se guardan. Inicia sesión de nuevo (recarga la página).',
           });
         });
@@ -93,7 +129,7 @@ export default function BoardEngine() {
     return () => clearTimeout(timer);
   }, [present, toast]);
 
-  const update = useCallback((next: CycleState) => setHistory((h) => (h ? commit(h, next) : h)), []);
+  const update = useCallback((next: BoardState) => setHistory((h) => (h ? commit(h, next) : h)), []);
 
   const types = useMemo(() => resolveTypes(customTypes), [customTypes]);
   const [dropPreview, setDropPreview] = useState<DropPreview | null>(null);
@@ -169,8 +205,36 @@ export default function BoardEngine() {
       });
       if (!ok) return;
     }
-    update(resizeCycle(present.blocks, days));
+    update({ ...present, ...resizeCycle(present.blocks, days) });
   };
+
+  const toggleWidget = (type: WidgetType) => {
+    if (!present) return;
+    const existing = present.widgets.find((w) => w.type === type);
+    if (existing) {
+      update({ ...present, widgets: present.widgets.filter((w) => w.id !== existing.id) });
+      setSelectedWidget(null);
+      return;
+    }
+    const widget: BoardWidget = { id: crypto.randomUUID(), type, ...defaultWidgetRect(type, present.widgets, WIDGET_ORIGIN) };
+    update({ ...present, widgets: [...present.widgets, widget] });
+    setSelectedWidget(widget.id);
+    setSelectedId(null);
+  };
+
+  const onWidgetGestureStart = useCallback(() => {
+    if (historyRef.current) gestureBase.current = historyRef.current.present;
+  }, []);
+
+  const onWidgetRect = useCallback((id: string, rect: Rect) => {
+    setHistory((h) => (h ? replace(h, { ...h.present, widgets: h.present.widgets.map((w) => (w.id === id ? { ...w, ...rect } : w)) }) : h));
+  }, []);
+
+  const onWidgetGestureEnd = useCallback(() => {
+    const base = gestureBase.current;
+    gestureBase.current = null;
+    if (base) setHistory((h) => (h ? commitFrom(h, base) : h));
+  }, []);
 
   const selected = present?.blocks.find((b) => b.id === selectedId) ?? null;
 
@@ -229,18 +293,49 @@ export default function BoardEngine() {
 
   return (
     <div className="relative h-screen w-full">
-      <Canvas apiRef={apiRef} onBackgroundClick={() => setSelectedId(null)}>
+      <Canvas
+        apiRef={apiRef}
+        onBackgroundClick={() => {
+          setSelectedId(null);
+          setSelectedWidget(null);
+        }}
+      >
         <CycleZone
           cycleDays={present.cycleDays}
           blocks={present.blocks}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(id) => {
+            setSelectedId(id);
+            if (id) setSelectedWidget(null);
+          }}
           onBlocksChange={(blocks) => update({ ...present, blocks })}
           onDelete={deleteBlock}
           onCycleDaysChange={changeCycleDays}
           dropPreview={dropPreview}
           onCreateAt={(dayStart, lane) => addBlock(blockFromType(types.find((t) => t.key === 'free')!, crypto.randomUUID(), dayStart, lane))}
         />
+        {present.widgets.map((w) => {
+          const Icon = WIDGET_ICONS[w.type];
+          return (
+            <WidgetFrame
+              key={w.id}
+              rect={w}
+              title={WIDGET_INFO[w.type].title}
+              icon={<Icon className="h-4 w-4" />}
+              selected={w.id === selectedWidget}
+              onSelect={() => {
+                setSelectedWidget(w.id);
+                setSelectedId(null);
+              }}
+              onGestureStart={onWidgetGestureStart}
+              onRectChange={(rect) => onWidgetRect(w.id, rect)}
+              onGestureEnd={onWidgetGestureEnd}
+              onClose={() => toggleWidget(w.type)}
+            >
+              {WIDGET_BODIES[w.type]()}
+            </WidgetFrame>
+          );
+        })}
       </Canvas>
 
       <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} />
@@ -255,6 +350,23 @@ export default function BoardEngine() {
         <span role="status" className="min-w-20 px-2 text-xs text-muted">
           {STATUS_LABEL[status]}
         </span>
+        <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+        {WIDGET_TYPES.map((type) => {
+          const Icon = WIDGET_ICONS[type];
+          const on = present.widgets.some((w) => w.type === type);
+          return (
+            <button
+              key={type}
+              aria-label={`${on ? 'Quitar' : 'Añadir'} ${WIDGET_INFO[type].title}`}
+              aria-pressed={on}
+              title={WIDGET_INFO[type].title}
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg aria-pressed:text-accent"
+              onClick={() => toggleWidget(type)}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          );
+        })}
       </div>
       <ThemeToggle className="absolute right-4 top-4 z-20" />
 

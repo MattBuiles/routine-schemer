@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @import "strata/theme.css";
+/* Los estilos de auth-ui traen su propio reset y utilidades sin capa: en `base` no pisan las utilidades de la app. */
+@import "@neondatabase/auth-ui/css" layer(base);
 @source "../../node_modules/strata/src";
 
 :root {

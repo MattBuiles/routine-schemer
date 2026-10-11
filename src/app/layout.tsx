@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import { Providers } from "@/app/providers";
-import "@neondatabase/auth-ui/css";
 import "./globals.css";
 
 // Las tres familias de strata; globals.css las consume vía --font-inter, --font-fraunces y --font-geist-mono.
