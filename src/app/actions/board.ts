@@ -7,6 +7,7 @@ import { blockTypes, boardBlocks, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
 import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle } from '@/lib/board/sanitize';
+import { sanitizeWidgets, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 
 export interface CustomBlockType {
   id: string;
@@ -18,6 +19,7 @@ export interface CustomBlockType {
 export interface BoardData {
   cycleDays: number;
   blocks: CycleBlock[];
+  widgets: BoardWidget[];
   customTypes: CustomBlockType[];
 }
 
@@ -28,16 +30,20 @@ export async function getBoard(): Promise<BoardData> {
   const customTypes = (await db.select().from(blockTypes).where(eq(blockTypes.userId, userId))).map(
     ({ id, name, color, icon }) => ({ id, name, color, icon }),
   );
-  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], customTypes };
+  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], customTypes };
 
   const rows = await db
     .select()
     .from(boardBlocks)
-    .where(and(eq(boardBlocks.boardId, board.id), eq(boardBlocks.userId, userId), eq(boardBlocks.kind, 'cycle')));
+    .where(and(eq(boardBlocks.boardId, board.id), eq(boardBlocks.userId, userId)));
+  const widgets = sanitizeWidgets(
+    rows.filter((r) => r.kind === 'widget').map((r) => ({ id: r.id, type: r.widgetType, x: r.x, y: r.y, w: r.w, h: r.h })),
+  );
   return {
     cycleDays: board.cycleDays,
     customTypes,
-    blocks: rows.map((r) => ({
+    widgets,
+    blocks: rows.filter((r) => r.kind === 'cycle').map((r) => ({
       id: r.id,
       label: r.label,
       color: r.color,
@@ -93,6 +99,44 @@ export async function saveCycle(input: { cycleDays: number; blocks: CycleBlock[]
         zones: b.zones,
         notes: b.notes,
         icon: b.icon,
+      })),
+    ),
+  ]);
+}
+
+/** Guarda los widgets del tablero (reemplaza todos); no toca los bloques del ciclo. */
+export async function saveWidgets(input: BoardWidget[]): Promise<void> {
+  const userId = await requireUserId();
+  const widgets = sanitizeWidgets(input);
+
+  // Si el tablero aún no existe se crea con el ciclo por defecto; si existe, solo se refresca la fecha.
+  const [board] = await db
+    .insert(boards)
+    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS })
+    .onConflictDoUpdate({ target: boards.userId, set: { updatedAt: new Date() } })
+    .returning({ id: boards.id });
+
+  const clear = db
+    .delete(boardBlocks)
+    .where(and(eq(boardBlocks.boardId, board.id), eq(boardBlocks.userId, userId), eq(boardBlocks.kind, 'widget')));
+  if (widgets.length === 0) {
+    await clear;
+    return;
+  }
+  await db.batch([
+    clear,
+    db.insert(boardBlocks).values(
+      widgets.map((w) => ({
+        id: w.id,
+        boardId: board.id,
+        userId,
+        kind: 'widget',
+        label: '',
+        widgetType: w.type satisfies WidgetType,
+        x: w.x,
+        y: w.y,
+        w: w.w,
+        h: w.h,
       })),
     ),
   ]);

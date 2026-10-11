@@ -36,7 +36,7 @@ vi.mock('@/db/client', () => {
 
 vi.mock('@/lib/auth/session', () => ({ requireUserId: vi.fn(async () => 'user-1') }));
 
-import { createBlockType, saveCycle } from './board';
+import { createBlockType, saveCycle, saveWidgets } from './board';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const block = (n: number, over: Record<string, unknown> = {}) => ({
@@ -77,6 +77,30 @@ describe('saveCycle', () => {
   it('borra y reinserta en un único batch atómico', async () => {
     await saveCycle({ cycleDays: 7, blocks: [block(1)] });
     expect(state.batches).toBe(1);
+  });
+});
+
+describe('saveWidgets', () => {
+  const widget = (n: number, over: Record<string, unknown> = {}) => ({ id: id(n), type: 'habits', x: 0, y: 0, w: 320, h: 400, ...over });
+
+  it('toma el userId de la sesión y descarta userId/boardId/kind del cliente', async () => {
+    await saveWidgets(as([{ ...widget(1), userId: 'atacante', boardId: 'ajeno', kind: 'cycle' }]));
+    expect(state.boardValues[0]).toMatchObject({ userId: 'user-1' });
+    const [row] = state.blockValues[0];
+    expect(row).toMatchObject({ userId: 'user-1', boardId: 'board-1', kind: 'widget', widgetType: 'habits' });
+  });
+
+  it('normaliza: un widget por tipo, tipos válidos y tamaños acotados', async () => {
+    await saveWidgets(as([widget(1), widget(2), widget(3, { type: 'historial' }), widget(4, { type: 'notes', w: 99999 })]));
+    const rows = state.blockValues[0];
+    expect(rows.map((r) => r.widgetType)).toEqual(['habits', 'notes']);
+    expect(rows[1].w).toBe(800);
+  });
+
+  it('sin widgets solo borra y no inserta filas vacías', async () => {
+    await saveWidgets([]);
+    expect(state.blockValues).toEqual([]);
+    expect(state.batches).toBe(0);
   });
 });
 
