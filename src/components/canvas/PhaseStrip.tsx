@@ -92,7 +92,7 @@ export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChang
   return (
     <div className="absolute" style={{ left: origin.x, top: origin.y }}>
       <div
-        className="absolute -top-11 left-0 flex items-center gap-2 whitespace-nowrap text-xs text-muted"
+        className="absolute -top-12 left-0 flex items-center gap-2 whitespace-nowrap rounded-xl border border-border bg-surface/70 px-2.5 py-1.5 text-xs text-muted shadow-[var(--shadow)]"
         onPointerDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >
@@ -114,6 +114,11 @@ export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChang
             Quitar fecha
           </button>
         )}
+        <span className="ml-1 border-l border-border pl-3">
+          Plan de {planWeeks} {planWeeks === 1 ? 'semana' : 'semanas'} · se repite al terminar
+          {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1} de ${planWeeks}`}
+          {planStart && todayWeek === null && ' · el plan aún no ha empezado'}
+        </span>
       </div>
       <div
         data-testid="phase-strip"
@@ -193,34 +198,30 @@ export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChang
             ))}
           </div>
         ))}
+      
       </div>
-        <div
-          className="absolute -right-12 top-2 flex flex-col gap-1"
-          onPointerDown={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()}
+      <div
+        className="absolute -right-12 top-2 flex flex-col gap-1"
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <button
+          aria-label="Añadir semana al plan"
+          disabled={planWeeks >= MAX_PLAN_WEEKS}
+          className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
+          onClick={() => onPlanWeeksChange(planWeeks + 1)}
         >
-          <button
-            aria-label="Añadir semana al plan"
-            disabled={planWeeks >= MAX_PLAN_WEEKS}
-            className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
-            onClick={() => onPlanWeeksChange(planWeeks + 1)}
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
-            aria-label="Quitar semana al plan"
-            disabled={planWeeks <= MIN_PLAN_WEEKS}
-            className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
-            onClick={() => onPlanWeeksChange(planWeeks - 1)}
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-        </div>
-      <p className="mt-2 whitespace-nowrap text-xs text-muted">
-        Plan de {planWeeks} {planWeeks === 1 ? 'semana' : 'semanas'} · cada fase repite el ciclo · se repite al terminar
-        {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1} de ${planWeeks}`}
-        {planStart && todayWeek === null && ' · el plan aún no ha empezado'}
-      </p>
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          aria-label="Quitar semana al plan"
+          disabled={planWeeks <= MIN_PLAN_WEEKS}
+          className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
+          onClick={() => onPlanWeeksChange(planWeeks - 1)}
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

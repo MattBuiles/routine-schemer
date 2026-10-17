@@ -3,7 +3,7 @@ import { clamp, type Rect } from './geometry';
 /** Geometría del ciclo: columnas de días y filas de alto fijo; los bloques se apilan como una cola bajo cada día. Todo múltiplo de GRID. */
 export const DAY_W = 120;
 export const HEADER_H = 40;
-export const LANE_H = 100;
+export const LANE_H = 80;
 export const MAX_LANES = 6;
 export const MAX_CYCLES = 5;
 export const MAX_CYCLE_NAME = 40;
@@ -147,9 +147,9 @@ export const cycleRows = (blocks: CycleBlock[]) => Math.min(MAX_LANES, Math.max(
 /** Alto del área de un ciclo (cabecera de días y filas), sin el pie con su nombre. */
 export const cycleHeight = (blocks: CycleBlock[]) => HEADER_H + cycleRows(blocks) * LANE_H;
 
-/** Pie bajo cada ciclo (nombre y duración) y separación hasta el ciclo siguiente. */
-export const CYCLE_FOOT_H = 36;
-export const CYCLE_GAP = 40;
+/** Barra inferior de cada ciclo (nombre y duración), dentro de su recuadro, y separación hasta el ciclo siguiente. */
+export const CYCLE_FOOT_H = 40;
+export const CYCLE_GAP = 48;
 
 /** Posición vertical (px, relativa al primer ciclo) de cada ciclo: apilados en vertical según lo que ocupa cada uno. */
 export function cycleTops(cycles: CycleDef[], blocks: CycleBlock[]): number[] {
