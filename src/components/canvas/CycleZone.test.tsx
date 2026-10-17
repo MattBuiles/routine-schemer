@@ -2,9 +2,9 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { blockFromType, DEFAULT_BLOCK_TYPES, DAY_W, HEADER_H, LANE_H, type CycleBlock } from '@/lib/board/cycle';
+import { blockFromType, CYCLE_FOOT_H, DEFAULT_BLOCK_TYPES, DAY_W, HEADER_H, LANE_H, type CycleBlock } from '@/lib/board/cycle';
 import { pointer, stubPointerCapture } from '@/test-utils';
-import CycleZone from './CycleZone';
+import CycleZone, { ZONE_ORIGIN } from './CycleZone';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
 const cycle = { id: 'c1', name: 'Gimnasio', days: 7 };
@@ -153,10 +153,10 @@ describe('CycleZone', () => {
 
   it('crece la zona con la pila: filas usadas más una libre, con un mínimo de tres', () => {
     setup({ blocks: [block('a', 0, 0)] });
-    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 3 * LANE_H}px`);
+    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 3 * LANE_H + CYCLE_FOOT_H}px`);
     cleanup();
     setup({ blocks: [block('a', 0, 0), block('b', 0, 1), block('c', 0, 2), block('d', 0, 3)] });
-    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 5 * LANE_H}px`);
+    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 5 * LANE_H + CYCLE_FOOT_H}px`);
   });
 
   it('el nombre se guarda al salir del campo y un nombre vacío vuelve a «Ciclo»', () => {
@@ -199,7 +199,7 @@ describe('CycleZone', () => {
   it('la zona se coloca a la altura que le da su posición en la pila de ciclos', () => {
     setup({ top: 700 });
     const zone = screen.getByTestId('cycle-zone').parentElement as HTMLElement;
-    expect(zone.style.top).toBe(`${260 + 700}px`);
+    expect(zone.style.top).toBe(`${ZONE_ORIGIN.y + 700}px`);
     expect(screen.getByTestId('cycle-zone').getAttribute('data-cycle-id')).toBe('c1');
   });
 });

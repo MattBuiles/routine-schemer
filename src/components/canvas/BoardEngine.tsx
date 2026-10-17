@@ -425,7 +425,7 @@ export default function BoardEngine() {
 
   const tops = cycleTops(present.cycles, present.blocks);
   const lastCycle = present.cycles[present.cycles.length - 1];
-  const addCycleTop = tops[tops.length - 1] + cycleHeight(present.blocks.filter((b) => b.cycleId === lastCycle.id)) + CYCLE_FOOT_H - 4;
+  const addCycleTop = tops[tops.length - 1] + cycleHeight(present.blocks.filter((b) => b.cycleId === lastCycle.id)) + CYCLE_FOOT_H + 8;
 
   // El calendario enseña el plan solo si tiene fecha de inicio.
   const plan: PlanAnchorWithBlocks | null = present.planStart

@@ -107,7 +107,7 @@ export default function CycleZone({
     const zoom = box.width / width;
     const x = (e.clientX - box.left) / zoom;
     const y = (e.clientY - box.top) / zoom;
-    if (y < HEADER_H) return;
+    if (y < HEADER_H || y >= height) return;
     onCreateAt(Math.min(cycleDays - 1, Math.floor(x / DAY_W)), (y - HEADER_H) / LANE_H - 0.5);
   };
 
@@ -117,7 +117,7 @@ export default function CycleZone({
         data-testid="cycle-zone"
         data-cycle-id={cycle.id}
         className="relative rounded-2xl border border-border bg-surface/70 shadow-[var(--shadow)]"
-        style={{ width, height }}
+        style={{ width, height: height + CYCLE_FOOT_H }}
         onPointerDown={(e) => {
           if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.cell) onSelect(null);
         }}
@@ -196,30 +196,36 @@ export default function CycleZone({
             <Minus className="h-4 w-4" />
           </button>
         </div>
-      </div>
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted" style={{ height: CYCLE_FOOT_H - 8 }} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-        <input
-          key={cycle.name}
-          aria-label="Nombre del ciclo"
-          defaultValue={cycle.name}
-          maxLength={MAX_CYCLE_NAME}
-          onBlur={(e) => {
-            const name = e.target.value.trim() || 'Ciclo';
-            if (name !== cycle.name) onNameChange(name);
-            else e.target.value = cycle.name;
-          }}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          style={{ width: `${Math.max(8, cycle.name.length + 2)}ch` }}
-          className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-fg hover:border-border focus:border-accent focus:outline-none"
-        />
-        <span>
-          · {cycleDays} {cycleDays === 1 ? 'día' : 'días'} · se repite al terminar
-        </span>
-        {onDeleteCycle && (
-          <button type="button" aria-label="Eliminar ciclo" className="ml-auto rounded-lg p-1.5 text-muted hover:text-fg" onClick={onDeleteCycle}>
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+
+        <div
+          className="absolute inset-x-0 flex items-center gap-2 border-t border-border px-3 text-xs text-muted"
+          style={{ top: height, height: CYCLE_FOOT_H }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <input
+            key={cycle.name}
+            aria-label="Nombre del ciclo"
+            defaultValue={cycle.name}
+            maxLength={MAX_CYCLE_NAME}
+            onBlur={(e) => {
+              const name = e.target.value.trim() || 'Ciclo';
+              if (name !== cycle.name) onNameChange(name);
+              else e.target.value = cycle.name;
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            style={{ width: `${Math.max(8, cycle.name.length + 2)}ch` }}
+            className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-fg hover:border-border focus:border-accent focus:outline-none"
+          />
+          <span>
+            · {cycleDays} {cycleDays === 1 ? 'día' : 'días'} · se repite al terminar
+          </span>
+          {onDeleteCycle && (
+            <button type="button" aria-label="Eliminar ciclo" className="ml-auto rounded-lg p-1.5 text-muted hover:text-fg" onClick={onDeleteCycle}>
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
