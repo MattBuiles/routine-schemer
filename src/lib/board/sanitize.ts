@@ -1,4 +1,4 @@
-import { BLOCK_ICONS, MAX_EXERCISES, MAX_LANES, MAX_LOAD, MAX_SETS, MAX_ZONES, defaultIconFor, placeBlock, resizeCycle, type BlockExercise, type CycleBlock } from './cycle';
+import { BLOCK_ICONS, MAX_EXERCISES, MAX_LANES, MAX_SETS, MAX_ZONES, compactLanes, defaultIconFor, resizeCycle, type BlockExercise, type CycleBlock } from './cycle';
 import { clamp } from './geometry';
 
 export const MAX_BLOCKS = 100;
@@ -54,7 +54,7 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
   const list = Array.isArray(raw.blocks) ? raw.blocks.slice(0, MAX_BLOCKS) : [];
 
   const seen = new Set<string>();
-  const placed: CycleBlock[] = [];
+  const blocks: CycleBlock[] = [];
   for (const item of list as Record<string, unknown>[]) {
     if (!item || !isUuid(item.id) || seen.has(item.id.toLowerCase())) continue;
     seen.add(item.id.toLowerCase());
@@ -68,14 +68,13 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
       dayStart: int(item.dayStart, 0, cycleDays - daySpan, 0),
       daySpan,
       lane: int(item.lane, 0, MAX_LANES - 1, 0),
-      load: int(item.load, 1, MAX_LOAD, 3),
       zones: cleanZones(item.zones),
       notes: text(item.notes, 500),
       exercises: sanitizeExercises(item.exercises),
       icon: (BLOCK_ICONS as readonly string[]).includes(item.icon as string) ? (item.icon as string) : defaultIconFor(blockType),
     };
-    const result = placeBlock(placed, block);
-    if (result) placed.push(result);
+    blocks.push(block);
   }
-  return resizeCycle(placed, cycleDays);
+  // La fila que manda el cliente solo marca el orden: se apilan y se descarta lo que no cabe.
+  return resizeCycle(compactLanes(blocks).filter((b) => b.lane < MAX_LANES), cycleDays);
 }

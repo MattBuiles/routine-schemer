@@ -40,7 +40,7 @@ import { createBlockType, savePhases, saveCycle, saveWidgets } from './board';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const block = (n: number, over: Record<string, unknown> = {}) => ({
-  id: id(n), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, load: 3, zones: ['Pecho'], notes: '', icon: 'dumbbell', exercises: [], ...over,
+  id: id(n), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, zones: ['Pecho'], notes: '', icon: 'dumbbell', exercises: [], ...over,
 });
 const as = <T>(value: object) => value as unknown as T;
 
@@ -64,7 +64,7 @@ describe('saveCycle', () => {
     expect(state.boardValues[0]).toMatchObject({ cycleDays: 28 });
     const rows = state.blockValues[0];
     expect(rows.map((r) => r.id)).toEqual([id(1), id(3)]);
-    expect(rows[0].load).toBe(5);
+    expect(rows[0]).not.toHaveProperty('load');
     expect(rows[0].lane).not.toBe(rows[1].lane);
   });
 

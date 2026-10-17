@@ -2,12 +2,11 @@
 
 import React, { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
-import { Button, Field, Input, SegmentedControl, Textarea } from 'strata';
+import { Button, Field, Input, Textarea } from 'strata';
 
 import {
   BLOCK_ICONS,
   MAX_EXERCISES,
-  MAX_LOAD,
   MAX_SETS,
   MAX_ZONES,
   ZONE_SUGGESTIONS,
@@ -173,16 +172,6 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
               onChange({ exercises: [...block.exercises, { exerciseId: exercise.id, name: exerciseName(exercise), sets: 3, reps: '8-12', notes: '' }] });
               setPicking(false);
             }}
-          />
-        </div>
-
-        <div>
-          <span className={sectionTitle}>Carga</span>
-          <SegmentedControl
-            label="Carga"
-            value={String(block.load)}
-            options={Array.from({ length: MAX_LOAD }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
-            onChange={(v) => onChange({ load: Number(v) })}
           />
         </div>
 
