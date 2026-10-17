@@ -15,7 +15,7 @@ import {
   blocksBeyond,
   cellAt,
   findFreeSlot,
-  placeBlock,
+  stackBlocks,
   resizeCycle,
   resolveTypes,
   type BlockTypeDef,
@@ -158,13 +158,13 @@ export default function BoardEngine() {
   const addBlock = useCallback(
     (block: CycleBlock | null) => {
       if (!present) return;
-      const placed = block && placeBlock(present.blocks, block);
-      if (!placed) {
+      const stacked = block && stackBlocks(present.blocks, block);
+      if (!block || !stacked) {
         toast({ tone: 'info', message: 'No queda hueco para otro bloque en ese día.' });
         return;
       }
-      update({ ...present, blocks: [...present.blocks, placed] });
-      setSelectedId(placed.id);
+      update({ ...present, blocks: stacked });
+      setSelectedId(block.id);
     },
     [present, toast, update],
   );
@@ -190,8 +190,8 @@ export default function BoardEngine() {
     (type: BlockTypeDef | null, clientX: number, clientY: number) => {
       const cell = type ? cellUnder(clientX, clientY) : null;
       if (!type || !cell || !present) return setDropPreview(null);
-      // La vista previa muestra dónde caerá de verdad (carril libre si el hueco está ocupado).
-      const landing = placeBlock(present.blocks, blockFromType(type, 'preview', cell.dayStart, cell.lane));
+      // La vista previa muestra dónde caerá de verdad en la pila de ese día.
+      const landing = stackBlocks(present.blocks, blockFromType(type, 'preview', cell.dayStart, cell.order))?.find((b) => b.id === 'preview');
       setDropPreview(landing ? { dayStart: landing.dayStart, lane: landing.lane, color: type.color, label: type.label, icon: type.icon } : null);
     },
     [cellUnder, present],
@@ -200,7 +200,7 @@ export default function BoardEngine() {
   const onDropType = useCallback(
     (type: BlockTypeDef, clientX: number, clientY: number) => {
       const cell = cellUnder(clientX, clientY);
-      if (cell) addBlock(blockFromType(type, crypto.randomUUID(), cell.dayStart, cell.lane));
+      if (cell) addBlock(blockFromType(type, crypto.randomUUID(), cell.dayStart, cell.order));
     },
     [addBlock, cellUnder],
   );

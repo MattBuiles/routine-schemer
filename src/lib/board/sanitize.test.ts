@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_LANES } from './cycle';
 import { MAX_BLOCKS, sanitizeCycle, sanitizeExercises } from './sanitize';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const raw = (over: Record<string, unknown> = {}) => ({ id: id(1), label: 'Push', color: '#112233', blockType: 'strength', dayStart: 0, daySpan: 1, lane: 0, load: 3, ...over });
+const raw = (over: Record<string, unknown> = {}) => ({ id: id(1), label: 'Push', color: '#112233', blockType: 'strength', dayStart: 0, daySpan: 1, lane: 0, ...over });
 
 describe('sanitizeCycle', () => {
   it('normaliza zonas, notas e icono', () => {
@@ -39,7 +40,8 @@ describe('sanitizeCycle', () => {
       cycleDays: 100,
       blocks: [raw({ color: 'rojo', label: 'x'.repeat(500), load: 99, lane: -4, dayStart: -3, daySpan: 0 })],
     }).blocks;
-    expect(b).toMatchObject({ color: '#3b82f6', load: 5, lane: 0, dayStart: 0, daySpan: 1 });
+    expect(b).toMatchObject({ color: '#3b82f6', lane: 0, dayStart: 0, daySpan: 1 });
+    expect(b).not.toHaveProperty('load');
     expect(b.label).toHaveLength(60);
   });
 
@@ -49,16 +51,21 @@ describe('sanitizeCycle', () => {
     expect(out.blocks[0]).toMatchObject({ dayStart: 0, daySpan: 3 });
   });
 
-  it('resuelve solapes moviendo a otro carril y descarta lo que no cabe', () => {
-    const blocks = Array.from({ length: 6 }, (_, i) => raw({ id: id(i + 1) }));
+  it('apila los bloques de un día como una cola y descarta lo que no cabe', () => {
+    const blocks = Array.from({ length: 8 }, (_, i) => raw({ id: id(i + 1), lane: 0 }));
     const out = sanitizeCycle({ cycleDays: 1, blocks });
-    expect(out.blocks).toHaveLength(4);
-    expect(new Set(out.blocks.map((b) => b.lane)).size).toBe(4);
+    expect(out.blocks).toHaveLength(MAX_LANES);
+    expect(out.blocks.map((b) => b.lane)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it('quita los huecos que mande el cliente entre bloques del mismo día', () => {
+    const out = sanitizeCycle({ cycleDays: 3, blocks: [raw({ id: id(1), lane: 4 }), raw({ id: id(2), lane: 1 }), raw({ id: id(3), dayStart: 2, lane: 3 })] });
+    expect(out.blocks.map((b) => [b.id, b.lane])).toEqual([[id(1), 1], [id(2), 0], [id(3), 0]]);
   });
 
   it('ignora claves ajenas y limita la cantidad de bloques', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), userId: 'atacante', boardId: 'x' }] }).blocks;
-    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'load', 'notes', 'zones']);
+    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'notes', 'zones']);
     const many = Array.from({ length: MAX_BLOCKS + 50 }, (_, i) => raw({ id: id(i + 1), dayStart: i % 28 }));
     expect(sanitizeCycle({ cycleDays: 28, blocks: many }).blocks.length).toBeLessThanOrEqual(MAX_BLOCKS);
   });

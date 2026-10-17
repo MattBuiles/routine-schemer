@@ -1,13 +1,13 @@
 # Routine Schemer
 
-Lienzo interactivo para diseñar ciclos de entrenamiento a alto nivel: defines cuántos días dura el ciclo, arrastras bloques (enfoques como Fuerza, Hipertrofia o Descanso), ajustas su ancho, carga, zonas, icono y notas, y colocas alrededor widgets de Hábitos, Notas y Calendario. Todo se guarda por usuario.
+Lienzo interactivo para diseñar ciclos de entrenamiento a alto nivel: defines cuántos días dura el ciclo, arrastras bloques (enfoques como Fuerza, Hipertrofia o Descanso), ajustas su ancho, zonas, icono y notas, y colocas alrededor widgets de Hábitos, Notas y Calendario. Todo se guarda por usuario.
 
 Next.js 15 (App Router) · React 19 · Tailwind 4 · [strata](https://github.com/MattBuiles/strata-ui) (sistema de diseño) · Neon (Postgres + Drizzle) · Neon Auth.
 
 ## Uso
 - **Zoom y desplazamiento:** Ctrl + rueda o pellizco para el zoom, rueda o arrastrar el fondo para moverte.
-- **Ciclo:** botones +/− junto a la zona para añadir o quitar días; arrastra un enfoque de la paleta a un día (o doble clic en un hueco); mueve y redimensiona los bloques (ancho = días, alto = carga).
-- **Panel del bloque:** enfoque, nombre, zonas, carga, color, icono y notas; «Guardar como enfoque» crea los tuyos.
+- **Ciclo:** botones +/− junto a la zona para añadir o quitar días; arrastra un enfoque de la paleta a un día (o doble clic en un hueco); mueve y redimensiona los bloques (el ancho son los días; los bloques de un mismo día se apilan como una cola, sin huecos).
+- **Panel del bloque:** enfoque, nombre, zonas, color, icono, ejercicios y notas; «Guardar como enfoque» crea los tuyos.
 - **Widgets:** los tres botones de la barra superior añaden o quitan Hábitos, Notas y Calendario.
 - **Deshacer / rehacer:** Ctrl+Z y Ctrl+Shift+Z. Autoguardado.
 

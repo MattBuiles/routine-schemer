@@ -5,11 +5,11 @@ import {
   HEADER_H,
   LANE_H,
   MAX_LANES,
-  blockHeight,
   blocksBeyond,
+  compactLanes,
   findFreeSlot,
   fromRect,
-  placeBlock,
+  stackBlocks,
   blockFromType,
   cellAt,
   resolveTypes,
@@ -32,52 +32,84 @@ const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
   dayStart: 0,
   daySpan: 1,
   lane: 0,
-  load: 3,
   ...over,
 });
 
 describe('geometría del ciclo', () => {
   it('toRect y fromRect son inversas', () => {
-    const b = block({ dayStart: 2, daySpan: 3, lane: 1, load: 4 });
-    expect(fromRect(toRect(b), 7)).toEqual({ dayStart: 2, daySpan: 3, lane: 1, load: 4 });
+    const b = block({ dayStart: 2, daySpan: 3, lane: 1 });
+    expect(fromRect(toRect(b), 7)).toEqual({ dayStart: 2, daySpan: 3, lane: 1 });
   });
 
-  it('el alto crece con la carga y respeta 1–5', () => {
-    expect(blockHeight(1)).toBeLessThan(blockHeight(5));
-    expect(blockHeight(0)).toBe(blockHeight(1));
-    expect(blockHeight(99)).toBe(blockHeight(5));
+  it('todos los bloques miden lo mismo de alto', () => {
+    expect(toRect(block({ lane: 0 })).h).toBe(LANE_H);
+    expect(toRect(block({ lane: 3, daySpan: 2 })).h).toBe(LANE_H);
   });
 
-  it('fromRect ajusta a columnas y limita al ciclo', () => {
+  it('fromRect ajusta a columnas, limita al ciclo y deja la fila fraccionaria', () => {
     expect(fromRect({ x: DAY_W * 0.6, y: HEADER_H, w: DAY_W * 1.4, h: 60 }, 7)).toMatchObject({ dayStart: 1, daySpan: 1 });
     expect(fromRect({ x: DAY_W * 9, y: HEADER_H, w: DAY_W * 3, h: 60 }, 7)).toMatchObject({ dayStart: 4, daySpan: 3 });
-    expect(fromRect({ x: 0, y: HEADER_H + LANE_H * 99, w: DAY_W, h: 9999 }, 7)).toMatchObject({ lane: MAX_LANES - 1, load: 5 });
-    expect(fromRect({ x: -500, y: -500, w: 1, h: 1 }, 7)).toMatchObject({ dayStart: 0, daySpan: 1, lane: 0, load: 1 });
+    expect(fromRect({ x: 0, y: HEADER_H + LANE_H * 99, w: DAY_W, h: 60 }, 7)).toMatchObject({ lane: MAX_LANES });
+    expect(fromRect({ x: -500, y: -500, w: 1, h: 1 }, 7)).toMatchObject({ dayStart: 0, daySpan: 1, lane: 0 });
+    expect(fromRect({ x: 0, y: HEADER_H + LANE_H * 1.5, w: DAY_W, h: LANE_H }, 7).lane).toBe(1.5);
   });
 });
 
-describe('placeBlock', () => {
-  it('conserva el carril si no hay solape', () => {
-    expect(placeBlock([block({ id: 'x', dayStart: 3 })], block({ dayStart: 0, daySpan: 3 }))?.lane).toBe(0);
+describe('compactLanes', () => {
+  it('quita los huecos: un bloque suelto sube a la fila 0', () => {
+    expect(compactLanes([block({ lane: 3 })])[0].lane).toBe(0);
   });
 
-  it('un bloque contiguo no es un solape', () => {
-    expect(placeBlock([block({ id: 'x', dayStart: 1 })], block({ daySpan: 1 }))?.lane).toBe(0);
+  it('apila como una cola los bloques que comparten día', () => {
+    const r = compactLanes([block({ id: 'a', lane: 0 }), block({ id: 'b', lane: 2 }), block({ id: 'c', lane: 5 })]);
+    expect(r.map((b) => b.lane)).toEqual([0, 1, 2]);
   });
 
-  it('mueve a otro carril si solapa', () => {
-    const placed = placeBlock([block({ id: 'x', dayStart: 1, daySpan: 2 })], block({ dayStart: 2 }));
-    expect(placed?.lane).not.toBe(0);
+  it('los días distintos no se apilan entre sí', () => {
+    const r = compactLanes([block({ id: 'a', dayStart: 0, lane: 4 }), block({ id: 'b', dayStart: 1, lane: 2 })]);
+    expect(r.map((b) => b.lane)).toEqual([0, 0]);
   });
 
-  it('devuelve null si todos los carriles están ocupados', () => {
+  it('un bloque ancho empuja a los de los días que cruza', () => {
+    const r = compactLanes([block({ id: 'wide', daySpan: 2, lane: 0 }), block({ id: 'b', dayStart: 1, lane: 0 })]);
+    expect(r.find((b) => b.id === 'b')?.lane).toBe(1);
+  });
+
+  it('conserva el orden de la lista y no modifica la entrada', () => {
+    const input = [block({ id: 'a', lane: 5 }), block({ id: 'b', lane: 1 })];
+    const r = compactLanes(input);
+    expect(r.map((b) => b.id)).toEqual(['a', 'b']);
+    expect(input[0].lane).toBe(5);
+  });
+});
+
+describe('stackBlocks', () => {
+  it('añade un bloque nuevo al final de la pila de su día', () => {
+    const r = stackBlocks([block({ id: 'x' })], block({ id: 'y', lane: 4 }));
+    expect(r?.map((b) => [b.id, b.lane])).toEqual([['x', 0], ['y', 1]]);
+  });
+
+  it('una fila fraccionaria inserta el bloque antes del que ocupa esa fila', () => {
+    const base = [block({ id: 'a', lane: 0 }), block({ id: 'b', lane: 1 })];
+    const r = stackBlocks(base, block({ id: 'n', lane: 0.5 }));
+    expect(r?.map((b) => [b.id, b.lane])).toEqual([['a', 0], ['b', 2], ['n', 1]]);
+  });
+
+  it('mover un bloque hacia abajo lo coloca tras el siguiente', () => {
+    const base = [block({ id: 'a', lane: 0 }), block({ id: 'b', lane: 1 })];
+    const r = stackBlocks(base, { ...base[0], lane: 1.01 });
+    expect(r?.map((b) => [b.id, b.lane])).toEqual([['a', 1], ['b', 0]]);
+  });
+
+  it('devuelve null si algún día supera MAX_LANES bloques', () => {
     const full = Array.from({ length: MAX_LANES }, (_, i) => block({ id: `x${i}`, lane: i }));
-    expect(placeBlock(full, block({ id: 'nuevo' }))).toBeNull();
+    expect(stackBlocks(full, block({ id: 'nuevo' }))).toBeNull();
+    expect(stackBlocks(full.slice(1), block({ id: 'nuevo' }))).not.toBeNull();
   });
 
-  it('ignora el propio bloque al recolocarse', () => {
+  it('recolocar el propio bloque lo reemplaza sin duplicarlo', () => {
     const self = block();
-    expect(placeBlock([self], self)?.lane).toBe(0);
+    expect(stackBlocks([self], self)).toEqual([self]);
   });
 });
 
@@ -124,8 +156,10 @@ describe('resizeCycle', () => {
 });
 
 describe('cellAt', () => {
-  it('devuelve día y carril bajo el punto y null fuera', () => {
-    expect(cellAt(DAY_W * 2 + 5, HEADER_H + LANE_H + 5, 7)).toEqual({ dayStart: 2, lane: 1 });
+  it('devuelve día, fila y orden de inserción bajo el punto y null fuera', () => {
+    expect(cellAt(DAY_W * 2 + 5, HEADER_H + LANE_H + 5, 7)).toMatchObject({ dayStart: 2, lane: 1 });
+    expect(cellAt(5, HEADER_H + LANE_H * 1.25, 7)?.order).toBeCloseTo(0.75);
+    expect(cellAt(5, HEADER_H + LANE_H * 1.75, 7)?.order).toBeCloseTo(1.25);
     expect(cellAt(-1, HEADER_H, 7)).toBeNull();
     expect(cellAt(5, HEADER_H - 1, 7)).toBeNull();
     expect(cellAt(DAY_W * 7, HEADER_H, 7)).toBeNull();
@@ -142,7 +176,17 @@ describe('enfoques', () => {
 
   it('blockFromType usa los valores por defecto del tipo', () => {
     const rest = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'rest')!;
-    expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, load: 1, zones: [] });
+    expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, zones: [] });
+  });
+
+  it('incluye movilidad, estiramiento y rehabilitación con icono propio y sin carga', () => {
+    for (const [key, label] of [['mobility', 'Movilidad'], ['stretching', 'Estiramiento'], ['rehab', 'Rehabilitación']]) {
+      const type = DEFAULT_BLOCK_TYPES.find((t) => t.key === key)!;
+      expect(type.label).toBe(label);
+      expect(defaultIconFor(key)).toBe(type.icon);
+      expect(blockFromType(type, 'id', 0, 0)).not.toHaveProperty('load');
+    }
+    expect(new Set(DEFAULT_BLOCK_TYPES.map((t) => t.key)).size).toBe(DEFAULT_BLOCK_TYPES.length);
   });
 });
 

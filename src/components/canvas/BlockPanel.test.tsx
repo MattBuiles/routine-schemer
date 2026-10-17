@@ -66,12 +66,12 @@ describe('BlockPanel · enfoque, nombre y zonas', () => {
     expect((screen.getByPlaceholderText('Máximo alcanzado') as HTMLInputElement).disabled).toBe(true);
   });
 
-  it('la carga, el color y el icono emiten su cambio', () => {
+  it('el color y el icono emiten su cambio y no hay selector de carga', () => {
     const { onChange } = setup();
-    fireEvent.click(screen.getByRole('radio', { name: '5' }));
+    expect(screen.queryByText('Carga')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Color #10b981' }));
     fireEvent.click(screen.getByRole('button', { name: 'Icono flame' }));
-    expect(onChange.mock.calls).toEqual([[{ load: 5 }], [{ color: '#10b981' }], [{ icon: 'flame' }]]);
+    expect(onChange.mock.calls).toEqual([[{ color: '#10b981' }], [{ icon: 'flame' }]]);
   });
 
   it('guardar como enfoque exige un nombre', () => {

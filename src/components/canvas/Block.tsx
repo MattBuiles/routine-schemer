@@ -21,6 +21,8 @@ interface BlockProps {
   keyStep?: { x: number; y: number };
   /** Margen visual en px: el bloque se pinta más pequeño que su rectángulo lógico para que dos contiguos no se toquen. */
   inset?: number;
+  /** El alto es fijo: solo se puede cambiar el ancho (asas laterales, y Mayús+flechas horizontales). */
+  widthOnly?: boolean;
 }
 
 interface Gesture {
@@ -51,6 +53,7 @@ export default function Block({
   onDelete,
   keyStep = { x: GRID, y: GRID },
   inset = 0,
+  widthOnly = false,
 }: BlockProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
@@ -88,7 +91,7 @@ export default function Block({
       // Con Mayús se redimensiona: el alto cambia de una en una cuadrícula y el ancho de un paso horizontal.
       onRectChange(
         e.shiftKey
-          ? resizeRect(rect, 'se', dir[0] * keyStep.x, dir[1] * GRID)
+          ? resizeRect(rect, 'se', dir[0] * keyStep.x, widthOnly ? 0 : dir[1] * GRID)
           : moveRect(rect, dir[0] * keyStep.x, dir[1] * keyStep.y),
       );
       onGestureEnd();
@@ -116,7 +119,7 @@ export default function Block({
     >
       <div className="pointer-events-none h-full w-full overflow-hidden p-2 text-sm font-semibold">{content ?? label}</div>
       {selected &&
-        HANDLES.map(({ handle, className }) => (
+        HANDLES.filter(({ handle }) => !widthOnly || handle === 'w' || handle === 'e').map(({ handle, className }) => (
           <div
             key={handle}
             data-handle={handle}

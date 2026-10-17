@@ -58,10 +58,11 @@ describe('CycleZone', () => {
     expect((screen.getByRole('button', { name: 'Quitar día' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('doble clic en un hueco crea en ese día y carril', () => {
+  it('doble clic en un hueco crea en ese día y da el orden de inserción en la pila', () => {
     const { onCreateAt } = setup();
-    fireEvent.doubleClick(screen.getByTestId('cycle-zone'), { clientX: DAY_W * 3 + 10, clientY: HEADER_H + LANE_H * 2 + 10 });
-    expect(onCreateAt).toHaveBeenCalledWith(3, 2);
+    fireEvent.doubleClick(screen.getByTestId('cycle-zone'), { clientX: DAY_W * 3 + 10, clientY: HEADER_H + LANE_H * 2 + LANE_H * 0.25 });
+    expect(onCreateAt.mock.calls[0][0]).toBe(3);
+    expect(onCreateAt.mock.calls[0][1]).toBeCloseTo(1.75);
   });
 
   it('doble clic sobre la cabecera de días no crea nada', () => {
@@ -76,22 +77,32 @@ describe('CycleZone', () => {
     expect(onDelete).toHaveBeenCalledWith('a');
   });
 
-  it('las flechas mueven el bloque de día en día y de carril en carril', () => {
-    const { onBlocksChange } = setup({ blocks: [block('a', 1, 0)] });
-    const el = screen.getByRole('group', { name: 'Bloque a' });
-    fireEvent.keyDown(el, { key: 'ArrowRight' });
-    fireEvent.keyDown(el, { key: 'ArrowDown' });
-    expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ dayStart: 2, lane: 0 });
-    expect(onBlocksChange.mock.calls[1][0][0]).toMatchObject({ dayStart: 1, lane: 1 });
+  it('las flechas mueven el bloque de día en día y lo suben o bajan en la pila de su día', () => {
+    const blocks = [block('a', 1, 0), block('b', 1, 1)];
+    const { onBlocksChange } = setup({ blocks });
+    const a = screen.getByRole('group', { name: 'Bloque a' });
+    fireEvent.keyDown(a, { key: 'ArrowRight' });
+    fireEvent.keyDown(a, { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Bloque b' }), { key: 'ArrowUp' });
+    const lanes = (call: number) => Object.fromEntries(onBlocksChange.mock.calls[call][0].map((x: CycleBlock) => [x.id, [x.dayStart, x.lane]]));
+    expect(lanes(0)).toEqual({ a: [2, 0], b: [1, 0] }); // b sube solo: ya no comparte día con a
+    expect(lanes(1)).toEqual({ a: [1, 1], b: [1, 0] }); // a baja y b pasa a la cima
+    expect(lanes(2)).toEqual({ a: [1, 1], b: [1, 0] }); // b sube sobre a
   });
 
-  it('Mayús + flechas cambian el ancho en días y la carga', () => {
+  it('un bloque único no se mueve de fila con las flechas', () => {
+    const { onBlocksChange } = setup({ blocks: [block('a', 1, 0)] });
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Bloque a' }), { key: 'ArrowDown' });
+    expect(onBlocksChange).not.toHaveBeenCalled();
+  });
+
+  it('Mayús + flechas cambian el ancho en días y el alto es fijo', () => {
     const { onBlocksChange } = setup({ blocks: [block('a', 1, 0)] });
     const el = screen.getByRole('group', { name: 'Bloque a' });
     fireEvent.keyDown(el, { key: 'ArrowRight', shiftKey: true });
     fireEvent.keyDown(el, { key: 'ArrowDown', shiftKey: true });
+    expect(onBlocksChange).toHaveBeenCalledTimes(1);
     expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ daySpan: 2 });
-    expect(onBlocksChange.mock.calls[1][0][0]).toMatchObject({ load: strength.defaultLoad + 1 });
   });
 
   it('no mueve un bloque fuera del ciclo', () => {
@@ -123,20 +134,25 @@ describe('CycleZone', () => {
     expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ dayStart: 1, daySpan: 2 });
   });
 
-  it('tirar del borde derecho añade días y del inferior cambia la carga', () => {
+  it('tirar del borde derecho añade días y el bloque no tiene asa inferior', () => {
     const { onBlocksChange } = setup({ blocks: [block('a', 2, 0)], selectedId: 'a' });
     const el = screen.getByRole('group', { name: 'Bloque a' });
-    const drag = (name: string, dx: number, dy: number) => {
-      const handle = el.querySelector(`[data-handle="${name}"]`)!;
-      act(() => {
-        pointer(handle, 'pointerdown', { clientX: 0, clientY: 0 });
-        pointer(handle, 'pointermove', { clientX: dx, clientY: dy });
-        pointer(handle, 'pointerup', { clientX: dx, clientY: dy });
-      });
-    };
-    drag('e', DAY_W * 2, 0);
-    drag('s', 0, 20);
+    const handle = el.querySelector('[data-handle="e"]')!;
+    act(() => {
+      pointer(handle, 'pointerdown', { clientX: 0 });
+      pointer(handle, 'pointermove', { clientX: DAY_W * 2 });
+      pointer(handle, 'pointerup', { clientX: DAY_W * 2 });
+    });
     expect(onBlocksChange.mock.calls[0][0][0]).toMatchObject({ dayStart: 2, daySpan: 3 });
-    expect(onBlocksChange.mock.calls[1][0][0]).toMatchObject({ load: strength.defaultLoad + 1 });
+    expect(el.querySelector('[data-handle="s"]')).toBeNull();
+    expect(el.querySelector('[data-handle="se"]')).toBeNull();
+  });
+
+  it('crece la zona con la pila: filas usadas más una libre, con un mínimo de tres', () => {
+    setup({ blocks: [block('a', 0, 0)] });
+    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 3 * LANE_H}px`);
+    cleanup();
+    setup({ blocks: [block('a', 0, 0), block('b', 0, 1), block('c', 0, 2), block('d', 0, 3)] });
+    expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 5 * LANE_H}px`);
   });
 });

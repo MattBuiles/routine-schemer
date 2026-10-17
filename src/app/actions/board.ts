@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/client';
 import { blockTypes, boardBlocks, boardPhases, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
-import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
+import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, compactLanes, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle, sanitizeExercises } from '@/lib/board/sanitize';
 import { sanitizePhases, type Phase } from '@/lib/board/phases';
 import { isIsoDate } from '@/lib/board/plan';
@@ -51,7 +51,8 @@ export async function getBoard(): Promise<BoardData> {
     widgets,
     planStart: isIsoDate(board.planStart) ? board.planStart : null,
     phases: sanitizePhases(phaseRows.map((p) => ({ ...p, kind: p.kind }))),
-    blocks: rows.filter((r) => r.kind === 'cycle').map((r) => ({
+    // Los bloques guardados con la disposición antigua (carriles fijos) se apilan al cargar.
+    blocks: compactLanes(rows.filter((r) => r.kind === 'cycle').map((r) => ({
       id: r.id,
       label: r.label,
       color: r.color,
@@ -59,12 +60,11 @@ export async function getBoard(): Promise<BoardData> {
       dayStart: r.dayStart ?? 0,
       daySpan: r.daySpan ?? 1,
       lane: r.lane ?? 0,
-      load: r.load ?? 3,
       zones: r.zones,
       exercises: sanitizeExercises(r.exercises),
       notes: r.notes,
       icon: r.icon ?? defaultIconFor(r.blockType ?? 'free'),
-    })),
+    }))),
   };
 }
 
@@ -104,7 +104,6 @@ export async function saveCycle(input: { cycleDays: number; blocks: CycleBlock[]
         dayStart: b.dayStart,
         daySpan: b.daySpan,
         lane: b.lane,
-        load: b.load,
         zones: b.zones,
         exercises: b.exercises,
         notes: b.notes,

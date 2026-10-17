@@ -11,7 +11,7 @@ import {
   MAX_LANES,
   MIN_CYCLE_DAYS,
   fromRect,
-  placeBlock,
+  stackBlocks,
   toRect,
   type CycleBlock,
 } from '@/lib/board/cycle';
@@ -45,8 +45,8 @@ interface CycleZoneProps {
   onBlocksChange: (blocks: CycleBlock[]) => void;
   onDelete: (id: string) => void;
   onCycleDaysChange: (days: number) => void;
-  /** Doble clic en un hueco: día y carril bajo el cursor. */
-  onCreateAt: (dayStart: number, lane: number) => void;
+  /** Doble clic en un hueco: día y orden de inserción en la pila bajo el cursor. */
+  onCreateAt: (dayStart: number, order: number) => void;
 }
 
 /** Zona del ciclo: días en columnas, carriles en filas; ancho de bloque = días, alto = carga. */
@@ -65,7 +65,9 @@ export default function CycleZone({
   const liveRef = useRef<{ id: string; rect: Rect } | null>(null);
 
   const width = cycleDays * DAY_W;
-  const height = HEADER_H + MAX_LANES * LANE_H;
+  // Alto = filas usadas + una libre para soltar al final de la pila (mínimo 3 filas).
+  const rows = Math.min(MAX_LANES, Math.max(3, Math.max(-1, ...blocks.map((b) => b.lane)) + 2));
+  const height = HEADER_H + rows * LANE_H;
 
   const setLiveRect = (id: string, rect: Rect) => {
     liveRef.current = { id, rect };
@@ -78,11 +80,12 @@ export default function CycleZone({
     setLive(null);
     const block = blocks.find((b) => b.id === id);
     if (!current || current.id !== id || !block) return;
-    const placed = placeBlock(blocks, { ...block, ...fromRect(current.rect, cycleDays) });
-    if (!placed) return; // sin hueco: el bloque vuelve a su sitio
-    if (JSON.stringify(placed) !== JSON.stringify(block)) {
-      onBlocksChange(blocks.map((b) => (b.id === id ? placed : b)));
-    }
+    const next = fromRect(current.rect, cycleDays);
+    // Si empata con otro bloque de la fila, gana el sentido del movimiento: hacia arriba antes, hacia abajo después.
+    const lane = next.lane < block.lane ? next.lane - 0.01 : next.lane > block.lane ? next.lane + 0.01 : next.lane;
+    const stacked = stackBlocks(blocks, { ...block, ...next, lane });
+    if (!stacked) return; // sin hueco: el bloque vuelve a su sitio
+    if (JSON.stringify(stacked) !== JSON.stringify(blocks)) onBlocksChange(stacked);
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -92,7 +95,7 @@ export default function CycleZone({
     const x = (e.clientX - box.left) / zoom;
     const y = (e.clientY - box.top) / zoom;
     if (y < HEADER_H) return;
-    onCreateAt(Math.min(cycleDays - 1, Math.floor(x / DAY_W)), Math.min(MAX_LANES - 1, Math.floor((y - HEADER_H) / LANE_H)));
+    onCreateAt(Math.min(cycleDays - 1, Math.floor(x / DAY_W)), (y - HEADER_H) / LANE_H - 0.5);
   };
 
   return (
@@ -118,13 +121,6 @@ export default function CycleZone({
             </div>
           </div>
         ))}
-        {Array.from({ length: MAX_LANES - 1 }, (_, i) => (
-          <div
-            key={i}
-            className="pointer-events-none absolute left-0 right-0 border-t border-dashed border-border"
-            style={{ top: HEADER_H + (i + 1) * LANE_H - 10 }}
-          />
-        ))}
 
         {blocks.map((b) => (
           <Block
@@ -141,6 +137,7 @@ export default function CycleZone({
             onDelete={() => onDelete(b.id)}
             keyStep={{ x: DAY_W, y: LANE_H }}
             inset={BLOCK_GAP}
+            widthOnly
           />
         ))}
 
@@ -152,7 +149,7 @@ export default function CycleZone({
               left: dropPreview.dayStart * DAY_W + BLOCK_GAP,
               top: HEADER_H + dropPreview.lane * LANE_H + BLOCK_GAP,
               width: DAY_W - BLOCK_GAP * 2,
-              height: 80 - BLOCK_GAP * 2,
+              height: LANE_H - BLOCK_GAP * 2,
               borderColor: dropPreview.color,
               backgroundColor: `${dropPreview.color}22`,
               color: dropPreview.color,
