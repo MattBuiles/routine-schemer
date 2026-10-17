@@ -486,7 +486,7 @@ export default function BoardEngine() {
         {present.cycles.length < MAX_CYCLES && (
           <button
             type="button"
-            className="absolute flex items-center gap-1.5 rounded-xl border border-dashed border-border bg-surface/70 px-3 py-2 text-sm text-muted hover:text-fg"
+            className="absolute flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-border bg-surface/70 px-3 py-2 text-sm text-muted hover:text-fg"
             style={{ left: ZONE_ORIGIN.x, top: ZONE_ORIGIN.y + addCycleTop }}
             onPointerDown={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}

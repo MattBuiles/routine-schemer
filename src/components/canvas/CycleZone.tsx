@@ -209,7 +209,8 @@ export default function CycleZone({
             else e.target.value = cycle.name;
           }}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          className="w-40 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-fg hover:border-border focus:border-accent focus:outline-none"
+          style={{ width: `${Math.max(8, cycle.name.length + 2)}ch` }}
+          className="rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-fg hover:border-border focus:border-accent focus:outline-none"
         />
         <span>
           · {cycleDays} {cycleDays === 1 ? 'día' : 'días'} · se repite al terminar
