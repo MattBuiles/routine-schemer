@@ -6,7 +6,7 @@ import { Button, Input, useToast } from 'strata';
 
 import { createCalendarEvent, deleteCalendarEvent, getCalendarEvents, updateCalendarEvent } from '@/app/actions/calendar';
 import { exerciseSetsInWeek } from '@/lib/board/phases';
-import { blocksOnCycleDay, formatShort, locateDate, type PlanAnchor } from '@/lib/board/plan';
+import { blocksOnCycleDay, cycleDayOf, formatShort, locateDate, type PlanAnchor } from '@/lib/board/plan';
 import type { CycleBlock } from '@/lib/board/cycle';
 import { getDateString } from '@/lib/utils';
 import type { CalendarEvent } from '@/types';
@@ -180,9 +180,13 @@ function PlanDay({ plan, position }: { plan: PlanAnchorWithBlocks; position: Ret
       </p>
     );
   }
-  const { phase, weekInPhase, cycleDay } = position;
-  const blocks = blocksOnCycleDay(plan.blocks, cycleDay);
+  const { phase, weekInPhase, offset } = position;
   const week = phase && weekInPhase !== null ? exerciseSetsInWeek(phase, weekInPhase, 3) : null;
+  const single = plan.cycles.length === 1;
+  const days = plan.cycles.map((cycle) => {
+    const day = cycleDayOf(offset, cycle.days);
+    return { cycle, day, blocks: blocksOnCycleDay(plan.blocks.filter((b) => b.cycleId === cycle.id), day) };
+  });
 
   return (
     <section aria-label="Plan del día" className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
@@ -191,32 +195,42 @@ function PlanDay({ plan, position }: { plan: PlanAnchorWithBlocks; position: Ret
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: phase?.color ?? 'var(--border-strong)' }} />
           {phase ? `${phase.name} · semana ${weekInPhase! + 1} de ${phase.weeks}` : 'Sin fase esta semana'}
         </span>
-        <span className="iv-tabular text-muted">Día {cycleDay + 1} del ciclo</span>
+        {single && <span className="iv-tabular text-muted">Día {days[0].day + 1} del ciclo</span>}
       </div>
       {week && (
         <p className="text-[11px] text-muted">
           Carga {week.loadPct}%{week.deload ? ' · semana de descarga' : ''}
         </p>
       )}
-      {blocks.length === 0 && <p className="text-xs text-muted">Nada planificado este día del ciclo.</p>}
-      {blocks.map((b) => (
-        <div key={b.id}>
-          <p className="flex items-center gap-1.5 text-sm font-medium">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: b.color }} />
-            {b.label || 'Sin nombre'}
-          </p>
-          {b.exercises.length > 0 && (
-            <ul className="mt-1 flex flex-col gap-0.5 pl-4 text-xs text-muted">
-              {b.exercises.map((e, i) => (
-                <li key={`${e.exerciseId}-${i}`} className="flex justify-between gap-2">
-                  <span className="truncate">{e.name}</span>
-                  <span className="iv-tabular shrink-0">
-                    {phase && weekInPhase !== null ? exerciseSetsInWeek(phase, weekInPhase, e.sets).sets : e.sets}×{e.reps}
-                  </span>
-                </li>
-              ))}
-            </ul>
+      {days.map(({ cycle, day, blocks }) => (
+        <div key={cycle.id} className="flex flex-col gap-2">
+          {!single && (
+            <p className="iv-tabular flex justify-between gap-2 border-t border-border pt-2 text-xs font-semibold text-muted">
+              <span className="truncate">{cycle.name}</span>
+              <span className="shrink-0">Día {day + 1} de {cycle.days}</span>
+            </p>
           )}
+          {blocks.length === 0 && <p className="text-xs text-muted">{single ? 'Nada planificado este día del ciclo.' : 'Nada planificado este día.'}</p>}
+          {blocks.map((b) => (
+            <div key={b.id}>
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: b.color }} />
+                {b.label || 'Sin nombre'}
+              </p>
+              {b.exercises.length > 0 && (
+                <ul className="mt-1 flex flex-col gap-0.5 pl-4 text-xs text-muted">
+                  {b.exercises.map((e, i) => (
+                    <li key={`${e.exerciseId}-${i}`} className="flex justify-between gap-2">
+                      <span className="truncate">{e.name}</span>
+                      <span className="iv-tabular shrink-0">
+                        {phase && weekInPhase !== null ? exerciseSetsInWeek(phase, weekInPhase, e.sets).sets : e.sets}×{e.reps}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
         </div>
       ))}
     </section>

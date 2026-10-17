@@ -7,6 +7,7 @@ Next.js 15 (App Router) · React 19 · Tailwind 4 · [strata](https://github.com
 ## Uso
 - **Zoom y desplazamiento:** Ctrl + rueda o pellizco para el zoom, rueda o arrastrar el fondo para moverte.
 - **Ciclo:** botones +/− junto a la zona para añadir o quitar días; arrastra un enfoque de la paleta a un día (o doble clic en un hueco); mueve y redimensiona los bloques (el ancho son los días; los bloques de un mismo día se apilan como una cola, sin huecos).
+- **Varios ciclos:** «Añadir ciclo» crea otro ciclo con su nombre y su propia duración (por ejemplo, gimnasio de 7 días y cardio de 5). Cada uno tiene sus bloques y se repite por su cuenta; el calendario enseña qué toca hoy en cada uno.
 - **Panel del bloque:** enfoque, nombre, zonas, color, icono, ejercicios y notas; «Guardar como enfoque» crea los tuyos.
 - **Widgets:** los tres botones de la barra superior añaden o quitan Hábitos, Notas y Calendario.
 - **Deshacer / rehacer:** Ctrl+Z y Ctrl+Shift+Z. Autoguardado.

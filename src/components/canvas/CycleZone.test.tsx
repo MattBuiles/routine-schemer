@@ -7,7 +7,8 @@ import { pointer, stubPointerCapture } from '@/test-utils';
 import CycleZone from './CycleZone';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
-const block = (id: string, dayStart: number, lane: number): CycleBlock => ({ ...blockFromType(strength, id, dayStart, lane), label: `Bloque ${id}` });
+const cycle = { id: 'c1', name: 'Gimnasio', days: 7 };
+const block = (id: string, dayStart: number, lane: number): CycleBlock => ({ ...blockFromType(strength, id, dayStart, lane, 'c1'), label: `Bloque ${id}` });
 
 function setup(over: Partial<React.ComponentProps<typeof CycleZone>> = {}) {
   const handlers = {
@@ -16,8 +17,9 @@ function setup(over: Partial<React.ComponentProps<typeof CycleZone>> = {}) {
     onDelete: vi.fn(),
     onCycleDaysChange: vi.fn(),
     onCreateAt: vi.fn(),
+    onNameChange: vi.fn(),
   };
-  render(<CycleZone cycleDays={7} blocks={[block('a', 1, 0)]} selectedId={null} {...handlers} {...over} />);
+  render(<CycleZone cycle={cycle} top={0} blocks={[block('a', 1, 0)]} selectedId={null} {...handlers} {...over} />);
   return handlers;
 }
 
@@ -38,7 +40,8 @@ describe('CycleZone', () => {
   it('muestra una columna por día y el resumen del ciclo', () => {
     setup();
     for (let d = 1; d <= 7; d++) expect(screen.getByText(`Día ${d}`)).toBeTruthy();
-    expect(screen.getByText(/Ciclo de 7 días/)).toBeTruthy();
+    expect(screen.getByText(/7 días · se repite al terminar/)).toBeTruthy();
+    expect((screen.getByLabelText('Nombre del ciclo') as HTMLInputElement).value).toBe('Gimnasio');
   });
 
   it('pinta los bloques en su día y carril', () => {
@@ -54,7 +57,7 @@ describe('CycleZone', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quitar día' }));
     expect(onCycleDaysChange.mock.calls).toEqual([[8], [6]]);
     cleanup();
-    setup({ cycleDays: 1 });
+    setup({ cycle: { ...cycle, days: 1 } });
     expect((screen.getByRole('button', { name: 'Quitar día' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -118,7 +121,7 @@ describe('CycleZone', () => {
   });
 
   it('muestra la vista previa del hueco cuando se arrastra desde la paleta', () => {
-    setup({ dropPreview: { dayStart: 4, lane: 1, color: '#2563eb', label: 'Hipertrofia', icon: 'flame' } });
+    setup({ dropPreview: { cycleId: 'c1', dayStart: 4, lane: 1, color: '#2563eb', label: 'Hipertrofia', icon: 'flame' } });
     const preview = screen.getByTestId('drop-preview');
     expect([preview.style.left, preview.style.top, preview.textContent]).toEqual([`${4 * DAY_W + 5}px`, `${HEADER_H + LANE_H + 5}px`, 'Hipertrofia']);
   });
@@ -154,5 +157,49 @@ describe('CycleZone', () => {
     cleanup();
     setup({ blocks: [block('a', 0, 0), block('b', 0, 1), block('c', 0, 2), block('d', 0, 3)] });
     expect(screen.getByTestId('cycle-zone').style.height).toBe(`${HEADER_H + 5 * LANE_H}px`);
+  });
+
+  it('el nombre se guarda al salir del campo y un nombre vacío vuelve a «Ciclo»', () => {
+    const { onNameChange } = setup();
+    const input = screen.getByLabelText('Nombre del ciclo') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '  Cardio  ' } });
+    fireEvent.blur(input);
+    expect(onNameChange).toHaveBeenLastCalledWith('Cardio');
+    fireEvent.change(input, { target: { value: '   ' } });
+    fireEvent.blur(input);
+    expect(onNameChange).toHaveBeenLastCalledWith('Ciclo');
+  });
+
+  it('no guarda nada si el nombre no cambió y Enter confirma', () => {
+    const { onNameChange } = setup();
+    const input = screen.getByLabelText('Nombre del ciclo') as HTMLInputElement;
+    fireEvent.blur(input);
+    expect(onNameChange).not.toHaveBeenCalled();
+    input.focus();
+    fireEvent.change(input, { target: { value: 'Otro' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onNameChange).toHaveBeenCalledWith('Otro');
+  });
+
+  it('solo se puede eliminar el ciclo cuando hay más de uno', () => {
+    setup();
+    expect(screen.queryByRole('button', { name: 'Eliminar ciclo' })).toBeNull();
+    cleanup();
+    const onDeleteCycle = vi.fn();
+    setup({ onDeleteCycle });
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar ciclo' }));
+    expect(onDeleteCycle).toHaveBeenCalledTimes(1);
+  });
+
+  it('la vista previa de otro ciclo no se pinta aquí', () => {
+    setup({ dropPreview: { cycleId: 'otro', dayStart: 1, lane: 0, color: '#2563eb', label: 'Hipertrofia', icon: 'flame' } });
+    expect(screen.queryByTestId('drop-preview')).toBeNull();
+  });
+
+  it('la zona se coloca a la altura que le da su posición en la pila de ciclos', () => {
+    setup({ top: 700 });
+    const zone = screen.getByTestId('cycle-zone').parentElement as HTMLElement;
+    expect(zone.style.top).toBe(`${260 + 700}px`);
+    expect(screen.getByTestId('cycle-zone').getAttribute('data-cycle-id')).toBe('c1');
   });
 });

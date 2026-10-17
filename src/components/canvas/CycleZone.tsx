@@ -1,19 +1,22 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 
 import {
   DAY_W,
   HEADER_H,
   LANE_H,
+  CYCLE_FOOT_H,
   MAX_CYCLE_DAYS,
-  MAX_LANES,
+  MAX_CYCLE_NAME,
   MIN_CYCLE_DAYS,
+  cycleHeight,
   fromRect,
   stackBlocks,
   toRect,
   type CycleBlock,
+  type CycleDef,
 } from '@/lib/board/cycle';
 import type { Rect } from '@/lib/board/geometry';
 import Block from './Block';
@@ -22,6 +25,8 @@ import { getIcon } from './blockIcons';
 
 // x deja libre la paleta flotante (16px de margen + 176px de ancho) con el viewport por defecto.
 export interface DropPreview {
+  /** Ciclo sobre el que se arrastra: solo su zona pinta la vista previa. */
+  cycleId: string;
   dayStart: number;
   lane: number;
   color: string;
@@ -35,7 +40,10 @@ const BLOCK_GAP = 5;
 export const ZONE_ORIGIN = { x: 240, y: 260 };
 
 interface CycleZoneProps {
-  cycleDays: number;
+  cycle: CycleDef;
+  /** Posición vertical (px) bajo el origen de la zona: los ciclos se apilan según lo que ocupa cada uno. */
+  top: number;
+  /** Solo los bloques de este ciclo. */
   blocks: CycleBlock[];
   selectedId: string | null;
   /** Hueco donde caería el bloque que se arrastra desde la paleta. */
@@ -45,13 +53,17 @@ interface CycleZoneProps {
   onBlocksChange: (blocks: CycleBlock[]) => void;
   onDelete: (id: string) => void;
   onCycleDaysChange: (days: number) => void;
+  onNameChange: (name: string) => void;
+  /** Sin valor cuando es el único ciclo: no se puede borrar. */
+  onDeleteCycle?: () => void;
   /** Doble clic en un hueco: día y orden de inserción en la pila bajo el cursor. */
   onCreateAt: (dayStart: number, order: number) => void;
 }
 
 /** Zona del ciclo: días en columnas, carriles en filas; ancho de bloque = días, alto = carga. */
 export default function CycleZone({
-  cycleDays,
+  cycle,
+  top,
   blocks,
   selectedId,
   dropPreview,
@@ -59,15 +71,16 @@ export default function CycleZone({
   onBlocksChange,
   onDelete,
   onCycleDaysChange,
+  onNameChange,
+  onDeleteCycle,
   onCreateAt,
 }: CycleZoneProps) {
+  const cycleDays = cycle.days;
   const [live, setLive] = useState<{ id: string; rect: Rect } | null>(null);
   const liveRef = useRef<{ id: string; rect: Rect } | null>(null);
 
   const width = cycleDays * DAY_W;
-  // Alto = filas usadas + una libre para soltar al final de la pila (mínimo 3 filas).
-  const rows = Math.min(MAX_LANES, Math.max(3, Math.max(-1, ...blocks.map((b) => b.lane)) + 2));
-  const height = HEADER_H + rows * LANE_H;
+  const height = cycleHeight(blocks);
 
   const setLiveRect = (id: string, rect: Rect) => {
     liveRef.current = { id, rect };
@@ -99,9 +112,10 @@ export default function CycleZone({
   };
 
   return (
-    <div className="absolute" style={{ left: ZONE_ORIGIN.x, top: ZONE_ORIGIN.y }}>
+    <div className="absolute" style={{ left: ZONE_ORIGIN.x, top: ZONE_ORIGIN.y + top }}>
       <div
         data-testid="cycle-zone"
+        data-cycle-id={cycle.id}
         className="relative rounded-2xl border border-border bg-surface/70 shadow-[var(--shadow)]"
         style={{ width, height }}
         onPointerDown={(e) => {
@@ -141,7 +155,7 @@ export default function CycleZone({
           />
         ))}
 
-        {dropPreview && (
+        {dropPreview?.cycleId === cycle.id && (
           <div
             data-testid="drop-preview"
             className="pointer-events-none absolute flex items-center gap-1.5 rounded-xl border-2 border-dashed px-2 text-sm font-semibold"
@@ -183,9 +197,29 @@ export default function CycleZone({
           </button>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted">
-        Ciclo de {cycleDays} {cycleDays === 1 ? 'día' : 'días'} · se repite al terminar
-      </p>
+      <div className="mt-2 flex items-center gap-2 text-xs text-muted" style={{ height: CYCLE_FOOT_H - 8 }} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        <input
+          key={cycle.name}
+          aria-label="Nombre del ciclo"
+          defaultValue={cycle.name}
+          maxLength={MAX_CYCLE_NAME}
+          onBlur={(e) => {
+            const name = e.target.value.trim() || 'Ciclo';
+            if (name !== cycle.name) onNameChange(name);
+            else e.target.value = cycle.name;
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          className="w-40 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-semibold text-fg hover:border-border focus:border-accent focus:outline-none"
+        />
+        <span>
+          · {cycleDays} {cycleDays === 1 ? 'día' : 'días'} · se repite al terminar
+        </span>
+        {onDeleteCycle && (
+          <button type="button" aria-label="Eliminar ciclo" className="ml-auto rounded-lg p-1.5 text-muted hover:text-fg" onClick={onDeleteCycle}>
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

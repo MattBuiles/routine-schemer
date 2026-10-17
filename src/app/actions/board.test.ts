@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   boardValues: [] as Record<string, unknown>[],
   blockValues: [] as Record<string, unknown>[][],
   typeValues: [] as Record<string, unknown>[],
+  cycleValues: [] as Record<string, unknown>[][],
   batches: 0,
 }));
 
@@ -15,6 +16,7 @@ vi.mock('@/db/client', () => {
       const name = getTableName(table);
       if (name === 'boards') state.boardValues.push(values as Record<string, unknown>);
       if (name === 'block_types') state.typeValues.push(values as Record<string, unknown>);
+      if (name === 'board_cycles') state.cycleValues.push(values as Record<string, unknown>[]);
       if (name === 'board_blocks' || name === 'board_phases') state.blockValues.push(values as Record<string, unknown>[]);
       const rows = name === 'boards' ? [{ id: 'board-1' }] : [{ id: 't1', name: (values as { name?: string }).name, color: (values as { color?: string }).color }];
       return {
@@ -36,11 +38,12 @@ vi.mock('@/db/client', () => {
 
 vi.mock('@/lib/auth/session', () => ({ requireUserId: vi.fn(async () => 'user-1') }));
 
-import { createBlockType, savePhases, saveCycle, saveWidgets } from './board';
+import { createBlockType, savePhases, saveCycles, saveWidgets } from './board';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const cycle = (n: number, over: Record<string, unknown> = {}) => ({ id: id(900 + n), name: 'Gimnasio', days: 7, ...over });
 const block = (n: number, over: Record<string, unknown> = {}) => ({
-  id: id(n), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, zones: ['Pecho'], notes: '', icon: 'dumbbell', exercises: [], ...over,
+  id: id(n), cycleId: id(901), label: 'Push', color: '#112233', blockType: 'strength', dayStart: n - 1, daySpan: 1, lane: 0, zones: ['Pecho'], notes: '', icon: 'dumbbell', exercises: [], ...over,
 });
 const as = <T>(value: object) => value as unknown as T;
 
@@ -48,35 +51,72 @@ beforeEach(() => {
   state.boardValues = [];
   state.blockValues = [];
   state.typeValues = [];
+  state.cycleValues = [];
   state.batches = 0;
 });
 
-describe('saveCycle', () => {
-  it('toma el userId de la sesión y descarta userId/boardId del cliente', async () => {
-    await saveCycle(as({ cycleDays: 7, blocks: [{ ...block(1), userId: 'atacante', boardId: 'ajeno', kind: 'widget' }] }));
+describe('saveCycles', () => {
+  it('toma el userId de la sesión y descarta userId/boardId/kind del cliente', async () => {
+    await saveCycles(as({ cycles: [cycle(1)], blocks: [{ ...block(1), userId: 'atacante', boardId: 'ajeno', kind: 'widget' }] }));
     expect(state.boardValues[0]).toEqual({ userId: 'user-1', cycleDays: 7 });
     const [row] = state.blockValues[0];
-    expect(row).toMatchObject({ userId: 'user-1', boardId: 'board-1', kind: 'cycle' });
+    expect(row).toMatchObject({ userId: 'user-1', boardId: 'board-1', kind: 'cycle', cycleId: id(901) });
+    expect(state.cycleValues[0][0]).toMatchObject({ userId: 'user-1', boardId: 'board-1', name: 'Gimnasio', days: 7, position: 0 });
   });
 
-  it('normaliza la entrada: rangos, ids inválidos y solapes', async () => {
-    await saveCycle(as({ cycleDays: 500, blocks: [block(1, { load: 99 }), block(2, { id: 'no-uuid' }), block(3, { dayStart: 0 })] }));
+  it('guarda varios ciclos en orden, cada bloque en el suyo y cada ciclo con su duración', async () => {
+    await saveCycles(as({
+      cycles: [cycle(1), cycle(2, { name: ' Cardio ', days: 5 })],
+      blocks: [block(1), block(2, { cycleId: id(902), dayStart: 4 })],
+    }));
+    expect(state.cycleValues[0].map((c) => [c.id, c.name, c.days, c.position])).toEqual([[id(901), 'Gimnasio', 7, 0], [id(902), 'Cardio', 5, 1]]);
+    expect(state.blockValues[0].map((r) => [r.id, r.cycleId, r.dayStart])).toEqual([[id(1), id(901), 0], [id(2), id(902), 4]]);
+  });
+
+  it('normaliza la entrada: rangos, ids inválidos, solapes y bloques de un ciclo inexistente', async () => {
+    await saveCycles(as({
+      cycles: [cycle(1, { days: 500, name: 'x'.repeat(200) }), cycle(2, { id: 'no-uuid' })],
+      blocks: [block(1, { load: 99 }), block(2, { id: 'no-uuid' }), block(3, { dayStart: 0 }), block(4, { cycleId: id(950) })],
+    }));
     expect(state.boardValues[0]).toMatchObject({ cycleDays: 28 });
+    expect(state.cycleValues[0]).toHaveLength(1);
+    expect(state.cycleValues[0][0]).toMatchObject({ days: 28 });
+    expect((state.cycleValues[0][0].name as string).length).toBe(40);
     const rows = state.blockValues[0];
     expect(rows.map((r) => r.id)).toEqual([id(1), id(3)]);
     expect(rows[0]).not.toHaveProperty('load');
     expect(rows[0].lane).not.toBe(rows[1].lane);
   });
 
-  it('sin bloques solo borra y no inserta filas vacías', async () => {
-    await saveCycle({ cycleDays: 7, blocks: [] });
-    expect(state.blockValues).toEqual([]);
-    expect(state.batches).toBe(0);
+  it('un id de bloque repetido en dos ciclos solo se guarda una vez y se limita a 5 ciclos', async () => {
+    const cycles = Array.from({ length: 8 }, (_, i) => cycle(i + 1));
+    await saveCycles(as({ cycles, blocks: [block(1), block(1, { cycleId: id(902) })] }));
+    expect(state.cycleValues[0]).toHaveLength(5);
+    expect(state.blockValues[0].map((r) => [r.id, r.cycleId])).toEqual([[id(1), id(901)]]);
   });
 
-  it('borra y reinserta en un único batch atómico', async () => {
-    await saveCycle({ cycleDays: 7, blocks: [block(1)] });
+  it('sin ciclos válidos crea uno por defecto vacío en vez de borrar el tablero a ciegas', async () => {
+    await saveCycles(as({ cycles: 'basura', blocks: [block(1)] }));
+    expect(state.cycleValues[0]).toHaveLength(1);
+    expect(state.cycleValues[0][0]).toMatchObject({ name: 'Gimnasio', days: 7, position: 0 });
+    expect(state.blockValues).toEqual([]);
+  });
+
+  it('sin bloques borra los antiguos y guarda solo los ciclos, en un único batch atómico', async () => {
+    await saveCycles({ cycles: [cycle(1)] as never, blocks: [] });
+    expect(state.blockValues).toEqual([]);
+    expect(state.cycleValues).toHaveLength(1);
     expect(state.batches).toBe(1);
+  });
+
+  it('con bloques borra y reinserta todo en un único batch atómico', async () => {
+    await saveCycles(as({ cycles: [cycle(1)], blocks: [block(1)] }));
+    expect(state.batches).toBe(1);
+  });
+
+  it('una entrada que no es un objeto no rompe', async () => {
+    await saveCycles(null as never);
+    expect(state.cycleValues[0]).toHaveLength(1);
   });
 });
 

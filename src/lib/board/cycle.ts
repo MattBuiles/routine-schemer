@@ -5,6 +5,8 @@ export const DAY_W = 120;
 export const HEADER_H = 40;
 export const LANE_H = 100;
 export const MAX_LANES = 6;
+export const MAX_CYCLES = 5;
+export const MAX_CYCLE_NAME = 40;
 export const MIN_CYCLE_DAYS = 1;
 export const MAX_CYCLE_DAYS = 28;
 export const DEFAULT_CYCLE_DAYS = 7;
@@ -30,8 +32,17 @@ export interface BlockExercise {
   notes: string;
 }
 
+/** Un ciclo del tablero (gimnasio, cardio...): su propia duración en días y sus propios bloques. */
+export interface CycleDef {
+  id: string;
+  name: string;
+  days: number;
+}
+
 export interface CycleBlock {
   id: string;
+  /** Ciclo al que pertenece. */
+  cycleId: string;
   label: string;
   color: string;
   /** Clave del enfoque: predefinido (`strength`…) o propio (`custom:<id>`). */
@@ -71,6 +82,7 @@ export const DEFAULT_BLOCK_TYPES: readonly BlockTypeDef[] = [
 ];
 
 const overlaps = (a: CycleBlock, b: CycleBlock) =>
+  a.cycleId === b.cycleId &&
   a.lane === b.lane && a.dayStart < b.dayStart + b.daySpan && b.dayStart < a.dayStart + a.daySpan;
 
 /** Rectángulo (px, relativo a la zona del ciclo) de un bloque. */
@@ -118,15 +130,36 @@ export function stackBlocks(blocks: CycleBlock[], block: CycleBlock): CycleBlock
 }
 
 /** Primer hueco libre de `span` días (fila por fila) para crear bloques sin posición explícita. */
-export function findFreeSlot(blocks: CycleBlock[], cycleDays: number, span = 1): { dayStart: number; lane: number } | null {
+export function findFreeSlot(blocks: CycleBlock[], cycleDays: number, span = 1, cycleId = ''): { dayStart: number; lane: number } | null {
   const daySpan = Math.min(span, cycleDays);
-  const probe = { id: '', label: '', color: '', blockType: '', daySpan, zones: [], notes: '', icon: '', exercises: [] };
+  const probe = { id: '', cycleId, label: '', color: '', blockType: '', daySpan, zones: [], notes: '', icon: '', exercises: [] };
   for (let lane = 0; lane < MAX_LANES; lane++) {
     for (let dayStart = 0; dayStart + daySpan <= cycleDays; dayStart++) {
       if (!blocks.some((o) => overlaps({ ...probe, dayStart, lane }, o))) return { dayStart, lane };
     }
   }
   return null;
+}
+
+/** Filas que ocupa el área de un ciclo: las usadas más una libre para soltar al final de la pila (mínimo 3). */
+export const cycleRows = (blocks: CycleBlock[]) => Math.min(MAX_LANES, Math.max(3, Math.max(-1, ...blocks.map((b) => b.lane)) + 2));
+
+/** Alto del área de un ciclo (cabecera de días y filas), sin el pie con su nombre. */
+export const cycleHeight = (blocks: CycleBlock[]) => HEADER_H + cycleRows(blocks) * LANE_H;
+
+/** Pie bajo cada ciclo (nombre y duración) y separación hasta el ciclo siguiente. */
+export const CYCLE_FOOT_H = 36;
+export const CYCLE_GAP = 40;
+
+/** Posición vertical (px, relativa al primer ciclo) de cada ciclo: apilados en vertical según lo que ocupa cada uno. */
+export function cycleTops(cycles: CycleDef[], blocks: CycleBlock[]): number[] {
+  const tops: number[] = [];
+  let y = 0;
+  for (const c of cycles) {
+    tops.push(y);
+    y += cycleHeight(blocks.filter((b) => b.cycleId === c.id)) + CYCLE_FOOT_H + CYCLE_GAP;
+  }
+  return tops;
 }
 
 /** Bloques que quedarían fuera (en parte o del todo) si el ciclo pasa a `days` días. */
@@ -174,9 +207,10 @@ export function resolveTypes(custom: { id: string; name: string; color: string; 
 }
 
 /** Bloque nuevo a partir de un enfoque (con sus valores por defecto). */
-export function blockFromType(type: BlockTypeDef, id: string, dayStart: number, lane: number): CycleBlock {
+export function blockFromType(type: BlockTypeDef, id: string, dayStart: number, lane: number, cycleId = ''): CycleBlock {
   return {
     id,
+    cycleId,
     label: type.label,
     color: type.color,
     blockType: type.key,

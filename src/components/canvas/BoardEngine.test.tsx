@@ -7,7 +7,7 @@ import { stubPointerCapture, renderWithStrata } from '@/test-utils';
 
 const board = vi.hoisted(() => ({
   getBoard: vi.fn(),
-  saveCycle: vi.fn(),
+  saveCycles: vi.fn(),
   saveWidgets: vi.fn(),
   savePhases: vi.fn(),
   createBlockType: vi.fn(),
@@ -24,8 +24,9 @@ vi.mock('@/lib/auth/client', () => ({ authClient: session }));
 import BoardEngine from './BoardEngine';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
-const savedBlock = { ...blockFromType(strength, '00000000-0000-4000-8000-000000000001', 0, 0), label: 'Empuje' };
-const emptyBoard = { cycleDays: 7, blocks: [], widgets: [], phases: [], planStart: null, planWeeks: 12, customTypes: [] };
+const savedBlock = { ...blockFromType(strength, '00000000-0000-4000-8000-000000000001', 0, 0, 'c1'), label: 'Empuje' };
+const gym = { id: 'c1', name: 'Gimnasio', days: 7 };
+const emptyBoard = { cycles: [gym], blocks: [], widgets: [], phases: [], planStart: null, planWeeks: 12, customTypes: [] };
 
 beforeEach(() => {
   stubPointerCapture();
@@ -33,14 +34,14 @@ beforeEach(() => {
   session.getSession.mockReset();
   session.getSession.mockResolvedValue({ data: { user: { id: 'u' } } });
   board.getBoard.mockResolvedValue(emptyBoard);
-  board.saveCycle.mockResolvedValue(undefined);
+  board.saveCycles.mockResolvedValue(undefined);
   board.saveWidgets.mockResolvedValue(undefined);
   board.savePhases.mockResolvedValue(undefined);
   localStorage.clear();
 });
 afterEach(cleanup);
 
-const loaded = async () => screen.findByTestId('cycle-zone');
+const loaded = async () => screen.findAllByTestId('cycle-zone');
 const SAVED = { timeout: 3000 };
 
 describe('BoardEngine', () => {
@@ -49,14 +50,14 @@ describe('BoardEngine', () => {
     renderWithStrata(<BoardEngine />);
     await loaded();
     expect(screen.getByRole('group', { name: 'Empuje' })).toBeTruthy();
-    expect(screen.getByText(/Ciclo de 7 días/)).toBeTruthy();
+    expect(screen.getByText(/7 días? · se repite/)).toBeTruthy();
   });
 
   it('un tablero recién cargado no se vuelve a guardar', async () => {
     renderWithStrata(<BoardEngine />);
     await loaded();
     await new Promise((r) => setTimeout(r, 1200));
-    expect(board.saveCycle).not.toHaveBeenCalled();
+    expect(board.saveCycles).not.toHaveBeenCalled();
     expect(board.saveWidgets).not.toHaveBeenCalled();
     expect(board.savePhases).not.toHaveBeenCalled();
   });
@@ -73,9 +74,9 @@ describe('BoardEngine', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: /Fuerza/ }), { key: 'Enter' });
     expect(screen.getByRole('group', { name: 'Fuerza' })).toBeTruthy();
     expect(screen.getByRole('complementary', { name: 'Propiedades del bloque' })).toBeTruthy();
-    expect(board.saveCycle).not.toHaveBeenCalled(); // el guardado espera al debounce
-    await waitFor(() => expect(board.saveCycle).toHaveBeenCalledTimes(1), SAVED);
-    expect(board.saveCycle.mock.calls[0][0].blocks[0]).toMatchObject({ label: 'Fuerza', blockType: 'strength', dayStart: 0, lane: 0 });
+    expect(board.saveCycles).not.toHaveBeenCalled(); // el guardado espera al debounce
+    await waitFor(() => expect(board.saveCycles).toHaveBeenCalledTimes(1), SAVED);
+    expect(board.saveCycles.mock.calls[0][0].blocks[0]).toMatchObject({ label: 'Fuerza', blockType: 'strength', dayStart: 0, lane: 0 });
     await waitFor(() => expect(screen.getByText('Guardado')).toBeTruthy(), SAVED);
     expect(board.saveWidgets).not.toHaveBeenCalled();
   });
@@ -84,11 +85,11 @@ describe('BoardEngine', () => {
     renderWithStrata(<BoardEngine />);
     await loaded();
     fireEvent.keyDown(screen.getByRole('button', { name: /Fuerza/ }), { key: 'Enter' });
-    await waitFor(() => expect(board.saveCycle).toHaveBeenCalledTimes(1), SAVED);
+    await waitFor(() => expect(board.saveCycles).toHaveBeenCalledTimes(1), SAVED);
     fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
     expect(screen.queryByRole('group', { name: 'Fuerza' })).toBeNull();
-    await waitFor(() => expect(board.saveCycle).toHaveBeenCalledTimes(2), SAVED);
-    expect(board.saveCycle.mock.calls[1][0].blocks).toEqual([]);
+    await waitFor(() => expect(board.saveCycles).toHaveBeenCalledTimes(2), SAVED);
+    expect(board.saveCycles.mock.calls[1][0].blocks).toEqual([]);
   });
 
   it('Ctrl+Z deshace, pero no mientras se escribe en un campo', async () => {
@@ -109,7 +110,7 @@ describe('BoardEngine', () => {
     fireEvent.focus(screen.getByRole('group', { name: 'Empuje' }));
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Tirón' } });
     expect(screen.getByRole('group', { name: 'Tirón' })).toBeTruthy();
-    await waitFor(() => expect(board.saveCycle.mock.calls.at(-1)![0].blocks[0].label).toBe('Tirón'), SAVED);
+    await waitFor(() => expect(board.saveCycles.mock.calls.at(-1)![0].blocks[0].label).toBe('Tirón'), SAVED);
   });
 
   it('cambiar el enfoque conserva un nombre personalizado y actualiza color e icono', async () => {
@@ -119,7 +120,7 @@ describe('BoardEngine', () => {
     fireEvent.focus(screen.getByRole('group', { name: 'Empuje' }));
     const panel = screen.getByRole('complementary', { name: 'Propiedades del bloque' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Hipertrofia' }));
-    await waitFor(() => expect(board.saveCycle.mock.calls.at(-1)![0].blocks[0]).toMatchObject({ label: 'Empuje', blockType: 'hypertrophy', color: '#2563eb', icon: 'flame' }), SAVED);
+    await waitFor(() => expect(board.saveCycles.mock.calls.at(-1)![0].blocks[0]).toMatchObject({ label: 'Empuje', blockType: 'hypertrophy', color: '#2563eb', icon: 'flame' }), SAVED);
   });
 
   it('eliminar el bloque lo quita y cierra el panel', async () => {
@@ -139,7 +140,7 @@ describe('BoardEngine', () => {
     expect(screen.getByRole('region', { name: 'Notas' })).toBeTruthy();
     await waitFor(() => expect(board.saveWidgets).toHaveBeenCalledTimes(1), SAVED);
     expect(board.saveWidgets.mock.calls[0][0]).toEqual([expect.objectContaining({ type: 'notes' })]);
-    expect(board.saveCycle).not.toHaveBeenCalled();
+    expect(board.saveCycles).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar Notas' }));
     expect(screen.queryByRole('region', { name: 'Notas' })).toBeNull();
@@ -165,7 +166,7 @@ describe('BoardEngine', () => {
     fireEvent.change(screen.getByLabelText('Inicio del plan'), { target: { value: '2026-10-12' } });
     await waitFor(() => expect(board.savePhases).toHaveBeenCalledTimes(1), SAVED);
     expect(board.savePhases.mock.calls[0][0]).toEqual({ phases: [], planStart: '2026-10-12', planWeeks: 12 });
-    expect(board.saveCycle).not.toHaveBeenCalled();
+    expect(board.saveCycles).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar fecha' }));
     await waitFor(() => expect(board.savePhases).toHaveBeenLastCalledWith({ phases: [], planStart: null, planWeeks: 12 }), SAVED);
@@ -238,25 +239,99 @@ describe('BoardEngine', () => {
     await waitFor(() => expect(board.savePhases.mock.calls.at(-1)![0]).toMatchObject({ planWeeks: 4, phases: [expect.objectContaining({ weeks: 4 })] }), SAVED);
   });
 
+  it('añadir un ciclo crea otra zona con su nombre y 7 días, y se guarda con los dos ciclos', async () => {
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    expect(screen.queryByRole('button', { name: 'Eliminar ciclo' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir ciclo' }));
+    expect(screen.getAllByTestId('cycle-zone')).toHaveLength(2);
+    expect((screen.getAllByLabelText('Nombre del ciclo')[1] as HTMLInputElement).value).toBe('Ciclo 2');
+    await waitFor(() => expect(board.saveCycles.mock.calls.at(-1)![0].cycles.map((c: { name: string; days: number }) => [c.name, c.days])).toEqual([['Gimnasio', 7], ['Ciclo 2', 7]]), SAVED);
+  });
+
+  it('cada ciclo cambia su duración por separado y el nombre se renombra', async () => {
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles: [gym, { id: 'c2', name: 'Cardio', days: 5 }] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    const zones = screen.getAllByTestId('cycle-zone');
+    expect(zones.map((z) => z.getAttribute('data-cycle-id'))).toEqual(['c1', 'c2']);
+    expect(within(zones[1]).getAllByText(/Día \d/)).toHaveLength(5);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Añadir día' })[1]);
+    const input = screen.getAllByLabelText('Nombre del ciclo')[1];
+    fireEvent.change(input, { target: { value: 'Cardio y core' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      const saved = board.saveCycles.mock.calls.at(-1)![0].cycles;
+      expect(saved.map((c: { name: string; days: number }) => [c.name, c.days])).toEqual([['Gimnasio', 7], ['Cardio y core', 6]]);
+    }, SAVED);
+  });
+
+  it('un bloque nuevo de la paleta va al ciclo del bloque seleccionado', async () => {
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles: [gym, { id: 'c2', name: 'Cardio', days: 5 }], blocks: [{ ...savedBlock, cycleId: 'c2' }] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.focus(screen.getByRole('group', { name: 'Empuje' })); // selecciona el bloque del ciclo Cardio
+    fireEvent.keyDown(screen.getAllByRole('button', { name: /Resistencia/ })[0], { key: 'Enter' }); // el primero es el de la paleta
+    await waitFor(() => {
+      const blocks = board.saveCycles.mock.calls.at(-1)![0].blocks;
+      expect(blocks.map((b: { cycleId: string; blockType: string }) => [b.cycleId, b.blockType])).toEqual(expect.arrayContaining([['c2', 'strength'], ['c2', 'endurance']]));
+    }, SAVED);
+  });
+
+  it('sin selección, un bloque nuevo va al primer ciclo', async () => {
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles: [gym, { id: 'c2', name: 'Cardio', days: 5 }] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.keyDown(screen.getByRole('button', { name: /Resistencia/ }), { key: 'Enter' });
+    await waitFor(() => expect(board.saveCycles.mock.calls.at(-1)![0].blocks.map((b: { cycleId: string }) => b.cycleId)).toEqual(['c1']), SAVED);
+  });
+
+  it('eliminar un ciclo pide confirmación, borra sus bloques y respeta «Cancelar»', async () => {
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles: [gym, { id: 'c2', name: 'Cardio', days: 5 }], blocks: [{ ...savedBlock, cycleId: 'c2' }] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar ciclo' })[1]);
+    expect((await screen.findByRole('dialog')).textContent).toContain('«Cardio» y su bloque');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getAllByTestId('cycle-zone')).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Eliminar ciclo' })[1]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }));
+    await waitFor(() => expect(screen.getAllByTestId('cycle-zone')).toHaveLength(1));
+    expect(screen.queryByRole('group', { name: 'Empuje' })).toBeNull();
+    await waitFor(() => expect(board.saveCycles.mock.calls.at(-1)![0]).toMatchObject({ cycles: [gym], blocks: [] }), SAVED);
+  });
+
+  it('deja de ofrecer «Añadir ciclo» al llegar a 5', async () => {
+    const cycles = [1, 2, 3, 4, 5].map((n) => ({ id: `c${n}`, name: `Ciclo ${n}`, days: 7 }));
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    expect(screen.getAllByTestId('cycle-zone')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'Añadir ciclo' })).toBeNull();
+  });
+
   it('acortar el ciclo pide confirmación si se pierden bloques y respeta un «Cancelar»', async () => {
-    board.getBoard.mockResolvedValue({ ...emptyBoard, cycleDays: 3, blocks: [{ ...savedBlock, dayStart: 2 }] });
+    board.getBoard.mockResolvedValue({ ...emptyBoard, cycles: [{ ...gym, days: 3 }], blocks: [{ ...savedBlock, dayStart: 2 }] });
     renderWithStrata(<BoardEngine />);
     await loaded();
     fireEvent.click(screen.getByRole('button', { name: 'Quitar día' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await new Promise((r) => setTimeout(r, 50)); // da tiempo a que una confirmación mal gestionada acortara el ciclo
-    expect(screen.getByText(/Ciclo de 3 días/)).toBeTruthy();
+    expect(screen.getByText(/3 días? · se repite/)).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Empuje' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar día' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Acortar' }));
-    expect(await screen.findByText(/Ciclo de 2 días/)).toBeTruthy();
+    expect(await screen.findByText(/2 días? · se repite/)).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Empuje' })).toBeNull();
   });
 
   it('un fallo al guardar con la sesión caducada lo explica', async () => {
-    board.saveCycle.mockRejectedValue(new Error('No autenticado'));
+    board.saveCycles.mockRejectedValue(new Error('No autenticado'));
     session.getSession.mockResolvedValue({ data: null });
     renderWithStrata(<BoardEngine />);
     await loaded();
@@ -266,7 +341,7 @@ describe('BoardEngine', () => {
   });
 
   it('un fallo al guardar con sesión válida avisa de que se reintentará', async () => {
-    board.saveCycle.mockRejectedValue(new Error('red'));
+    board.saveCycles.mockRejectedValue(new Error('red'));
     renderWithStrata(<BoardEngine />);
     await loaded();
     fireEvent.keyDown(screen.getByRole('button', { name: /Fuerza/ }), { key: 'Enter' });

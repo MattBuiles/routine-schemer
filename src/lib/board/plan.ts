@@ -1,4 +1,4 @@
-import type { CycleBlock } from './cycle';
+import type { CycleBlock, CycleDef } from './cycle';
 import { phaseEnd, type Phase } from './phases';
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -29,7 +29,8 @@ export function addDays(iso: string, days: number): string {
 
 export interface PlanAnchor {
   planStart: string;
-  cycleDays: number;
+  /** Ciclos del tablero: cada uno se repite con su propia duración desde el inicio del plan. */
+  cycles: CycleDef[];
   /** Duración del plan: al acabar, vuelve a empezar. */
   planWeeks: number;
   phases: Phase[];
@@ -40,8 +41,6 @@ export interface PlanPosition {
   offset: number;
   /** Semana del plan (desde 0), ya dentro de la vuelta actual del plan. */
   planWeek: number;
-  /** Día del ciclo (desde 0): el ciclo se repite sin parar desde el inicio del plan. */
-  cycleDay: number;
   phase: Phase | null;
   /** Semana dentro de la fase (desde 0), o null si no hay fase. */
   weekInPhase: number | null;
@@ -53,8 +52,11 @@ export function locateDate(plan: PlanAnchor, date: string): PlanPosition | null 
   if (offset < 0) return null;
   const planWeek = Math.floor(offset / 7) % plan.planWeeks;
   const phase = plan.phases.find((p) => p.startWeek <= planWeek && planWeek < phaseEnd(p)) ?? null;
-  return { offset, planWeek, cycleDay: offset % plan.cycleDays, phase, weekInPhase: phase ? planWeek - phase.startWeek : null };
+  return { offset, planWeek, phase, weekInPhase: phase ? planWeek - phase.startWeek : null };
 }
+
+/** Día del ciclo (desde 0) de un ciclo de `days` días `offset` días después del inicio del plan: se repite sin parar. */
+export const cycleDayOf = (offset: number, days: number) => offset % days;
 
 /** Bloques que ocupan un día del ciclo, de arriba abajo por carril. */
 export const blocksOnCycleDay = (blocks: CycleBlock[], cycleDay: number) =>

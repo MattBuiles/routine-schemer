@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { blockFromType, DEFAULT_BLOCK_TYPES } from './cycle';
-import { addDays, blocksOnCycleDay, daysBetween, formatShort, isIsoDate, locateDate, planWeekOf, weekRange, type PlanAnchor } from './plan';
+import { addDays, blocksOnCycleDay, cycleDayOf, daysBetween, formatShort, isIsoDate, locateDate, planWeekOf, weekRange, type PlanAnchor } from './plan';
 import { PHASE_TYPES, phaseFromType } from './phases';
 
 const phase = (kind: string, id: string, start: number, weeks: number) => ({ ...phaseFromType(PHASE_TYPES.find((t) => t.kind === kind)!, id, start), weeks });
-const plan: PlanAnchor = { planStart: '2026-10-12', cycleDays: 7, planWeeks: 6, phases: [phase('volume', 'a', 0, 4), phase('deload', 'b', 5, 1)] };
+const plan: PlanAnchor = { planStart: '2026-10-12', cycles: [{ id: 'c1', name: 'Gimnasio', days: 7 }], planWeeks: 6, phases: [phase('volume', 'a', 0, 4), phase('deload', 'b', 5, 1)] };
 
 describe('fechas', () => {
   it('isIsoDate acepta fechas reales y rechaza el resto', () => {
@@ -31,11 +31,13 @@ describe('fechas', () => {
 
 describe('locateDate', () => {
   it('el día de inicio es la semana 0, día 0 del ciclo y primera semana de la primera fase', () => {
-    expect(locateDate(plan, '2026-10-12')).toMatchObject({ offset: 0, planWeek: 0, cycleDay: 0, weekInPhase: 0, phase: { id: 'a' } });
+    expect(locateDate(plan, '2026-10-12')).toMatchObject({ offset: 0, planWeek: 0, weekInPhase: 0, phase: { id: 'a' } });
+    expect(cycleDayOf(0, 7)).toBe(0);
   });
 
   it('avanza por semanas, fases y día del ciclo', () => {
-    expect(locateDate(plan, '2026-10-27')).toMatchObject({ planWeek: 2, cycleDay: 1, weekInPhase: 2, phase: { id: 'a' } });
+    expect(locateDate(plan, '2026-10-27')).toMatchObject({ offset: 15, planWeek: 2, weekInPhase: 2, phase: { id: 'a' } });
+    expect(cycleDayOf(15, 7)).toBe(1);
   });
 
   it('una semana sin fase (hueco) no tiene fase ni semana de fase', () => {
@@ -45,21 +47,19 @@ describe('locateDate', () => {
   it('antes del inicio devuelve null y el plan se repite sin parar al terminar', () => {
     expect(locateDate(plan, '2026-10-11')).toBeNull();
     // El plan dura 6 semanas: la semana 7 vuelve a ser la 1 (con su fase) y el día del ciclo sigue contando.
-    expect(locateDate(plan, '2026-11-23')).toMatchObject({ offset: 42, planWeek: 0, cycleDay: 0, weekInPhase: 0 });
+    expect(locateDate(plan, '2026-11-23')).toMatchObject({ offset: 42, planWeek: 0, weekInPhase: 0 });
     expect(locateDate(plan, '2026-11-23')?.phase?.id).toBe('a');
     expect(locateDate(plan, addDays('2026-10-12', 6 * 7 * 10 + 5 * 7))?.phase?.id).toBe('b');
     expect(locateDate(plan, addDays('2026-10-12', 52 * 7))).not.toBeNull();
   });
 
-  it('el día del ciclo no depende de la duración del plan', () => {
-    const odd = { ...plan, cycleDays: 5, planWeeks: 3 };
-    expect(locateDate(odd, addDays('2026-10-12', 21))).toMatchObject({ planWeek: 0, cycleDay: 1 });
-  });
-
-  it('el ciclo se repite sin parar: con un ciclo de 10 días no se alinea con la semana', () => {
-    const p = { ...plan, cycleDays: 10 };
-    expect(locateDate(p, '2026-10-22')).toMatchObject({ cycleDay: 0, planWeek: 1 });
-    expect(locateDate(p, '2026-10-25')).toMatchObject({ cycleDay: 3 });
+  it('el día de cada ciclo se cuenta aparte y se repite sin parar, sin depender de la duración del plan', () => {
+    const offset = locateDate({ ...plan, planWeeks: 3 }, addDays('2026-10-12', 21))!.offset;
+    expect(locateDate({ ...plan, planWeeks: 3 }, addDays('2026-10-12', 21))).toMatchObject({ planWeek: 0 });
+    // Gimnasio de 7 días y cardio de 5: a los 21 días uno vuelve al día 1 y el otro va por el 2.
+    expect([cycleDayOf(offset, 7), cycleDayOf(offset, 5)]).toEqual([0, 1]);
+    // Un ciclo de 10 días no se alinea con la semana.
+    expect([cycleDayOf(10, 10), cycleDayOf(13, 10), cycleDayOf(27, 10)]).toEqual([0, 3, 7]);
   });
 });
 
