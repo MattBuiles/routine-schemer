@@ -216,6 +216,7 @@ function PlanDay({ plan, position }: { plan: PlanAnchorWithBlocks; position: Ret
               <p className="flex items-center gap-1.5 text-sm font-medium">
                 <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: b.color }} />
                 {b.label || 'Sin nombre'}
+                {b.subtype && <span className="font-normal text-muted"> · {b.subtype}</span>}
               </p>
               {b.exercises.length > 0 && (
                 <ul className="mt-1 flex flex-col gap-0.5 pl-4 text-xs text-muted">

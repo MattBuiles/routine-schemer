@@ -25,6 +25,34 @@ function setup(over: Partial<CycleBlock> = {}) {
   return handlers;
 }
 
+const endurance = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'endurance')!;
+
+describe('BlockPanel · subenfoque', () => {
+  it('Resistencia ofrece tipos de cardio y elegir uno lo pone, y volver a pulsarlo lo quita', () => {
+    const { onChange } = setup({ blockType: endurance.key });
+    fireEvent.click(screen.getByRole('button', { name: 'Bici' }));
+    expect(onChange).toHaveBeenLastCalledWith({ subtype: 'Bici' });
+    cleanup();
+    const again = setup({ blockType: endurance.key, subtype: 'Bici' });
+    const on = screen.getByRole('button', { name: 'Bici' });
+    expect(on.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(on);
+    expect(again.onChange).toHaveBeenLastCalledWith({ subtype: '' });
+  });
+
+  it('también se puede escribir cualquier subenfoque, incluso en un enfoque sin sugerencias', () => {
+    const { onChange } = setup();
+    expect(screen.queryByRole('button', { name: 'Bici' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Subenfoque'), { target: { value: 'Press militar' } });
+    expect(onChange).toHaveBeenLastCalledWith({ subtype: 'Press militar' });
+  });
+
+  it('el campo está limitado a 40 caracteres', () => {
+    setup();
+    expect((screen.getByLabelText('Subenfoque') as HTMLInputElement).maxLength).toBe(40);
+  });
+});
+
 describe('BlockPanel · enfoque, nombre y zonas', () => {
   it('marca el enfoque actual y permite cambiarlo', () => {
     const { onChangeType } = setup();

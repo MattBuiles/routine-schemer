@@ -74,6 +74,13 @@ describe('CycleZone', () => {
     expect(onCreateAt).not.toHaveBeenCalled();
   });
 
+  it('el bloque muestra su subenfoque bajo el nombre y no pinta nada si no lo tiene', () => {
+    setup({ blocks: [{ ...block('a', 1, 0), subtype: 'Trotar' }, block('b', 2, 0)] });
+    const a = screen.getByRole('group', { name: 'Bloque a' });
+    expect(a.textContent).toContain('Trotar');
+    expect(screen.getByRole('group', { name: 'Bloque b' }).textContent).toBe('Bloque b');
+  });
+
   it('Supr elimina el bloque seleccionado', () => {
     const { onDelete } = setup({ selectedId: 'a' });
     fireEvent.keyDown(screen.getByRole('group', { name: 'Bloque a' }), { key: 'Delete' });

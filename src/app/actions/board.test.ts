@@ -64,6 +64,11 @@ describe('saveCycles', () => {
     expect(state.cycleValues[0][0]).toMatchObject({ userId: 'user-1', boardId: 'board-1', name: 'Gimnasio', days: 7, position: 0 });
   });
 
+  it('guarda el subenfoque normalizado y vacío si no es texto', async () => {
+    await saveCycles(as({ cycles: [cycle(1)], blocks: [block(1, { subtype: ' Bici ' }), block(2, { subtype: 42 })] }));
+    expect(state.blockValues[0].map((r) => r.subType)).toEqual(['Bici', '']);
+  });
+
   it('guarda varios ciclos en orden, cada bloque en el suyo y cada ciclo con su duración', async () => {
     await saveCycles(as({
       cycles: [cycle(1), cycle(2, { name: ' Cardio ', days: 5 })],

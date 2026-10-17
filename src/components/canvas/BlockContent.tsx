@@ -13,6 +13,7 @@ export default function BlockContent({ block }: { block: CycleBlock }) {
         <Icon className="h-4 w-4 shrink-0 opacity-90" />
         <span className="truncate">{block.label || 'Sin nombre'}</span>
       </div>
+      {block.subtype && <span className="truncate text-[11px] font-medium opacity-90">{block.subtype}</span>}
       {block.zones.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {block.zones.slice(0, wide ? 5 : 2).map((tag) => (

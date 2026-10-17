@@ -6,6 +6,8 @@ import {
   LANE_H,
   MAX_LANES,
   CYCLE_FOOT_H,
+  MAX_SUBTYPE,
+  SUBTYPE_SUGGESTIONS,
   CYCLE_GAP,
   blocksBeyond,
   compactLanes,
@@ -35,6 +37,7 @@ const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
   label: 'Push',
   color: '#000',
   blockType: 'strength',
+  subtype: '',
   dayStart: 0,
   daySpan: 1,
   lane: 0,
@@ -183,6 +186,12 @@ describe('enfoques', () => {
   it('blockFromType usa los valores por defecto del tipo', () => {
     const rest = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'rest')!;
     expect(blockFromType(rest, 'id', 2, 1)).toMatchObject({ blockType: 'rest', dayStart: 2, lane: 1, zones: [] });
+  });
+
+  it('el subenfoque empieza vacío y Resistencia sugiere tipos de cardio', () => {
+    expect(blockFromType(DEFAULT_BLOCK_TYPES[0], 'id', 0, 0).subtype).toBe('');
+    expect(SUBTYPE_SUGGESTIONS.endurance).toEqual(expect.arrayContaining(['Bici', 'Trotar', 'Nadar']));
+    expect(MAX_SUBTYPE).toBeGreaterThan(Math.max(...SUBTYPE_SUGGESTIONS.endurance.map((s) => s.length)));
   });
 
   it('incluye movilidad, estiramiento y rehabilitación con icono propio y sin carga', () => {
