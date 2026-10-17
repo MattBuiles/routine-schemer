@@ -45,6 +45,13 @@ describe('sanitizeCycle', () => {
     expect(b.label).toHaveLength(60);
   });
 
+  it('el subenfoque se recorta, se limita a 40 caracteres y solo admite texto', () => {
+    const sub = (subtype: unknown) => sanitizeCycle({ cycleDays: 7, blocks: [raw({ subtype })] }).blocks[0].subtype;
+    expect(sub('  Bici  ')).toBe('Bici');
+    expect(sub('x'.repeat(100))).toHaveLength(40);
+    for (const bad of [undefined, null, 5, {}, ['Bici']]) expect(sub(bad)).toBe('');
+  });
+
   it('limita el ciclo a 28 días y recorta bloques que lo cruzan', () => {
     const out = sanitizeCycle({ cycleDays: 3, blocks: [raw({ dayStart: 2, daySpan: 9 })] });
     expect(out.cycleDays).toBe(3);
@@ -65,7 +72,7 @@ describe('sanitizeCycle', () => {
 
   it('ignora claves ajenas y limita la cantidad de bloques', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), userId: 'atacante', boardId: 'x' }] }).blocks;
-    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'cycleId', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'notes', 'zones']);
+    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'cycleId', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'notes', 'subtype', 'zones']);
     const many = Array.from({ length: MAX_BLOCKS + 50 }, (_, i) => raw({ id: id(i + 1), dayStart: i % 28 }));
     expect(sanitizeCycle({ cycleDays: 28, blocks: many }).blocks.length).toBeLessThanOrEqual(MAX_BLOCKS);
   });

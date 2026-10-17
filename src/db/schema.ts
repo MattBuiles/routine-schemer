@@ -96,6 +96,7 @@ export const boardBlocks = pgTable('board_blocks', {
   label: text('label').notNull().default(''),
   color: text('color').notNull().default('#3b82f6'),
   blockType: text('block_type'),
+  subType: text('sub_type'),
   dayStart: integer('day_start'),
   daySpan: integer('day_span'),
   lane: integer('lane'),

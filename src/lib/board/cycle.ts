@@ -12,6 +12,7 @@ export const MAX_CYCLE_DAYS = 28;
 export const DEFAULT_CYCLE_DAYS = 7;
 
 export const MAX_ZONES = 6;
+export const MAX_SUBTYPE = 40;
 export const MAX_EXERCISES = 30;
 export const MAX_SETS = 20;
 
@@ -21,6 +22,11 @@ export type BlockIconKey = (typeof BLOCK_ICONS)[number];
 
 /** Zonas sugeridas (el usuario también puede escribir las suyas). */
 export const ZONE_SUGGESTIONS = ['Pecho', 'Espalda', 'Hombros', 'Brazos', 'Piernas', 'Glúteos', 'Core', 'Cardio', 'Movilidad', 'Técnica', 'Empuje', 'Tracción'] as const;
+
+/** Subenfoques sugeridos por enfoque (el usuario también puede escribir el suyo, en cualquier enfoque). */
+export const SUBTYPE_SUGGESTIONS: Readonly<Record<string, readonly string[]>> = {
+  endurance: ['Bici', 'Trotar', 'Nadar', 'Remo', 'Caminata', 'Elíptica', 'Saltar cuerda'],
+};
 
 /** Ejercicio dentro de un bloque; guarda una copia del nombre para mostrarlo sin consultar la biblioteca. */
 export interface BlockExercise {
@@ -47,6 +53,8 @@ export interface CycleBlock {
   color: string;
   /** Clave del enfoque: predefinido (`strength`…) o propio (`custom:<id>`). */
   blockType: string;
+  /** Subenfoque libre (p. ej. «Bici» dentro de Resistencia); vacío si no lo tiene. */
+  subtype: string;
   dayStart: number;
   daySpan: number;
   /** Fila de la pila (0 arriba). Los bloques se compactan: nunca queda un hueco libre encima de uno. */
@@ -132,7 +140,7 @@ export function stackBlocks(blocks: CycleBlock[], block: CycleBlock): CycleBlock
 /** Primer hueco libre de `span` días (fila por fila) para crear bloques sin posición explícita. */
 export function findFreeSlot(blocks: CycleBlock[], cycleDays: number, span = 1, cycleId = ''): { dayStart: number; lane: number } | null {
   const daySpan = Math.min(span, cycleDays);
-  const probe = { id: '', cycleId, label: '', color: '', blockType: '', daySpan, zones: [], notes: '', icon: '', exercises: [] };
+  const probe = { id: '', cycleId, label: '', color: '', blockType: '', subtype: '', daySpan, zones: [], notes: '', icon: '', exercises: [] };
   for (let lane = 0; lane < MAX_LANES; lane++) {
     for (let dayStart = 0; dayStart + daySpan <= cycleDays; dayStart++) {
       if (!blocks.some((o) => overlaps({ ...probe, dayStart, lane }, o))) return { dayStart, lane };
@@ -214,6 +222,7 @@ export function blockFromType(type: BlockTypeDef, id: string, dayStart: number, 
     label: type.label,
     color: type.color,
     blockType: type.key,
+    subtype: '',
     dayStart,
     daySpan: 1,
     lane,

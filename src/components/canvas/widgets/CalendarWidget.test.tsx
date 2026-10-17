@@ -111,7 +111,7 @@ describe('CalendarWidget', () => {
 
 describe('CalendarWidget · plan anclado', () => {
   const block = (id: string, label: string, dayStart: number, daySpan: number, exercises = [] as { exerciseId: string; name: string; sets: number; reps: string; notes: string }[]) => ({
-    id, cycleId: 'c1', label, color: '#dc2626', blockType: 'strength', dayStart, daySpan, lane: 0, zones: [], notes: '', icon: 'dumbbell', exercises,
+    id, cycleId: 'c1', label, color: '#dc2626', blockType: 'strength', subtype: '', dayStart, daySpan, lane: 0, zones: [], notes: '', icon: 'dumbbell', exercises,
   });
   const phase = (over = {}) => ({ id: 'p1', name: 'Volumen', kind: 'volume' as const, startWeek: 0, weeks: 4, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: true, ...over });
   const press = { exerciseId: 'e1', name: 'Press de Banca', sets: 3, reps: '8-12', notes: '' };
@@ -162,6 +162,14 @@ describe('CalendarWidget · plan anclado', () => {
     expect(screen.getByText('Nada planificado este día del ciclo.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '2026-10-05' }));
     expect(screen.getByText(/Antes del inicio del plan \(empieza el 12 oct\)/)).toBeTruthy();
+  });
+
+  it('muestra el subenfoque del bloque junto a su nombre', async () => {
+    const run = { ...block('b9', 'Resistencia', 3, 1), subtype: 'Bici' };
+    renderWithStrata(<CalendarWidget plan={anchor({ blocks: [run] })} />);
+    await screen.findByText('Pierna');
+    const day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('Resistencia · Bici');
   });
 
   it('con varios ciclos, cada uno enseña su día y sus bloques según su propia duración', async () => {

@@ -8,7 +8,9 @@ import {
   BLOCK_ICONS,
   MAX_EXERCISES,
   MAX_SETS,
+  MAX_SUBTYPE,
   MAX_ZONES,
+  SUBTYPE_SUGGESTIONS,
   ZONE_SUGGESTIONS,
   type BlockTypeDef,
   type CycleBlock,
@@ -53,6 +55,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
     onChange({ exercises: next });
   };
 
+  const subtypes = SUBTYPE_SUGGESTIONS[block.blockType] ?? [];
   const suggestions = ZONE_SUGGESTIONS.filter((s) => !block.zones.some((f) => f.toLowerCase() === s.toLowerCase())).slice(0, 8);
 
   return (
@@ -95,6 +98,31 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
         <Field label="Nombre">
           <Input value={block.label} maxLength={60} placeholder="Ej. Empuje pesado" onChange={(e) => onChange({ label: e.target.value })} />
         </Field>
+
+        <div>
+          <Field label="Subenfoque">
+            <Input value={block.subtype} maxLength={MAX_SUBTYPE} placeholder="Ej. Bici, Trotar, Nadar" onChange={(e) => onChange({ subtype: e.target.value })} />
+          </Field>
+          {subtypes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {subtypes.map((s) => {
+                const on = block.subtype === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => onChange({ subtype: on ? '' : s })}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${on ? 'border-transparent' : 'border-dashed border-border text-muted hover:border-accent hover:text-accent'}`}
+                    style={on ? { backgroundColor: 'var(--accent)', color: 'var(--accent-fg)' } : undefined}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div>
           <span className={sectionTitle}>Zonas</span>
