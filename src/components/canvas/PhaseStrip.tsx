@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { Minus, Plus } from 'lucide-react';
 
 import { getDateString } from '@/lib/utils';
 import { addDays, formatShort, planWeekOf, weekRange } from '@/lib/board/plan';
 import {
   MAX_PLAN_WEEKS,
+  MIN_PLAN_WEEKS,
   PHASE_H,
   WEEK_W,
   movePhase,
-  nextFreeStart,
   phaseEnd,
   resizePhase,
   resizePhaseStart,
@@ -24,6 +25,9 @@ const PHASE_GAP = 3;
 interface PhaseStripProps {
   origin: { x: number; y: number };
   phases: Phase[];
+  /** Duración total del plan en semanas: la franja muestra exactamente esas columnas. */
+  planWeeks: number;
+  onPlanWeeksChange: (weeks: number) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onPhasesChange: (phases: Phase[]) => void;
@@ -42,16 +46,14 @@ interface Gesture {
 }
 
 /** Franja de fases sobre el ciclo: semanas en columnas; arrastrar mueve la fase y el borde derecho cambia su duración. */
-export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPhasesChange, onCreateAt, planStart, onPlanStartChange }: PhaseStripProps) {
+export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChange, selectedId, onSelect, onPhasesChange, onCreateAt, planStart, onPlanStartChange }: PhaseStripProps) {
   const zoom = useCanvasZoom();
   const gesture = useRef<Gesture | null>(null);
   const [preview, setPreview] = useState<Phase[] | null>(null);
   const previewRef = useRef<Phase[] | null>(null);
 
-  // Se muestran unas semanas de más tras la última fase para poder seguir añadiendo.
-  const visibleWeeks = Math.min(MAX_PLAN_WEEKS, Math.max(16, (nextFreeStart(phases, 1) ?? MAX_PLAN_WEEKS) + 8));
   const shown = preview ?? phases;
-  const todayWeek = planStart ? planWeekOf(planStart, getDateString(new Date())) : null;
+  const todayWeek = planStart ? planWeekOf(planStart, getDateString(new Date()), planWeeks) : null;
 
   const begin = (phase: Phase, mode: Gesture['mode']) => (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -67,9 +69,9 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
     const base = phases.find((p) => p.id === g.id)!;
     const next =
       g.mode === 'move'
-        ? movePhase(phases, g.id, base.startWeek + weeks)
+        ? movePhase(phases, g.id, base.startWeek + weeks, planWeeks)
         : g.mode === 'resize'
-          ? resizePhase(phases, g.id, base.weeks + weeks)
+          ? resizePhase(phases, g.id, base.weeks + weeks, planWeeks)
           : resizePhaseStart(phases, g.id, base.startWeek + weeks);
     // Si la posición no es válida (solape) se mantiene la última vista previa válida.
     if (next) {
@@ -116,17 +118,17 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
       <div
         data-testid="phase-strip"
         className="relative rounded-2xl border border-border bg-surface/70 shadow-[var(--shadow)]"
-        style={{ width: visibleWeeks * WEEK_W, height: TICKS_H + PHASE_H + 8 }}
+        style={{ width: planWeeks * WEEK_W, height: TICKS_H + PHASE_H + 8 }}
         onPointerDown={(e) => {
           if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.tick) onSelect(null);
         }}
         onDoubleClick={(e) => {
           if (e.target !== e.currentTarget && !(e.target as HTMLElement).dataset.tick) return;
           const box = e.currentTarget.getBoundingClientRect();
-          onCreateAt(Math.floor((e.clientX - box.left) / (box.width / visibleWeeks)));
+          onCreateAt(Math.floor((e.clientX - box.left) / (box.width / planWeeks)));
         }}
       >
-        {Array.from({ length: visibleWeeks }, (_, week) => (
+        {Array.from({ length: planWeeks }, (_, week) => (
           <div
             key={week}
             data-tick
@@ -155,8 +157,9 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
               const delta = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
               if (!delta) return;
               e.preventDefault();
-              const next = e.shiftKey ? resizePhase(phases, p.id, p.weeks + delta) : movePhase(phases, p.id, p.startWeek + delta);
-              if (next) onPhasesChange(next);
+              const next = e.shiftKey ? resizePhase(phases, p.id, p.weeks + delta, planWeeks) : movePhase(phases, p.id, p.startWeek + delta, planWeeks);
+              // En el límite del plan no hay nada que mover: no se anota un paso de deshacer vacío.
+              if (next && JSON.stringify(next) !== JSON.stringify(phases)) onPhasesChange(next);
             }}
             onPointerDown={begin(p, 'move')}
             onPointerMove={move}
@@ -191,10 +194,32 @@ export default function PhaseStrip({ origin, phases, selectedId, onSelect, onPha
           </div>
         ))}
       </div>
+        <div
+          className="absolute -right-12 top-2 flex flex-col gap-1"
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <button
+            aria-label="Añadir semana al plan"
+            disabled={planWeeks >= MAX_PLAN_WEEKS}
+            className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
+            onClick={() => onPlanWeeksChange(planWeeks + 1)}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Quitar semana al plan"
+            disabled={planWeeks <= MIN_PLAN_WEEKS}
+            className="rounded-lg border border-border bg-surface p-2 text-muted hover:text-fg disabled:opacity-40"
+            onClick={() => onPlanWeeksChange(planWeeks - 1)}
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+        </div>
       <p className="mt-2 text-xs text-muted">
-        Plan de {Math.max(0, phases.reduce((end, p) => Math.max(end, phaseEnd(p)), 0))} semanas · cada fase repite el ciclo
-        {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1}`}
-        {planStart && todayWeek === null && ' · hoy está fuera del plan'}
+        Plan de {planWeeks} {planWeeks === 1 ? 'semana' : 'semanas'} · cada fase repite el ciclo · se repite al terminar
+        {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1} de ${planWeeks}`}
+        {planStart && todayWeek === null && ' · el plan aún no ha empezado'}
       </p>
     </div>
   );

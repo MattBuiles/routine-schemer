@@ -25,7 +25,7 @@ import BoardEngine from './BoardEngine';
 
 const strength = DEFAULT_BLOCK_TYPES.find((t) => t.key === 'strength')!;
 const savedBlock = { ...blockFromType(strength, '00000000-0000-4000-8000-000000000001', 0, 0), label: 'Empuje' };
-const emptyBoard = { cycleDays: 7, blocks: [], widgets: [], phases: [], planStart: null, customTypes: [] };
+const emptyBoard = { cycleDays: 7, blocks: [], widgets: [], phases: [], planStart: null, planWeeks: 12, customTypes: [] };
 
 beforeEach(() => {
   stubPointerCapture();
@@ -164,11 +164,11 @@ describe('BoardEngine', () => {
     await loaded();
     fireEvent.change(screen.getByLabelText('Inicio del plan'), { target: { value: '2026-10-12' } });
     await waitFor(() => expect(board.savePhases).toHaveBeenCalledTimes(1), SAVED);
-    expect(board.savePhases.mock.calls[0][0]).toEqual({ phases: [], planStart: '2026-10-12' });
+    expect(board.savePhases.mock.calls[0][0]).toEqual({ phases: [], planStart: '2026-10-12', planWeeks: 12 });
     expect(board.saveCycle).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar fecha' }));
-    await waitFor(() => expect(board.savePhases).toHaveBeenLastCalledWith({ phases: [], planStart: null }), SAVED);
+    await waitFor(() => expect(board.savePhases).toHaveBeenLastCalledWith({ phases: [], planStart: null, planWeeks: 12 }), SAVED);
   });
 
   it('con el plan anclado, las semanas del plan muestran su fecha de inicio', async () => {
@@ -196,6 +196,46 @@ describe('BoardEngine', () => {
     expect(plan.textContent).toContain('Día 1 del ciclo');
     expect(plan.textContent).toContain('Press de Banca');
     expect(plan.textContent).toContain('3×8-12');
+  });
+
+  it('el plan se alarga y se acorta con los botones y se guarda su duración', async () => {
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    expect(screen.getByText(/Plan de 12 semanas/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir semana al plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir semana al plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar semana al plan' }));
+    expect(screen.getByText(/Plan de 13 semanas/)).toBeTruthy();
+    await waitFor(() => expect(board.savePhases).toHaveBeenLastCalledWith({ phases: [], planStart: null, planWeeks: 13 }), SAVED);
+  });
+
+  it('acortar el plan pide confirmación si se pierden fases y respeta un «Cancelar»', async () => {
+    const phase = (n: number, startWeek: number, weeks: number) => ({ id: `00000000-0000-4000-8000-00000000000${n}`, name: `Fase ${n}`, kind: 'volume', startWeek, weeks, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 0, rampLoad: 0, deloadLast: false });
+    board.getBoard.mockResolvedValue({ ...emptyBoard, planWeeks: 5, phases: [phase(1, 0, 4), phase(2, 4, 1)] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar semana al plan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText(/Plan de 5 semanas/)).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Fase Fase 2' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar semana al plan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Acortar' }));
+    expect(await screen.findByText(/Plan de 4 semanas/)).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Fase Fase 2' })).toBeNull();
+    await waitFor(() => expect(board.savePhases.mock.calls.at(-1)![0]).toMatchObject({ planWeeks: 4, phases: [expect.objectContaining({ startWeek: 0, weeks: 4 })] }), SAVED);
+  });
+
+  it('acortar el plan recorta sin preguntar la fase que cruza el nuevo final', async () => {
+    const phase = { id: '00000000-0000-4000-8000-000000000001', name: 'Fase 1', kind: 'volume', startWeek: 0, weeks: 5, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 0, rampLoad: 0, deloadLast: false };
+    board.getBoard.mockResolvedValue({ ...emptyBoard, planWeeks: 5, phases: [phase] });
+    renderWithStrata(<BoardEngine />);
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar semana al plan' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(board.savePhases.mock.calls.at(-1)![0]).toMatchObject({ planWeeks: 4, phases: [expect.objectContaining({ weeks: 4 })] }), SAVED);
   });
 
   it('acortar el ciclo pide confirmación si se pierden bloques y respeta un «Cancelar»', async () => {

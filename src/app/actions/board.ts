@@ -7,7 +7,7 @@ import { blockTypes, boardBlocks, boardPhases, boards } from '@/db/schema';
 import { requireUserId } from '@/lib/auth/session';
 import { BLOCK_ICONS, DEFAULT_CYCLE_DAYS, compactLanes, defaultIconFor, type CycleBlock } from '@/lib/board/cycle';
 import { isHexColor, isUuid, sanitizeCycle, sanitizeExercises } from '@/lib/board/sanitize';
-import { sanitizePhases, type Phase } from '@/lib/board/phases';
+import { DEFAULT_PLAN_WEEKS, sanitizePhases, sanitizePlanWeeks, type Phase } from '@/lib/board/phases';
 import { isIsoDate } from '@/lib/board/plan';
 import { sanitizeWidgets, type BoardWidget, type WidgetType } from '@/lib/board/widgets';
 
@@ -25,6 +25,8 @@ export interface BoardData {
   phases: Phase[];
   /** Fecha (AAAA-MM-DD) en la que empieza la semana 1 del plan, o null si no está anclado al calendario. */
   planStart: string | null;
+  /** Duración total del plan en semanas; al terminar vuelve a empezar. */
+  planWeeks: number;
   customTypes: CustomBlockType[];
 }
 
@@ -35,7 +37,7 @@ export async function getBoard(): Promise<BoardData> {
   const customTypes = (await db.select().from(blockTypes).where(eq(blockTypes.userId, userId))).map(
     ({ id, name, color, icon }) => ({ id, name, color, icon }),
   );
-  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], phases: [], planStart: null, customTypes };
+  if (!board) return { cycleDays: DEFAULT_CYCLE_DAYS, blocks: [], widgets: [], phases: [], planStart: null, planWeeks: DEFAULT_PLAN_WEEKS, customTypes };
 
   const rows = await db
     .select()
@@ -50,7 +52,8 @@ export async function getBoard(): Promise<BoardData> {
     customTypes,
     widgets,
     planStart: isIsoDate(board.planStart) ? board.planStart : null,
-    phases: sanitizePhases(phaseRows.map((p) => ({ ...p, kind: p.kind }))),
+    planWeeks: sanitizePlanWeeks(board.planWeeks),
+    phases: sanitizePhases(phaseRows.map((p) => ({ ...p, kind: p.kind })), sanitizePlanWeeks(board.planWeeks)),
     // Los bloques guardados con la disposición antigua (carriles fijos) se apilan al cargar.
     blocks: compactLanes(rows.filter((r) => r.kind === 'cycle').map((r) => ({
       id: r.id,
@@ -152,18 +155,19 @@ export async function saveWidgets(input: BoardWidget[]): Promise<void> {
 }
 
 /**
- * Guarda el plan: las fases (reemplaza todas) y la fecha de inicio. No toca el ciclo ni los widgets.
- * Una fecha que no sea AAAA-MM-DD real se guarda como «sin anclar».
+ * Guarda el plan: las fases (reemplaza todas), la fecha de inicio y la duración total. No toca el ciclo ni los widgets.
+ * Una fecha que no sea AAAA-MM-DD real se guarda como «sin anclar»; las fases se recortan a la duración.
  */
-export async function savePhases(input: { phases: Phase[]; planStart: string | null }): Promise<void> {
+export async function savePhases(input: { phases: Phase[]; planStart: string | null; planWeeks: number }): Promise<void> {
   const userId = await requireUserId();
-  const phases = sanitizePhases(input?.phases);
+  const planWeeks = sanitizePlanWeeks(input?.planWeeks);
+  const phases = sanitizePhases(input?.phases, planWeeks);
   const planStart = isIsoDate(input?.planStart) ? input.planStart : null;
 
   const [board] = await db
     .insert(boards)
-    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS, planStart })
-    .onConflictDoUpdate({ target: boards.userId, set: { planStart, updatedAt: new Date() } })
+    .values({ userId, cycleDays: DEFAULT_CYCLE_DAYS, planStart, planWeeks })
+    .onConflictDoUpdate({ target: boards.userId, set: { planStart, planWeeks, updatedAt: new Date() } })
     .returning({ id: boards.id });
 
   const clear = db.delete(boardPhases).where(and(eq(boardPhases.boardId, board.id), eq(boardPhases.userId, userId)));

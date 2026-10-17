@@ -12,9 +12,9 @@ afterEach(cleanup);
 const type = (kind: string) => PHASE_TYPES.find((t) => t.kind === kind)!;
 const phases: Phase[] = [phaseFromType(type('volume'), 'a', 0), phaseFromType(type('deload'), 'b', 6)];
 
-function setup(list = phases) {
-  const handlers = { onSelect: vi.fn(), onPhasesChange: vi.fn(), onCreateAt: vi.fn() };
-  render(<PhaseStrip origin={{ x: 0, y: 0 }} phases={list} selectedId={null} planStart={null} onPlanStartChange={vi.fn()} {...handlers} />);
+function setup(list = phases, planWeeks = 16) {
+  const handlers = { onSelect: vi.fn(), onPhasesChange: vi.fn(), onCreateAt: vi.fn(), onPlanWeeksChange: vi.fn() };
+  render(<PhaseStrip origin={{ x: 0, y: 0 }} phases={list} planWeeks={planWeeks} selectedId={null} planStart={null} onPlanStartChange={vi.fn()} {...handlers} />);
   return handlers;
 }
 
@@ -50,9 +50,45 @@ describe('PhaseStrip', () => {
     expect(onSelect).toHaveBeenCalledWith('a');
   });
 
-  it('el plan indica cuántas semanas ocupa', () => {
+  it('el plan indica su duración total y que se repite', () => {
     setup();
-    expect(screen.getByText(/Plan de 7 semanas/)).toBeTruthy();
+    expect(screen.getByText(/Plan de 16 semanas.*se repite al terminar/)).toBeTruthy();
+  });
+
+  it('la franja tiene exactamente una columna por semana del plan', () => {
+    setup(phases, 10);
+    const strip = screen.getByTestId('phase-strip');
+    expect(strip.style.width).toBe('400px');
+    expect(strip.querySelectorAll('[data-tick].absolute.top-0')).toHaveLength(10);
+  });
+
+  it('los botones piden alargar o acortar el plan y respetan los límites 1–52', () => {
+    const { onPlanWeeksChange } = setup(phases, 10);
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir semana al plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar semana al plan' }));
+    expect(onPlanWeeksChange.mock.calls).toEqual([[11], [9]]);
+    cleanup();
+    setup(phases, 1);
+    expect((screen.getByRole('button', { name: 'Quitar semana al plan' }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    setup(phases, 52);
+    expect((screen.getByRole('button', { name: 'Añadir semana al plan' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('una fase no se puede mover ni alargar más allá del final del plan', () => {
+    const { onPhasesChange } = setup([phaseFromType(type('volume'), 'a', 0), phaseFromType(type('deload'), 'b', 6)], 7);
+    const b = screen.getByRole('group', { name: 'Fase Descarga' });
+    fireEvent.keyDown(b, { key: 'ArrowRight' });
+    fireEvent.keyDown(b, { key: 'ArrowRight', shiftKey: true });
+    expect(onPhasesChange).not.toHaveBeenCalled();
+  });
+
+  it('la semana de hoy se cuenta dentro de la vuelta actual del plan', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-12-14T12:00:00')); // semana 10 desde el 12 oct: con un plan de 4 semanas, la 2
+    render(<PhaseStrip origin={{ x: 0, y: 0 }} phases={phases} planWeeks={4} selectedId={null} planStart="2026-10-12" onPlanStartChange={vi.fn()} onSelect={vi.fn()} onPhasesChange={vi.fn()} onCreateAt={vi.fn()} onPlanWeeksChange={vi.fn()} />);
+    expect(screen.getByText(/hoy: semana 2 de 4/)).toBeTruthy();
+    vi.useRealTimers();
   });
 
   const weeks = (call: Phase[]) => call.map((p) => [p.id, p.startWeek, p.weeks]);

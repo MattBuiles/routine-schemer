@@ -27,7 +27,9 @@ import {
   PHASE_TYPES,
   nextFreeStart,
   phaseFromType,
+  phasesBeyond,
   resizePhase,
+  resizePlan,
   type Phase,
   type PhaseTypeDef,
 } from '@/lib/board/phases';
@@ -50,6 +52,7 @@ interface BoardState {
   phases: Phase[];
   /** Fecha en la que empieza la semana 1 del plan (ancla las fases al calendario). */
   planStart: string | null;
+  planWeeks: number;
 }
 
 const WIDGET_ICONS: Record<WidgetType, LucideIcon> = { habits: ListChecks, notes: StickyNote, calendar: CalendarDays };
@@ -70,7 +73,7 @@ const STATUS_LABEL: Record<SaveStatus, string> = { idle: '', saving: 'Guardando�
 const snapshots = (state: BoardState) => ({
   cycle: JSON.stringify({ cycleDays: state.cycleDays, blocks: state.blocks }),
   widgets: JSON.stringify(state.widgets),
-  phases: JSON.stringify({ phases: state.phases, planStart: state.planStart }),
+  phases: JSON.stringify({ phases: state.phases, planStart: state.planStart, planWeeks: state.planWeeks }),
 });
 
 /** Lienzo del ciclo de entrenamiento: carga, edita y guarda el tablero del usuario. */
@@ -94,7 +97,7 @@ export default function BoardEngine() {
     getBoard()
       .then((board) => {
         if (cancelled) return;
-        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases, planStart: board.planStart };
+        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases, planStart: board.planStart, planWeeks: board.planWeeks };
         lastSaved.current = snapshots(state);
         setHistory(createHistory(state));
         setCustomTypes(board.customTypes);
@@ -130,7 +133,7 @@ export default function BoardEngine() {
             lastSaved.current = { ...lastSaved.current, widgets: snapshot.widgets };
           }
           if (phasesChanged) {
-            await savePhases({ phases: present.phases, planStart: present.planStart });
+            await savePhases({ phases: present.phases, planStart: present.planStart, planWeeks: present.planWeeks });
             lastSaved.current = { ...lastSaved.current, phases: snapshot.phases };
           }
           setStatus('saved');
@@ -229,6 +232,22 @@ export default function BoardEngine() {
     update({ ...present, ...resizeCycle(present.blocks, days) });
   };
 
+  const changePlanWeeks = async (weeks: number) => {
+    if (!present) return;
+    const removed = phasesBeyond(present.phases, weeks).filter((p) => p.startWeek >= weeks);
+    if (removed.length > 0) {
+      const ok = await confirm({
+        title: 'Acortar el plan',
+        message: `${removed.length === 1 ? 'Una fase empieza' : `${removed.length} fases empiezan`} después de la semana ${weeks} y se eliminará${removed.length === 1 ? '' : 'n'}.`,
+        confirmLabel: 'Acortar',
+      });
+      if (!ok) return;
+    }
+    const next = resizePlan(present.phases, weeks);
+    update({ ...present, ...next });
+    if (selectedPhase && !next.phases.some((p) => p.id === selectedPhase)) setSelectedPhase(null);
+  };
+
   const toggleWidget = (type: WidgetType) => {
     if (!present) return;
     const existing = present.widgets.find((w) => w.type === type);
@@ -261,15 +280,15 @@ export default function BoardEngine() {
 
   const addPhase = (type: PhaseTypeDef, atWeek?: number) => {
     if (!present) return;
-    const start = atWeek ?? nextFreeStart(present.phases, type.weeks) ?? nextFreeStart(present.phases, 1);
+    const start = atWeek ?? nextFreeStart(present.phases, type.weeks, present.planWeeks) ?? nextFreeStart(present.phases, 1, present.planWeeks);
     if (start === null || start === undefined) {
-      toast({ tone: 'info', message: 'El plan ya ocupa las 52 semanas.' });
+      toast({ tone: 'info', message: `El plan ya ocupa las ${present.planWeeks} semanas. Alárgalo con el botón + para añadir más fases.` });
       return;
     }
-    const phase = phaseFromType(type, crypto.randomUUID(), start);
+    const phase = phaseFromType(type, crypto.randomUUID(), start, present.planWeeks);
     // Un hueco intermedio puede ser más corto que la fase por defecto: se recorta para no pisar a la siguiente.
     const next = present.phases.filter((p) => p.startWeek >= start).sort((a, b) => a.startWeek - b.startWeek)[0];
-    const fits = { ...phase, weeks: Math.max(1, Math.min(phase.weeks, (next?.startWeek ?? 52) - start)) };
+    const fits = { ...phase, weeks: Math.max(1, Math.min(phase.weeks, (next?.startWeek ?? present.planWeeks) - start)) };
     if (present.phases.some((p) => p.startWeek < start + fits.weeks && start < p.startWeek + p.weeks)) {
       toast({ tone: 'info', message: 'Ahí ya hay una fase.' });
       return;
@@ -348,7 +367,7 @@ export default function BoardEngine() {
 
   // El calendario enseña el plan solo si tiene fecha de inicio.
   const plan: PlanAnchorWithBlocks | null = present.planStart
-    ? { planStart: present.planStart, cycleDays: present.cycleDays, phases: present.phases, blocks: present.blocks }
+    ? { planStart: present.planStart, cycleDays: present.cycleDays, planWeeks: present.planWeeks, phases: present.phases, blocks: present.blocks }
     : null;
 
   return (
@@ -364,6 +383,8 @@ export default function BoardEngine() {
         <PhaseStrip
           origin={STRIP_ORIGIN}
           phases={present.phases}
+          planWeeks={present.planWeeks}
+          onPlanWeeksChange={changePlanWeeks}
           selectedId={selectedPhase}
           onSelect={(id) => {
             setSelectedPhase(id);
@@ -455,8 +476,9 @@ export default function BoardEngine() {
         <PhasePanel
           key={selectedPhaseData.id}
           phase={selectedPhaseData}
+          planWeeks={present.planWeeks}
           exerciseSets={present.blocks.flatMap((b) => b.exercises.map((e) => e.sets))}
-          onResize={(weeks) => update({ ...present, phases: resizePhase(present.phases, selectedPhaseData.id, weeks) })}
+          onResize={(weeks) => update({ ...present, phases: resizePhase(present.phases, selectedPhaseData.id, weeks, present.planWeeks) })}
           onChange={patchPhase}
           onDelete={deletePhase}
           onClose={() => setSelectedPhase(null)}

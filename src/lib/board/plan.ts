@@ -1,5 +1,5 @@
 import type { CycleBlock } from './cycle';
-import { MAX_PLAN_WEEKS, phaseEnd, type Phase } from './phases';
+import { phaseEnd, type Phase } from './phases';
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86_400_000;
@@ -30,13 +30,15 @@ export function addDays(iso: string, days: number): string {
 export interface PlanAnchor {
   planStart: string;
   cycleDays: number;
+  /** Duración del plan: al acabar, vuelve a empezar. */
+  planWeeks: number;
   phases: Phase[];
 }
 
 export interface PlanPosition {
   /** Días desde el inicio del plan. */
   offset: number;
-  /** Semana del plan (desde 0). */
+  /** Semana del plan (desde 0), ya dentro de la vuelta actual del plan. */
   planWeek: number;
   /** Día del ciclo (desde 0): el ciclo se repite sin parar desde el inicio del plan. */
   cycleDay: number;
@@ -45,11 +47,11 @@ export interface PlanPosition {
   weekInPhase: number | null;
 }
 
-/** Dónde cae una fecha en el plan; null si es anterior al inicio o posterior a la semana 52. */
+/** Dónde cae una fecha en el plan; null si es anterior al inicio. El plan y el ciclo se repiten sin parar. */
 export function locateDate(plan: PlanAnchor, date: string): PlanPosition | null {
   const offset = daysBetween(plan.planStart, date);
-  if (offset < 0 || offset >= MAX_PLAN_WEEKS * 7) return null;
-  const planWeek = Math.floor(offset / 7);
+  if (offset < 0) return null;
+  const planWeek = Math.floor(offset / 7) % plan.planWeeks;
   const phase = plan.phases.find((p) => p.startWeek <= planWeek && planWeek < phaseEnd(p)) ?? null;
   return { offset, planWeek, cycleDay: offset % plan.cycleDays, phase, weekInPhase: phase ? planWeek - phase.startWeek : null };
 }
@@ -70,8 +72,8 @@ export function formatShort(iso: string): string {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es', { day: 'numeric', month: 'short', timeZone: 'UTC' }).replace('.', '');
 }
 
-/** Semana del plan (desde 0) a la que pertenece `today`, o null si queda fuera del plan. */
-export function planWeekOf(planStart: string, today: string): number | null {
+/** Semana del plan (desde 0) a la que pertenece `today` en la vuelta actual, o null si es anterior al inicio. */
+export function planWeekOf(planStart: string, today: string, planWeeks: number): number | null {
   const offset = daysBetween(planStart, today);
-  return offset >= 0 && offset < MAX_PLAN_WEEKS * 7 ? Math.floor(offset / 7) : null;
+  return offset >= 0 ? Math.floor(offset / 7) % planWeeks : null;
 }

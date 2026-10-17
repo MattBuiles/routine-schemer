@@ -2,16 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MAX_PHASES,
+  DEFAULT_PLAN_WEEKS,
   MAX_PLAN_WEEKS,
   PHASE_TYPES,
   movePhase,
   nextFreeStart,
   phaseFromType,
+  phasesBeyond,
   exerciseSetsInWeek,
   projectPhase,
   resizePhase,
   resizePhaseStart,
+  resizePlan,
   sanitizePhases,
+  sanitizePlanWeeks,
   type Phase,
 } from './phases';
 
@@ -152,5 +156,55 @@ describe('exerciseSetsInWeek', () => {
     const p = phase(1, 0, 4, { volumePct: 0, intensityPct: 0, rampSets: 0, rampLoad: 0, deloadLast: true });
     expect(exerciseSetsInWeek(p, 3, 5)).toEqual({ sets: 3, loadPct: 90, deload: true });
     expect(exerciseSetsInWeek(p, 2, 5)).toEqual({ sets: 5, loadPct: 100, deload: false });
+  });
+});
+
+describe('duración total del plan', () => {
+  it('sanitizePlanWeeks limita a 1–52 y usa el valor por defecto si no es un número', () => {
+    expect([0, 1, 12, 52, 99, -3, 7.5].map(sanitizePlanWeeks)).toEqual([1, 1, 12, 52, 52, 1, 8]);
+    for (const bad of ['12', null, undefined, NaN, Infinity, {}]) expect(sanitizePlanWeeks(bad)).toBe(DEFAULT_PLAN_WEEKS);
+  });
+
+  it('resizePlan elimina las fases que empiezan fuera y recorta las que cruzan el final', () => {
+    const phases = [phase(1, 0, 4), phase(2, 4, 4), phase(3, 8, 2)];
+    const r = resizePlan(phases, 6);
+    expect(r.planWeeks).toBe(6);
+    expect(r.phases.map((p) => [p.id, p.startWeek, p.weeks])).toEqual([[id(1), 0, 4], [id(2), 4, 2]]);
+  });
+
+  it('resizePlan al alargar no toca las fases y limita la duración a 1–52', () => {
+    const phases = [phase(1, 0, 4)];
+    expect(resizePlan(phases, 20).phases).toEqual(phases);
+    expect(resizePlan(phases, 0).planWeeks).toBe(1);
+    expect(resizePlan(phases, 99).planWeeks).toBe(MAX_PLAN_WEEKS);
+    expect(resizePlan(phases, 1).phases.map((p) => [p.startWeek, p.weeks])).toEqual([[0, 1]]);
+  });
+
+  it('phasesBeyond avisa de las fases afectadas por acortar el plan', () => {
+    const phases = [phase(1, 0, 4), phase(2, 4, 4)];
+    expect(phasesBeyond(phases, 6).map((p) => p.id)).toEqual([id(2)]);
+    expect(phasesBeyond(phases, 8)).toEqual([]);
+  });
+
+  it('mover, alargar y crear fases respetan el final del plan', () => {
+    const phases = [phase(1, 0, 3), phase(2, 3, 2)];
+    expect(movePhase(phases, id(2), 9, 6)?.find((p) => p.id === id(2))?.startWeek).toBe(4);
+    expect(resizePhase(phases, id(2), 10, 6).find((p) => p.id === id(2))?.weeks).toBe(3);
+    expect(nextFreeStart(phases, 1, 5)).toBeNull();
+    expect(nextFreeStart(phases, 1, 6)).toBe(5);
+    expect(phaseFromType(type('volume'), id(9), 4, 6).weeks).toBe(2);
+  });
+
+  it('empujar a las contiguas no las saca del plan: si no caben, la fase se queda en el máximo', () => {
+    const phases = [phase(1, 0, 2), phase(2, 2, 2)];
+    const r = resizePhase(phases, id(1), 9, 6);
+    expect(phaseEndMax(r)).toBeLessThanOrEqual(6);
+    expect(r.find((p) => p.id === id(1))?.weeks).toBe(4);
+  });
+
+  it('sanitizePhases recorta a la duración recibida', () => {
+    const input = [phase(1, 0, 4), phase(2, 4, 4), phase(3, 9, 2)];
+    expect(sanitizePhases(input, 6).map((p) => [p.startWeek, p.weeks])).toEqual([[0, 4], [4, 2]]);
+    expect(sanitizePhases(input).map((p) => [p.startWeek, p.weeks])).toEqual([[0, 4], [4, 4], [9, 2]]);
   });
 });

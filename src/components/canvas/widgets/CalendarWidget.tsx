@@ -140,7 +140,7 @@ export default function CalendarWidget({ plan = null }: { plan?: PlanAnchorWithB
         )}
       </div>
 
-      {plan ? <PlanDay plan={plan} date={selected} position={here} /> : (
+      {plan ? <PlanDay plan={plan} position={here} /> : (
         <p className="text-xs text-muted">Fija el inicio del plan en la franja de fases para verlo aquí.</p>
       )}
 
@@ -172,11 +172,11 @@ export default function CalendarWidget({ plan = null }: { plan?: PlanAnchorWithB
 }
 
 /** Qué toca un día según el plan: fase, semana, día del ciclo, sus bloques y los ejercicios con las series de esa semana. */
-function PlanDay({ plan, date, position }: { plan: PlanAnchorWithBlocks; date: string; position: ReturnType<typeof locateDate> }) {
+function PlanDay({ plan, position }: { plan: PlanAnchorWithBlocks; position: ReturnType<typeof locateDate> }) {
   if (!position) {
     return (
       <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">
-        {date < plan.planStart ? `Antes del inicio del plan (empieza el ${formatShort(plan.planStart)}).` : 'Después de las 52 semanas del plan.'}
+        Antes del inicio del plan (empieza el {formatShort(plan.planStart)}).
       </p>
     );
   }
