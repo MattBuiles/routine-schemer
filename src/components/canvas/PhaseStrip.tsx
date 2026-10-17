@@ -92,7 +92,7 @@ export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChang
   return (
     <div className="absolute" style={{ left: origin.x, top: origin.y }}>
       <div
-        className="absolute -top-11 left-0 flex items-center gap-2 text-xs text-muted"
+        className="absolute -top-11 left-0 flex items-center gap-2 whitespace-nowrap text-xs text-muted"
         onPointerDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >
@@ -216,7 +216,7 @@ export default function PhaseStrip({ origin, phases, planWeeks, onPlanWeeksChang
             <Minus className="h-4 w-4" />
           </button>
         </div>
-      <p className="mt-2 text-xs text-muted">
+      <p className="mt-2 whitespace-nowrap text-xs text-muted">
         Plan de {planWeeks} {planWeeks === 1 ? 'semana' : 'semanas'} · cada fase repite el ciclo · se repite al terminar
         {planStart && todayWeek !== null && ` · hoy: semana ${todayWeek + 1} de ${planWeeks}`}
         {planStart && todayWeek === null && ' · el plan aún no ha empezado'}

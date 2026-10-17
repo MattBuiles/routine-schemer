@@ -1,25 +1,27 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ListChecks, Redo2, StickyNote, Undo2, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ListChecks, Plus, Redo2, StickyNote, Undo2, type LucideIcon } from 'lucide-react';
 import { Alert, Skeleton, ThemeToggle, useConfirm, useToast } from 'strata';
 
 import { authClient } from '@/lib/auth/client';
 
-import { createBlockType, deleteBlockType, getBoard, saveCycle, saveWidgets, savePhases, type CustomBlockType } from '@/app/actions/board';
+import { createBlockType, deleteBlockType, getBoard, saveCycles, saveWidgets, savePhases, type CustomBlockType } from '@/app/actions/board';
 import {
-  HEADER_H,
-  LANE_H,
-  MAX_LANES,
+  CYCLE_FOOT_H,
+  MAX_CYCLES,
   blockFromType,
   blocksBeyond,
   cellAt,
+  cycleHeight,
+  cycleTops,
   findFreeSlot,
   stackBlocks,
   resizeCycle,
   resolveTypes,
   type BlockTypeDef,
   type CycleBlock,
+  type CycleDef,
 } from '@/lib/board/cycle';
 import { commit, commitFrom, createHistory, redo, replace, undo, type History } from '@/lib/board/history';
 import type { Rect } from '@/lib/board/geometry';
@@ -46,7 +48,7 @@ import HabitsWidget from './widgets/HabitsWidget';
 import NotesWidget from './widgets/NotesWidget';
 
 interface BoardState {
-  cycleDays: number;
+  cycles: CycleDef[];
   blocks: CycleBlock[];
   widgets: BoardWidget[];
   phases: Phase[];
@@ -63,7 +65,17 @@ const WIDGET_BODIES: Record<WidgetType, (plan: PlanAnchorWithBlocks | null) => R
 };
 // La franja de fases va sobre la zona del ciclo y los widgets nacen bajo ella.
 const STRIP_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y - 150 };
-const WIDGET_ORIGIN = { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y + HEADER_H + MAX_LANES * LANE_H + 80 };
+
+/** Bloques de un ciclo con los de ese ciclo sustituidos por `next` (los de los demás ciclos no cambian). */
+const withCycleBlocks = (blocks: CycleBlock[], cycleId: string, next: CycleBlock[]) => [...blocks.filter((b) => b.cycleId !== cycleId), ...next];
+
+/** Bajo todos los ciclos nacen los widgets nuevos. */
+const widgetOrigin = (state: Pick<BoardState, 'cycles' | 'blocks'>) => {
+  const tops = cycleTops(state.cycles, state.blocks);
+  const last = state.cycles[state.cycles.length - 1];
+  const bottom = tops[tops.length - 1] + cycleHeight(state.blocks.filter((b) => b.cycleId === last.id)) + CYCLE_FOOT_H;
+  return { x: ZONE_ORIGIN.x, y: ZONE_ORIGIN.y + bottom + 80 };
+};
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -71,7 +83,7 @@ const SAVE_DELAY_MS = 800;
 const STATUS_LABEL: Record<SaveStatus, string> = { idle: '', saving: 'Guardando…', saved: 'Guardado', error: 'Sin guardar' };
 
 const snapshots = (state: BoardState) => ({
-  cycle: JSON.stringify({ cycleDays: state.cycleDays, blocks: state.blocks }),
+  cycle: JSON.stringify({ cycles: state.cycles, blocks: state.blocks }),
   widgets: JSON.stringify(state.widgets),
   phases: JSON.stringify({ phases: state.phases, planStart: state.planStart, planWeeks: state.planWeeks }),
 });
@@ -97,7 +109,7 @@ export default function BoardEngine() {
     getBoard()
       .then((board) => {
         if (cancelled) return;
-        const state = { cycleDays: board.cycleDays, blocks: board.blocks, widgets: board.widgets, phases: board.phases, planStart: board.planStart, planWeeks: board.planWeeks };
+        const state = { cycles: board.cycles, blocks: board.blocks, widgets: board.widgets, phases: board.phases, planStart: board.planStart, planWeeks: board.planWeeks };
         lastSaved.current = snapshots(state);
         setHistory(createHistory(state));
         setCustomTypes(board.customTypes);
@@ -125,7 +137,7 @@ export default function BoardEngine() {
       saving.current = saving.current
         .then(async () => {
           if (cycleChanged) {
-            await saveCycle({ cycleDays: present.cycleDays, blocks: present.blocks });
+            await saveCycles({ cycles: present.cycles, blocks: present.blocks });
             lastSaved.current = { ...lastSaved.current, cycle: snapshot.cycle };
           }
           if (widgetsChanged) {
@@ -161,30 +173,41 @@ export default function BoardEngine() {
   const addBlock = useCallback(
     (block: CycleBlock | null) => {
       if (!present) return;
-      const stacked = block && stackBlocks(present.blocks, block);
+      const stacked = block && stackBlocks(present.blocks.filter((b) => b.cycleId === block.cycleId), block);
       if (!block || !stacked) {
         toast({ tone: 'info', message: 'No queda hueco para otro bloque en ese día.' });
         return;
       }
-      update({ ...present, blocks: stacked });
+      update({ ...present, blocks: withCycleBlocks(present.blocks, block.cycleId, stacked) });
       setSelectedId(block.id);
     },
     [present, toast, update],
   );
 
+  // Los bloques nuevos de la paleta van al ciclo del bloque seleccionado y, si no hay, al primero.
   const onAddType = useCallback(
     (type: BlockTypeDef) => {
       if (!present) return;
-      const slot = findFreeSlot(present.blocks, present.cycleDays);
-      addBlock(slot ? blockFromType(type, crypto.randomUUID(), slot.dayStart, slot.lane) : null);
+      const cycle = present.cycles.find((c) => c.id === present.blocks.find((b) => b.id === selectedId)?.cycleId) ?? present.cycles[0];
+      const slot = findFreeSlot(present.blocks.filter((b) => b.cycleId === cycle.id), cycle.days, 1, cycle.id);
+      addBlock(slot ? blockFromType(type, crypto.randomUUID(), slot.dayStart, slot.lane, cycle.id) : null);
     },
-    [addBlock, present],
+    [addBlock, present, selectedId],
   );
 
+  /** Ciclo, día y orden de inserción bajo un punto de la pantalla (null si no cae en ninguna zona). */
   const cellUnder = useCallback(
     (clientX: number, clientY: number) => {
       const world = apiRef.current?.toWorld(clientX, clientY);
-      return world && present ? cellAt(world.x - ZONE_ORIGIN.x, world.y - ZONE_ORIGIN.y, present.cycleDays) : null;
+      if (!world || !present) return null;
+      const tops = cycleTops(present.cycles, present.blocks);
+      for (const [i, cycle] of present.cycles.entries()) {
+        const y = world.y - ZONE_ORIGIN.y - tops[i];
+        if (y < 0 || y >= cycleHeight(present.blocks.filter((b) => b.cycleId === cycle.id))) continue;
+        const cell = cellAt(world.x - ZONE_ORIGIN.x, y, cycle.days);
+        return cell && { ...cell, cycleId: cycle.id };
+      }
+      return null;
     },
     [present],
   );
@@ -194,8 +217,9 @@ export default function BoardEngine() {
       const cell = type ? cellUnder(clientX, clientY) : null;
       if (!type || !cell || !present) return setDropPreview(null);
       // La vista previa muestra dónde caerá de verdad en la pila de ese día.
-      const landing = stackBlocks(present.blocks, blockFromType(type, 'preview', cell.dayStart, cell.order))?.find((b) => b.id === 'preview');
-      setDropPreview(landing ? { dayStart: landing.dayStart, lane: landing.lane, color: type.color, label: type.label, icon: type.icon } : null);
+      const mine = present.blocks.filter((b) => b.cycleId === cell.cycleId);
+      const landing = stackBlocks(mine, blockFromType(type, 'preview', cell.dayStart, cell.order, cell.cycleId))?.find((b) => b.id === 'preview');
+      setDropPreview(landing ? { cycleId: cell.cycleId, dayStart: landing.dayStart, lane: landing.lane, color: type.color, label: type.label, icon: type.icon } : null);
     },
     [cellUnder, present],
   );
@@ -203,7 +227,7 @@ export default function BoardEngine() {
   const onDropType = useCallback(
     (type: BlockTypeDef, clientX: number, clientY: number) => {
       const cell = cellUnder(clientX, clientY);
-      if (cell) addBlock(blockFromType(type, crypto.randomUUID(), cell.dayStart, cell.order));
+      if (cell) addBlock(blockFromType(type, crypto.randomUUID(), cell.dayStart, cell.order, cell.cycleId));
     },
     [addBlock, cellUnder],
   );
@@ -217,10 +241,10 @@ export default function BoardEngine() {
     [present, update],
   );
 
-  const changeCycleDays = async (days: number) => {
+  const changeCycleDays = async (cycleId: string, days: number) => {
     if (!present) return;
-    const lost = blocksBeyond(present.blocks, days);
-    const removed = lost.filter((b) => b.dayStart >= days).length;
+    const mine = present.blocks.filter((b) => b.cycleId === cycleId);
+    const removed = blocksBeyond(mine, days).filter((b) => b.dayStart >= days).length;
     if (removed > 0) {
       const ok = await confirm({
         title: 'Acortar el ciclo',
@@ -229,7 +253,41 @@ export default function BoardEngine() {
       });
       if (!ok) return;
     }
-    update({ ...present, ...resizeCycle(present.blocks, days) });
+    const next = resizeCycle(mine, days);
+    update({
+      ...present,
+      cycles: present.cycles.map((c) => (c.id === cycleId ? { ...c, days: next.cycleDays } : c)),
+      blocks: withCycleBlocks(present.blocks, cycleId, next.blocks),
+    });
+  };
+
+  const addCycle = () => {
+    if (!present) return;
+    if (present.cycles.length >= MAX_CYCLES) {
+      toast({ tone: 'info', message: `Puedes tener hasta ${MAX_CYCLES} ciclos.` });
+      return;
+    }
+    update({ ...present, cycles: [...present.cycles, { id: crypto.randomUUID(), name: `Ciclo ${present.cycles.length + 1}`, days: 7 }] });
+  };
+
+  const renameCycle = (cycleId: string, name: string) => {
+    if (!present) return;
+    update({ ...present, cycles: present.cycles.map((c) => (c.id === cycleId ? { ...c, name } : c)) });
+  };
+
+  const deleteCycle = async (cycleId: string) => {
+    if (!present || present.cycles.length <= 1) return;
+    const cycle = present.cycles.find((c) => c.id === cycleId);
+    if (!cycle) return;
+    const count = present.blocks.filter((b) => b.cycleId === cycleId).length;
+    const ok = await confirm({
+      title: 'Eliminar el ciclo',
+      message: `Se eliminará el ciclo «${cycle.name}»${count > 0 ? ` y ${count === 1 ? 'su bloque' : `sus ${count} bloques`}` : ''}.`,
+      confirmLabel: 'Eliminar',
+    });
+    if (!ok) return;
+    update({ ...present, cycles: present.cycles.filter((c) => c.id !== cycleId), blocks: present.blocks.filter((b) => b.cycleId !== cycleId) });
+    if (present.blocks.find((b) => b.id === selectedId)?.cycleId === cycleId) setSelectedId(null);
   };
 
   const changePlanWeeks = async (weeks: number) => {
@@ -256,7 +314,7 @@ export default function BoardEngine() {
       setSelectedWidget(null);
       return;
     }
-    const widget: BoardWidget = { id: crypto.randomUUID(), type, ...defaultWidgetRect(type, present.widgets, WIDGET_ORIGIN) };
+    const widget: BoardWidget = { id: crypto.randomUUID(), type, ...defaultWidgetRect(type, present.widgets, widgetOrigin(present)) };
     update({ ...present, widgets: [...present.widgets, widget] });
     setSelectedWidget(widget.id);
     setSelectedId(null);
@@ -365,9 +423,13 @@ export default function BoardEngine() {
   }
   if (!history || !present) return <Skeleton className="h-screen w-full" />;
 
+  const tops = cycleTops(present.cycles, present.blocks);
+  const lastCycle = present.cycles[present.cycles.length - 1];
+  const addCycleTop = tops[tops.length - 1] + cycleHeight(present.blocks.filter((b) => b.cycleId === lastCycle.id)) + CYCLE_FOOT_H - 4;
+
   // El calendario enseña el plan solo si tiene fecha de inicio.
   const plan: PlanAnchorWithBlocks | null = present.planStart
-    ? { planStart: present.planStart, cycleDays: present.cycleDays, planWeeks: present.planWeeks, phases: present.phases, blocks: present.blocks }
+    ? { planStart: present.planStart, cycles: present.cycles, planWeeks: present.planWeeks, phases: present.phases, blocks: present.blocks }
     : null;
 
   return (
@@ -398,23 +460,42 @@ export default function BoardEngine() {
           planStart={present.planStart}
           onPlanStartChange={(planStart) => update({ ...present, planStart })}
         />
-        <CycleZone
-          cycleDays={present.cycleDays}
-          blocks={present.blocks}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            setSelectedId(id);
-            if (id) {
-              setSelectedWidget(null);
-              setSelectedPhase(null);
-            }
-          }}
-          onBlocksChange={(blocks) => update({ ...present, blocks })}
-          onDelete={deleteBlock}
-          onCycleDaysChange={changeCycleDays}
-          dropPreview={dropPreview}
-          onCreateAt={(dayStart, lane) => addBlock(blockFromType(types.find((t) => t.key === 'free')!, crypto.randomUUID(), dayStart, lane))}
-        />
+        {present.cycles.map((cycle, i) => (
+          <CycleZone
+            key={cycle.id}
+            cycle={cycle}
+            top={tops[i]}
+            blocks={present.blocks.filter((b) => b.cycleId === cycle.id)}
+            selectedId={selectedId}
+            onSelect={(id) => {
+              setSelectedId(id);
+              if (id) {
+                setSelectedWidget(null);
+                setSelectedPhase(null);
+              }
+            }}
+            onBlocksChange={(next) => update({ ...present, blocks: withCycleBlocks(present.blocks, cycle.id, next) })}
+            onDelete={deleteBlock}
+            onCycleDaysChange={(days) => changeCycleDays(cycle.id, days)}
+            onNameChange={(name) => renameCycle(cycle.id, name)}
+            onDeleteCycle={present.cycles.length > 1 ? () => deleteCycle(cycle.id) : undefined}
+            dropPreview={dropPreview}
+            onCreateAt={(dayStart, lane) => addBlock(blockFromType(types.find((t) => t.key === 'free')!, crypto.randomUUID(), dayStart, lane, cycle.id))}
+          />
+        ))}
+        {present.cycles.length < MAX_CYCLES && (
+          <button
+            type="button"
+            className="absolute flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-border bg-surface/70 px-3 py-2 text-sm text-muted hover:text-fg"
+            style={{ left: ZONE_ORIGIN.x, top: ZONE_ORIGIN.y + addCycleTop }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onClick={addCycle}
+          >
+            <Plus className="h-4 w-4" />
+            Añadir ciclo
+          </button>
+        )}
         {present.widgets.map((w) => {
           const Icon = WIDGET_ICONS[w.type];
           return (

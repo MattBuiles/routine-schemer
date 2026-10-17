@@ -111,12 +111,12 @@ describe('CalendarWidget', () => {
 
 describe('CalendarWidget · plan anclado', () => {
   const block = (id: string, label: string, dayStart: number, daySpan: number, exercises = [] as { exerciseId: string; name: string; sets: number; reps: string; notes: string }[]) => ({
-    id, label, color: '#dc2626', blockType: 'strength', dayStart, daySpan, lane: 0, load: 3, zones: [], notes: '', icon: 'dumbbell', exercises,
+    id, cycleId: 'c1', label, color: '#dc2626', blockType: 'strength', dayStart, daySpan, lane: 0, zones: [], notes: '', icon: 'dumbbell', exercises,
   });
   const phase = (over = {}) => ({ id: 'p1', name: 'Volumen', kind: 'volume' as const, startWeek: 0, weeks: 4, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: true, ...over });
   const press = { exerciseId: 'e1', name: 'Press de Banca', sets: 3, reps: '8-12', notes: '' };
   // El plan arranca el lunes 12 de octubre: hoy (jueves 15) es el día 4 del plan, semana 1.
-  const anchor = (over = {}) => ({ planStart: '2026-10-12', cycleDays: 7, planWeeks: 8, phases: [phase()], blocks: [block('b1', 'Empuje', 3, 1, [press]), block('b2', 'Tirón', 0, 2)], ...over });
+  const anchor = (over = {}) => ({ planStart: '2026-10-12', cycles: [{ id: 'c1', name: 'Gimnasio', days: 7 }], planWeeks: 8, phases: [phase()], blocks: [block('b1', 'Empuje', 3, 1, [press]), block('b2', 'Tirón', 0, 2)], ...over });
 
   it('sin plan lo explica y no pinta fases', async () => {
     renderWithStrata(<CalendarWidget />);
@@ -162,6 +162,33 @@ describe('CalendarWidget · plan anclado', () => {
     expect(screen.getByText('Nada planificado este día del ciclo.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '2026-10-05' }));
     expect(screen.getByText(/Antes del inicio del plan \(empieza el 12 oct\)/)).toBeTruthy();
+  });
+
+  it('con varios ciclos, cada uno enseña su día y sus bloques según su propia duración', async () => {
+    // Hoy (jueves 15) es el día 4 del plan: el gimnasio de 7 días va por el día 4 y el cardio de 5 por el 4 también;
+    // el sábado 17 (día 6) el gimnasio va por el 6 y el cardio ya empezó su segunda vuelta (día 1).
+    const cardio = { ...block('b3', 'Carrera', 0, 1), cycleId: 'c2' };
+    renderWithStrata(<CalendarWidget plan={anchor({ cycles: [{ id: 'c1', name: 'Gimnasio', days: 7 }, { id: 'c2', name: 'Cardio', days: 5 }], blocks: [block('b1', 'Empuje', 3, 1), cardio] })} />);
+    await screen.findByText('Pierna');
+    let day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('GimnasioDía 4 de 7');
+    expect(day.textContent).toContain('CardioDía 4 de 5');
+    expect(day.textContent).toContain('Empuje');
+    expect(day.textContent).not.toContain('Carrera');
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-17' }));
+    day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('GimnasioDía 6 de 7');
+    expect(day.textContent).toContain('CardioDía 1 de 5');
+    expect(day.textContent).toContain('Carrera');
+    expect(day.textContent).not.toContain('Día 6 del ciclo');
+  });
+
+  it('con un solo ciclo no repite su nombre y mantiene «Día N del ciclo»', async () => {
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    await screen.findByText('Pierna');
+    const day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('Día 4 del ciclo');
+    expect(day.textContent).not.toContain('Gimnasio');
   });
 
   it('el plan se repite al terminar: pasadas sus semanas vuelve a empezar con su fase', async () => {

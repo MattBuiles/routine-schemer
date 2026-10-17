@@ -1,4 +1,21 @@
-import { BLOCK_ICONS, MAX_EXERCISES, MAX_LANES, MAX_SETS, MAX_ZONES, compactLanes, defaultIconFor, resizeCycle, type BlockExercise, type CycleBlock } from './cycle';
+import {
+  BLOCK_ICONS,
+  MAX_CYCLES,
+  MAX_CYCLE_DAYS,
+  MAX_CYCLE_NAME,
+  MAX_EXERCISES,
+  MAX_LANES,
+  MAX_SETS,
+  MAX_ZONES,
+  MIN_CYCLE_DAYS,
+  DEFAULT_CYCLE_DAYS,
+  compactLanes,
+  defaultIconFor,
+  resizeCycle,
+  type BlockExercise,
+  type CycleBlock,
+  type CycleDef,
+} from './cycle';
 import { clamp } from './geometry';
 
 export const MAX_BLOCKS = 100;
@@ -46,9 +63,10 @@ export function sanitizeExercises(value: unknown): BlockExercise[] {
 
 /**
  * Normaliza el ciclo recibido del cliente (JSON no confiable): descarta entradas inválidas,
- * limita rangos y resuelve solapes. El resultado siempre es seguro para guardar.
+ * limita rangos y resuelve solapes. El resultado siempre es seguro para guardar. Los bloques
+ * resultantes pertenecen al ciclo `cycleId`, sea cual sea el que traigan.
  */
-export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: CycleBlock[] } {
+export function sanitizeCycle(input: unknown, cycleId = ''): { cycleDays: number; blocks: CycleBlock[] } {
   const raw = (input ?? {}) as { cycleDays?: unknown; blocks?: unknown };
   const cycleDays = int(raw.cycleDays, 1, 28, 7);
   const list = Array.isArray(raw.blocks) ? raw.blocks.slice(0, MAX_BLOCKS) : [];
@@ -62,6 +80,7 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
     const blockType = text(item.blockType, 40) || 'free';
     const block: CycleBlock = {
       id: item.id.toLowerCase(),
+      cycleId,
       label: text(item.label, 60),
       color: isHexColor(item.color) ? item.color : '#3b82f6',
       blockType,
@@ -77,4 +96,42 @@ export function sanitizeCycle(input: unknown): { cycleDays: number; blocks: Cycl
   }
   // La fila que manda el cliente solo marca el orden: se apilan y se descarta lo que no cabe.
   return resizeCycle(compactLanes(blocks).filter((b) => b.lane < MAX_LANES), cycleDays);
+}
+
+export const DEFAULT_CYCLE_NAME = 'Gimnasio';
+
+/**
+ * Normaliza los ciclos y los bloques recibidos del cliente: hasta MAX_CYCLES ciclos con id válido y sin repetir,
+ * nombre y duración acotados, y cada bloque en el ciclo al que apunta (los que apuntan a uno inexistente se
+ * descartan, y un id de bloque solo puede aparecer una vez en todo el tablero). Sin ciclos válidos devuelve uno
+ * vacío con id nuevo.
+ */
+export function sanitizeCycles(input: unknown): { cycles: CycleDef[]; blocks: CycleBlock[] } {
+  const raw = (input ?? {}) as { cycles?: unknown; blocks?: unknown };
+  const seen = new Set<string>();
+  const cycles: CycleDef[] = [];
+  for (const item of (Array.isArray(raw.cycles) ? raw.cycles : []).slice(0, MAX_CYCLES) as Record<string, unknown>[]) {
+    if (!item || !isUuid(item.id) || seen.has(item.id.toLowerCase())) continue;
+    seen.add(item.id.toLowerCase());
+    cycles.push({
+      id: item.id.toLowerCase(),
+      name: text(item.name, MAX_CYCLE_NAME) || 'Ciclo',
+      days: int(item.days, MIN_CYCLE_DAYS, MAX_CYCLE_DAYS, DEFAULT_CYCLE_DAYS),
+    });
+  }
+  if (cycles.length === 0) return { cycles: [{ id: crypto.randomUUID(), name: DEFAULT_CYCLE_NAME, days: DEFAULT_CYCLE_DAYS }], blocks: [] };
+
+  const seenBlocks = new Set<string>();
+  const list = (Array.isArray(raw.blocks) ? raw.blocks : []).filter((b: unknown): b is Record<string, unknown> => {
+    const item = b as Record<string, unknown> | null;
+    if (!item || !isUuid(item.id) || seenBlocks.has(item.id.toLowerCase())) return false;
+    seenBlocks.add(item.id.toLowerCase());
+    return true;
+  });
+  const blocks = cycles
+    .flatMap((c) =>
+      sanitizeCycle({ cycleDays: c.days, blocks: list.filter((b) => typeof b.cycleId === 'string' && b.cycleId.toLowerCase() === c.id) }, c.id).blocks,
+    )
+    .slice(0, MAX_BLOCKS);
+  return { cycles, blocks };
 }

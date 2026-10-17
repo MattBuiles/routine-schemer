@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { MAX_LANES } from './cycle';
-import { MAX_BLOCKS, sanitizeCycle, sanitizeExercises } from './sanitize';
+import { MAX_BLOCKS, sanitizeCycle, sanitizeCycles, sanitizeExercises } from './sanitize';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const raw = (over: Record<string, unknown> = {}) => ({ id: id(1), label: 'Push', color: '#112233', blockType: 'strength', dayStart: 0, daySpan: 1, lane: 0, ...over });
@@ -65,7 +65,7 @@ describe('sanitizeCycle', () => {
 
   it('ignora claves ajenas y limita la cantidad de bloques', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), userId: 'atacante', boardId: 'x' }] }).blocks;
-    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'notes', 'zones']);
+    expect(Object.keys(b).sort()).toEqual(['blockType', 'color', 'cycleId', 'daySpan', 'dayStart', 'exercises', 'icon', 'id', 'label', 'lane', 'notes', 'zones']);
     const many = Array.from({ length: MAX_BLOCKS + 50 }, (_, i) => raw({ id: id(i + 1), dayStart: i % 28 }));
     expect(sanitizeCycle({ cycleDays: 28, blocks: many }).blocks.length).toBeLessThanOrEqual(MAX_BLOCKS);
   });
@@ -101,5 +101,71 @@ describe('sanitizeExercises', () => {
   it('se aplica dentro de sanitizeCycle', () => {
     const [b] = sanitizeCycle({ cycleDays: 7, blocks: [{ ...raw(), exercises: [ex(), { exerciseId: 'x' }] }] }).blocks;
     expect(b.exercises).toHaveLength(1);
+  });
+});
+
+describe('sanitizeCycles', () => {
+  const cyc = (n: number, over: Record<string, unknown> = {}) => ({ id: id(900 + n), name: `Ciclo ${n}`, days: 7, ...over });
+  const inCycle = (n: number, over: Record<string, unknown> = {}) => raw({ cycleId: id(900 + n), ...over });
+
+  it('cada bloque va a su ciclo y se apila solo con los de ese ciclo', () => {
+    const out = sanitizeCycles({
+      cycles: [cyc(1), cyc(2, { days: 5 })],
+      blocks: [inCycle(1, { id: id(1) }), inCycle(1, { id: id(2) }), inCycle(2, { id: id(3) })],
+    });
+    expect(out.cycles.map((c) => [c.name, c.days])).toEqual([['Ciclo 1', 7], ['Ciclo 2', 5]]);
+    expect(out.blocks.map((b) => [b.id, b.cycleId, b.lane])).toEqual([[id(1), id(901), 0], [id(2), id(901), 1], [id(3), id(902), 0]]);
+  });
+
+  it('recorta los bloques a la duración de su propio ciclo', () => {
+    const out = sanitizeCycles({ cycles: [cyc(1), cyc(2, { days: 3 })], blocks: [inCycle(1, { id: id(1), dayStart: 5 }), inCycle(2, { id: id(2), dayStart: 5 })] });
+    // Cada bloque se ajusta a la duración de su ciclo: en el de 3 días no puede empezar más allá del día 3.
+    expect(out.blocks.map((b) => [b.id, b.dayStart])).toEqual([[id(1), 5], [id(2), 2]]);
+  });
+
+  it('acota nombre y duración, descarta ids inválidos o repetidos y limita a 5 ciclos', () => {
+    const out = sanitizeCycles({
+      cycles: [cyc(1, { name: '  x'.repeat(50), days: 99 }), cyc(1), cyc(2, { id: 'no-uuid' }), cyc(3, { days: 'x', name: '   ' })],
+      blocks: [],
+    });
+    expect(out.cycles).toHaveLength(2);
+    expect(out.cycles[0]).toMatchObject({ days: 28 });
+    expect(out.cycles[0].name.length).toBeLessThanOrEqual(40);
+    expect(out.cycles[1]).toMatchObject({ id: id(903), name: 'Ciclo', days: 7 });
+  });
+
+  it('no admite más de 5 ciclos', () => {
+    const out = sanitizeCycles({ cycles: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => cyc(n)), blocks: [] });
+    expect(out.cycles.map((c) => c.id)).toEqual([1, 2, 3, 4, 5].map((n) => id(900 + n)));
+  });
+
+  it('un id de bloque solo vale una vez en todo el tablero y no se aceptan bloques sin ciclo válido', () => {
+    const out = sanitizeCycles({
+      cycles: [cyc(1), cyc(2)],
+      blocks: [inCycle(1, { id: id(1) }), inCycle(2, { id: id(1) }), raw({ id: id(2) }), inCycle(9, { id: id(3) }), { ...inCycle(1, { id: id(4) }), cycleId: 7 }],
+    });
+    expect(out.blocks.map((b) => [b.id, b.cycleId])).toEqual([[id(1), id(901)]]);
+  });
+
+  it('sin ciclos válidos devuelve uno por defecto vacío', () => {
+    for (const bad of [null, undefined, {}, { cycles: 'x' }, { cycles: [{ id: 'no' }] }]) {
+      const out = sanitizeCycles(bad);
+      expect(out.cycles).toHaveLength(1);
+      expect(out.cycles[0]).toMatchObject({ name: 'Gimnasio', days: 7 });
+      expect(out.blocks).toEqual([]);
+    }
+  });
+
+  it('el id del ciclo se compara sin importar mayúsculas y los bloques heredan el id en minúsculas', () => {
+    const upper = id(901).toUpperCase().replace('X', 'x');
+    const out = sanitizeCycles({ cycles: [{ id: upper, name: 'A', days: 7 }], blocks: [raw({ id: id(1), cycleId: upper })] });
+    expect(out.blocks[0].cycleId).toBe(id(901));
+  });
+});
+
+describe('sanitizeCycle con ciclo', () => {
+  it('pone el cycleId recibido en todos los bloques, ignorando el del cliente', () => {
+    const out = sanitizeCycle({ cycleDays: 7, blocks: [raw({ id: id(1), cycleId: 'otro' })] }, 'c9');
+    expect(out.blocks[0].cycleId).toBe('c9');
   });
 });

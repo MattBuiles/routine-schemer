@@ -5,8 +5,13 @@ import {
   HEADER_H,
   LANE_H,
   MAX_LANES,
+  CYCLE_FOOT_H,
+  CYCLE_GAP,
   blocksBeyond,
   compactLanes,
+  cycleHeight,
+  cycleRows,
+  cycleTops,
   findFreeSlot,
   fromRect,
   stackBlocks,
@@ -26,6 +31,7 @@ const block = (over: Partial<CycleBlock> = {}): CycleBlock => ({
   icon: 'dumbbell',
   exercises: [],
   id: 'a',
+  cycleId: 'c1',
   label: 'Push',
   color: '#000',
   blockType: 'strength',
@@ -115,18 +121,18 @@ describe('stackBlocks', () => {
 
 describe('findFreeSlot', () => {
   it('encuentra el primer día libre y respeta los bloques existentes', () => {
-    expect(findFreeSlot([], 7)).toEqual({ dayStart: 0, lane: 0 });
-    expect(findFreeSlot([block({ dayStart: 0 })], 7)).toEqual({ dayStart: 1, lane: 0 });
+    expect(findFreeSlot([], 7, 1, 'c1')).toEqual({ dayStart: 0, lane: 0 });
+    expect(findFreeSlot([block({ dayStart: 0 })], 7, 1, 'c1')).toEqual({ dayStart: 1, lane: 0 });
   });
 
   it('usa otro carril cuando la fila está llena', () => {
     const row = Array.from({ length: 3 }, (_, i) => block({ id: `x${i}`, dayStart: i }));
-    expect(findFreeSlot(row, 3)).toEqual({ dayStart: 0, lane: 1 });
+    expect(findFreeSlot(row, 3, 1, 'c1')).toEqual({ dayStart: 0, lane: 1 });
   });
 
   it('devuelve null si no cabe', () => {
     const all = Array.from({ length: MAX_LANES }, (_, i) => block({ id: `x${i}`, lane: i }));
-    expect(findFreeSlot(all, 1)).toBeNull();
+    expect(findFreeSlot(all, 1, 1, 'c1')).toBeNull();
   });
 });
 
@@ -195,5 +201,39 @@ describe('defaultIconFor', () => {
     expect(defaultIconFor('strength')).toBe('dumbbell');
     expect(defaultIconFor('rest')).toBe('moon');
     expect(defaultIconFor('custom:x')).toBe('sparkles');
+  });
+});
+
+describe('varios ciclos', () => {
+  it('los bloques de ciclos distintos no se apilan entre sí', () => {
+    const r = compactLanes([block({ id: 'a', cycleId: 'c1', lane: 3 }), block({ id: 'b', cycleId: 'c2', lane: 5 })]);
+    expect(r.map((b) => b.lane)).toEqual([0, 0]);
+  });
+
+  it('stackBlocks y findFreeSlot solo ven los bloques del ciclo del bloque', () => {
+    const other = block({ id: 'x', cycleId: 'c2' });
+    expect(stackBlocks([other], block({ id: 'y', cycleId: 'c1' }))?.map((b) => b.lane)).toEqual([0, 0]);
+    expect(findFreeSlot([other], 7, 1, 'c1')).toEqual({ dayStart: 0, lane: 0 });
+    expect(findFreeSlot([other], 7, 1, 'c2')).toEqual({ dayStart: 1, lane: 0 });
+  });
+
+  it('blockFromType asigna el ciclo', () => {
+    expect(blockFromType(DEFAULT_BLOCK_TYPES[0], 'id', 0, 0, 'cardio').cycleId).toBe('cardio');
+  });
+
+  it('el alto del ciclo crece con su pila: filas usadas más una libre, entre 3 y MAX_LANES', () => {
+    expect(cycleRows([])).toBe(3);
+    expect(cycleRows([block({ lane: 3 })])).toBe(5);
+    expect(cycleRows([block({ lane: MAX_LANES - 1 })])).toBe(MAX_LANES);
+    expect(cycleHeight([])).toBe(HEADER_H + 3 * LANE_H);
+  });
+
+  it('cycleTops apila los ciclos en vertical según lo que ocupa cada uno', () => {
+    const cycles = [{ id: 'c1', name: 'Gimnasio', days: 7 }, { id: 'c2', name: 'Cardio', days: 5 }, { id: 'c3', name: 'Otro', days: 3 }];
+    const blocks = [block({ id: 'a', cycleId: 'c1', lane: 3 }), block({ id: 'b', cycleId: 'c2' })];
+    const first = HEADER_H + 5 * LANE_H + CYCLE_FOOT_H + CYCLE_GAP;
+    const second = HEADER_H + 3 * LANE_H + CYCLE_FOOT_H + CYCLE_GAP;
+    expect(cycleTops(cycles, blocks)).toEqual([0, first, first + second]);
+    expect(cycleTops([], blocks)).toEqual([]);
   });
 });

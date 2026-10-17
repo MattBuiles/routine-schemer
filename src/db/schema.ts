@@ -77,10 +77,21 @@ export const boards = pgTable('boards', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const boardCycles = pgTable('board_cycles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull().default('Ciclo'),
+  days: integer('days').notNull().default(7),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const boardBlocks = pgTable('board_blocks', {
   id: uuid('id').defaultRandom().primaryKey(),
   boardId: uuid('board_id').notNull().references(() => boards.id, { onDelete: 'cascade' }),
   userId: text('user_id').notNull(),
+  cycleId: uuid('cycle_id').references(() => boardCycles.id, { onDelete: 'cascade' }),
   kind: text('kind').notNull(),
   label: text('label').notNull().default(''),
   color: text('color').notNull().default('#3b82f6'),
