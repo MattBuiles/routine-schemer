@@ -116,7 +116,7 @@ describe('CalendarWidget · plan anclado', () => {
   const phase = (over = {}) => ({ id: 'p1', name: 'Volumen', kind: 'volume' as const, startWeek: 0, weeks: 4, color: '#3b82f6', volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 2.5, deloadLast: true, ...over });
   const press = { exerciseId: 'e1', name: 'Press de Banca', sets: 3, reps: '8-12', notes: '' };
   // El plan arranca el lunes 12 de octubre: hoy (jueves 15) es el día 4 del plan, semana 1.
-  const anchor = (over = {}) => ({ planStart: '2026-10-12', cycleDays: 7, phases: [phase()], blocks: [block('b1', 'Empuje', 3, 1, [press]), block('b2', 'Tirón', 0, 2)], ...over });
+  const anchor = (over = {}) => ({ planStart: '2026-10-12', cycleDays: 7, planWeeks: 8, phases: [phase()], blocks: [block('b1', 'Empuje', 3, 1, [press]), block('b2', 'Tirón', 0, 2)], ...over });
 
   it('sin plan lo explica y no pinta fases', async () => {
     renderWithStrata(<CalendarWidget />);
@@ -162,6 +162,19 @@ describe('CalendarWidget · plan anclado', () => {
     expect(screen.getByText('Nada planificado este día del ciclo.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '2026-10-05' }));
     expect(screen.getByText(/Antes del inicio del plan \(empieza el 12 oct\)/)).toBeTruthy();
+  });
+
+  it('el plan se repite al terminar: pasadas sus semanas vuelve a empezar con su fase', async () => {
+    // Plan de 8 semanas desde el 12 oct: el 7 dic (semana 9) es la semana 1 de la segunda vuelta.
+    renderWithStrata(<CalendarWidget plan={anchor()} />);
+    await screen.findByText('Pierna');
+    fireEvent.click(screen.getByRole('button', { name: '2026-10-17' }));
+    for (let i = 0; i < 2; i++) fireEvent.click(screen.getByRole('button', { name: /mes siguiente|siguiente/i }));
+    fireEvent.click(screen.getByRole('button', { name: '2026-12-10' })); // jueves: día 4 del ciclo, semana 9 del plan
+    const day = screen.getByRole('region', { name: 'Plan del día' });
+    expect(day.textContent).toContain('Volumen · semana 1 de 4');
+    expect(day.textContent).toContain('Día 4 del ciclo');
+    expect(day.textContent).not.toContain('Después de');
   });
 
   it('una semana sin fase se indica y las fases se marcan en los días del mes', async () => {

@@ -5,7 +5,7 @@ import { addDays, blocksOnCycleDay, daysBetween, formatShort, isIsoDate, locateD
 import { PHASE_TYPES, phaseFromType } from './phases';
 
 const phase = (kind: string, id: string, start: number, weeks: number) => ({ ...phaseFromType(PHASE_TYPES.find((t) => t.kind === kind)!, id, start), weeks });
-const plan: PlanAnchor = { planStart: '2026-10-12', cycleDays: 7, phases: [phase('volume', 'a', 0, 4), phase('deload', 'b', 5, 1)] };
+const plan: PlanAnchor = { planStart: '2026-10-12', cycleDays: 7, planWeeks: 6, phases: [phase('volume', 'a', 0, 4), phase('deload', 'b', 5, 1)] };
 
 describe('fechas', () => {
   it('isIsoDate acepta fechas reales y rechaza el resto', () => {
@@ -42,10 +42,18 @@ describe('locateDate', () => {
     expect(locateDate(plan, '2026-11-09')).toMatchObject({ planWeek: 4, phase: null, weekInPhase: null });
   });
 
-  it('fuera del plan devuelve null: antes del inicio o pasadas 52 semanas', () => {
+  it('antes del inicio devuelve null y el plan se repite sin parar al terminar', () => {
     expect(locateDate(plan, '2026-10-11')).toBeNull();
-    expect(locateDate(plan, addDays('2026-10-12', 52 * 7 - 1))).not.toBeNull();
-    expect(locateDate(plan, addDays('2026-10-12', 52 * 7))).toBeNull();
+    // El plan dura 6 semanas: la semana 7 vuelve a ser la 1 (con su fase) y el día del ciclo sigue contando.
+    expect(locateDate(plan, '2026-11-23')).toMatchObject({ offset: 42, planWeek: 0, cycleDay: 0, weekInPhase: 0 });
+    expect(locateDate(plan, '2026-11-23')?.phase?.id).toBe('a');
+    expect(locateDate(plan, addDays('2026-10-12', 6 * 7 * 10 + 5 * 7))?.phase?.id).toBe('b');
+    expect(locateDate(plan, addDays('2026-10-12', 52 * 7))).not.toBeNull();
+  });
+
+  it('el día del ciclo no depende de la duración del plan', () => {
+    const odd = { ...plan, cycleDays: 5, planWeeks: 3 };
+    expect(locateDate(odd, addDays('2026-10-12', 21))).toMatchObject({ planWeek: 0, cycleDay: 1 });
   });
 
   it('el ciclo se repite sin parar: con un ciclo de 10 días no se alinea con la semana', () => {
@@ -74,10 +82,10 @@ describe('formatShort y planWeekOf', () => {
     expect(formatShort('2026-09-01')).toBe('1 sept');
   });
 
-  it('planWeekOf da la semana de hoy dentro del plan o null fuera', () => {
-    expect(planWeekOf('2026-10-12', '2026-10-12')).toBe(0);
-    expect(planWeekOf('2026-10-12', '2026-10-25')).toBe(1);
-    expect(planWeekOf('2026-10-12', '2026-10-11')).toBeNull();
-    expect(planWeekOf('2026-10-12', addDays('2026-10-12', 52 * 7))).toBeNull();
+  it('planWeekOf da la semana de hoy dentro de la vuelta actual del plan o null antes del inicio', () => {
+    expect(planWeekOf('2026-10-12', '2026-10-12', 6)).toBe(0);
+    expect(planWeekOf('2026-10-12', '2026-10-25', 6)).toBe(1);
+    expect(planWeekOf('2026-10-12', '2026-10-11', 6)).toBeNull();
+    expect(planWeekOf('2026-10-12', addDays('2026-10-12', 6 * 7 + 7), 6)).toBe(1);
   });
 });

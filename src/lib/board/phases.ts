@@ -4,6 +4,8 @@ import { isHexColor, isUuid } from './sanitize';
 export const WEEK_W = 40;
 export const PHASE_H = 64;
 export const MAX_PLAN_WEEKS = 52;
+export const MIN_PLAN_WEEKS = 1;
+export const DEFAULT_PLAN_WEEKS = 12;
 export const MAX_PHASES = 30;
 
 export type PhaseKind = 'volume' | 'intensity' | 'peaking' | 'deload' | 'transition';
@@ -54,14 +56,14 @@ export const phaseType = (kind: PhaseKind) => PHASE_TYPES.find((t) => t.kind ===
 
 export const phaseEnd = (p: Pick<Phase, 'startWeek' | 'weeks'>) => p.startWeek + p.weeks;
 
-/** Fase nueva a partir de un tipo (con sus valores por defecto) en la semana indicada. */
-export function phaseFromType(type: PhaseTypeDef, id: string, startWeek: number): Phase {
+/** Fase nueva a partir de un tipo (con sus valores por defecto) en la semana indicada; no pasa de `planWeeks`. */
+export function phaseFromType(type: PhaseTypeDef, id: string, startWeek: number, planWeeks = MAX_PLAN_WEEKS): Phase {
   return {
     id,
     name: type.label,
     kind: type.kind,
     startWeek,
-    weeks: Math.min(type.weeks, MAX_PLAN_WEEKS - startWeek),
+    weeks: Math.min(type.weeks, planWeeks - startWeek),
     color: type.color,
     volumePct: type.volumePct,
     intensityPct: type.intensityPct,
@@ -74,25 +76,25 @@ export function phaseFromType(type: PhaseTypeDef, id: string, startWeek: number)
 const overlaps = (a: Phase, b: Phase) => a.startWeek < phaseEnd(b) && b.startWeek < phaseEnd(a);
 
 /** Semana libre tras la última fase, o null si el plan ya no admite otra de `weeks` semanas. */
-export function nextFreeStart(phases: Phase[], weeks = 1): number | null {
+export function nextFreeStart(phases: Phase[], weeks = 1, planWeeks = MAX_PLAN_WEEKS): number | null {
   const start = phases.reduce((end, p) => Math.max(end, phaseEnd(p)), 0);
-  return start + weeks <= MAX_PLAN_WEEKS ? start : null;
+  return start + weeks <= planWeeks ? start : null;
 }
 
 /** Mueve una fase a otra semana; null si se saldría del plan o pisaría a otra. */
-export function movePhase(phases: Phase[], id: string, startWeek: number): Phase[] | null {
+export function movePhase(phases: Phase[], id: string, startWeek: number, planWeeks = MAX_PLAN_WEEKS): Phase[] | null {
   const phase = phases.find((p) => p.id === id);
   if (!phase) return null;
-  const moved = { ...phase, startWeek: clamp(Math.round(startWeek), 0, MAX_PLAN_WEEKS - phase.weeks) };
+  const moved = { ...phase, startWeek: clamp(Math.round(startWeek), 0, planWeeks - phase.weeks) };
   if (phases.some((p) => p.id !== id && overlaps(moved, p))) return null;
   return phases.map((p) => (p.id === id ? moved : p)).sort((a, b) => a.startWeek - b.startWeek);
 }
 
 /**
  * Empuja hacia la derecha las fases posteriores que `phase` pisaría tras cambiar de tamaño, conservando los
- * huecos que ya había entre ellas. Devuelve null si alguna se saldría del plan de 52 semanas.
+ * huecos que ya había entre ellas. Devuelve null si alguna se saldría del plan.
  */
-function pushRight(phases: Phase[], phase: Phase): Phase[] | null {
+function pushRight(phases: Phase[], phase: Phase, planWeeks: number): Phase[] | null {
   const others = phases.filter((p) => p.id !== phase.id).sort((a, b) => a.startWeek - b.startWeek);
   const result: Phase[] = [];
   let cursor = phaseEnd(phase);
@@ -102,7 +104,7 @@ function pushRight(phases: Phase[], phase: Phase): Phase[] | null {
       continue;
     }
     const startWeek = Math.max(p.startWeek, cursor);
-    if (startWeek + p.weeks > MAX_PLAN_WEEKS) return null;
+    if (startWeek + p.weeks > planWeeks) return null;
     result.push(startWeek === p.startWeek ? p : { ...p, startWeek });
     cursor = startWeek + p.weeks;
   }
@@ -111,13 +113,13 @@ function pushRight(phases: Phase[], phase: Phase): Phase[] | null {
 
 /**
  * Cambia la duración de una fase por su final. Al alargarla empuja a las siguientes (no se queda bloqueada contra
- * una fase contigua); si no cabe en las 52 semanas, se queda en el máximo posible. Al acortarla no mueve a nadie.
+ * una fase contigua); si no cabe en el plan, se queda en el máximo posible. Al acortarla no mueve a nadie.
  */
-export function resizePhase(phases: Phase[], id: string, weeks: number): Phase[] {
+export function resizePhase(phases: Phase[], id: string, weeks: number, planWeeks = MAX_PLAN_WEEKS): Phase[] {
   const phase = phases.find((p) => p.id === id);
   if (!phase) return phases;
-  for (let w = clamp(Math.round(weeks), 1, MAX_PLAN_WEEKS - phase.startWeek); w >= 1; w--) {
-    const next = pushRight(phases, { ...phase, weeks: w });
+  for (let w = clamp(Math.round(weeks), 1, planWeeks - phase.startWeek); w >= 1; w--) {
+    const next = pushRight(phases, { ...phase, weeks: w }, planWeeks);
     if (next) return next;
   }
   return phases;
@@ -187,8 +189,8 @@ const int = (value: unknown, min: number, max: number, fallback: number) =>
 const half = (value: unknown, min: number, max: number, fallback: number) =>
   typeof value === 'number' && Number.isFinite(value) ? clamp(Math.round(value * 2) / 2, min, max) : fallback;
 
-/** Normaliza las fases recibidas del cliente (JSON no confiable): rangos, tipos y sin solapes ni salirse del plan. */
-export function sanitizePhases(input: unknown): Phase[] {
+/** Normaliza las fases recibidas del cliente (JSON no confiable): rangos, tipos y sin solapes ni salirse del plan de `planWeeks` semanas. */
+export function sanitizePhases(input: unknown, planWeeks = MAX_PLAN_WEEKS): Phase[] {
   if (!Array.isArray(input)) return [];
   const seen = new Set<string>();
   const phases: Phase[] = [];
@@ -197,13 +199,13 @@ export function sanitizePhases(input: unknown): Phase[] {
     seen.add(item.id.toLowerCase());
     const kind = PHASE_KINDS.includes(item.kind as PhaseKind) ? (item.kind as PhaseKind) : 'volume';
     const type = phaseType(kind);
-    const startWeek = int(item.startWeek, 0, MAX_PLAN_WEEKS - 1, 0);
+    const startWeek = int(item.startWeek, 0, planWeeks - 1, 0);
     phases.push({
       id: item.id.toLowerCase(),
       name: (typeof item.name === 'string' ? item.name.trim().slice(0, 40) : '') || type.label,
       kind,
       startWeek,
-      weeks: int(item.weeks, 1, MAX_PLAN_WEEKS - startWeek, 1),
+      weeks: int(item.weeks, 1, planWeeks - startWeek, 1),
       color: isHexColor(item.color) ? item.color : type.color,
       volumePct: int(item.volumePct, -80, 100, 0),
       intensityPct: int(item.intensityPct, -50, 50, 0),
@@ -217,10 +219,26 @@ export function sanitizePhases(input: unknown): Phase[] {
   let cursor = 0;
   for (const phase of phases.sort((a, b) => a.startWeek - b.startWeek)) {
     const startWeek = Math.max(phase.startWeek, cursor);
-    const weeks = Math.min(phase.weeks, MAX_PLAN_WEEKS - startWeek);
+    const weeks = Math.min(phase.weeks, planWeeks - startWeek);
     if (weeks < 1) continue;
     result.push({ ...phase, startWeek, weeks });
     cursor = startWeek + weeks;
   }
   return result;
+}
+
+/** Duración del plan (1–52) a partir de un valor del cliente no confiable. */
+export const sanitizePlanWeeks = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? clamp(Math.round(value), MIN_PLAN_WEEKS, MAX_PLAN_WEEKS) : DEFAULT_PLAN_WEEKS;
+
+/** Fases que quedarían fuera (en parte o del todo) si el plan pasa a `weeks` semanas. */
+export const phasesBeyond = (phases: Phase[], weeks: number) => phases.filter((p) => phaseEnd(p) > weeks);
+
+/** Cambia la duración total del plan: las fases que empiezan fuera se eliminan y las que lo cruzan se recortan. */
+export function resizePlan(phases: Phase[], weeks: number): { planWeeks: number; phases: Phase[] } {
+  const planWeeks = clamp(Math.round(weeks), MIN_PLAN_WEEKS, MAX_PLAN_WEEKS);
+  return {
+    planWeeks,
+    phases: phases.filter((p) => p.startWeek < planWeeks).map((p) => (phaseEnd(p) > planWeeks ? { ...p, weeks: planWeeks - p.startWeek } : p)),
+  };
 }

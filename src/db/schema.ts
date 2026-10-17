@@ -72,6 +72,7 @@ export const boards = pgTable('boards', {
   userId: text('user_id').notNull().unique(),
   cycleDays: integer('cycle_days').notNull().default(7),
   planStart: date('plan_start', { mode: 'string' }),
+  planWeeks: integer('plan_weeks').notNull().default(12),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

@@ -10,9 +10,9 @@ afterEach(cleanup);
 const volume = PHASE_TYPES.find((t) => t.kind === 'volume')!;
 const basePhase = { ...phaseFromType(volume, 'p1', 4), volumePct: 0, intensityPct: 0, rampSets: 1, rampLoad: 0, deloadLast: false };
 
-function setup(over: Partial<typeof basePhase> = {}, exerciseSets = [3]) {
+function setup(over: Partial<typeof basePhase> = {}, exerciseSets = [3], planWeeks = 20) {
   const handlers = { onResize: vi.fn(), onChange: vi.fn(), onDelete: vi.fn(), onClose: vi.fn() };
-  render(<PhasePanel phase={{ ...basePhase, ...over }} exerciseSets={exerciseSets} {...handlers} />);
+  render(<PhasePanel phase={{ ...basePhase, ...over }} planWeeks={planWeeks} exerciseSets={exerciseSets} {...handlers} />);
   return handlers;
 }
 
@@ -21,6 +21,11 @@ describe('PhasePanel', () => {
     setup();
     const rows = within(screen.getByRole('table', { name: 'Proyección semana a semana' })).getAllByRole('row').slice(1);
     expect(rows.map((r) => r.textContent)).toEqual(['53100%', '64100%', '75100%', '86100%']);
+  });
+
+  it('no deja alargar la fase más allá del final del plan', () => {
+    setup({}, [3], 8); // la fase ocupa las semanas 5 a 8 y el plan acaba en la 8
+    expect((screen.getByRole('button', { name: 'Añadir una semana' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('sin ejercicios no inventa series y lo explica', () => {

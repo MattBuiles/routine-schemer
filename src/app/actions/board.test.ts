@@ -115,18 +115,18 @@ describe('savePhases', () => {
   });
 
   it('normaliza: rangos, ids inválidos y solapes', async () => {
-    await savePhases(as({ phases: [phase(1, { weeks: 999 }), phase(2, { id: 'no-uuid' }), phase(3, { startWeek: 0, volumePct: 9999 })], planStart: null }));
+    await savePhases(as({ phases: [phase(1, { weeks: 999 }), phase(2, { id: 'no-uuid' }), phase(3, { startWeek: 0, volumePct: 9999 })], planStart: null, planWeeks: 52 }));
     const rows = state.blockValues[0];
     expect(rows.map((r) => r.id)).toEqual([id(1)]);
     expect(rows[0].weeks).toBe(52);
   });
 
   it('guarda la fecha de inicio si es válida y la descarta si no lo es', async () => {
-    await savePhases({ phases: [], planStart: '2026-10-12' });
+    await savePhases({ phases: [], planStart: '2026-10-12', planWeeks: 12 });
     expect(state.boardValues[0]).toMatchObject({ userId: 'user-1', planStart: '2026-10-12' });
     for (const bad of ['2026-02-30', '12/10/2026', 'mañana', 20261012, null, undefined]) {
       state.boardValues = [];
-      await savePhases(as({ phases: [], planStart: bad }));
+      await savePhases(as({ phases: [], planStart: bad, planWeeks: 12 }));
       expect(state.boardValues[0]).toMatchObject({ planStart: null });
     }
   });
@@ -138,9 +138,23 @@ describe('savePhases', () => {
   });
 
   it('sin fases solo borra y no inserta filas vacías', async () => {
-    await savePhases({ phases: [], planStart: null });
+    await savePhases({ phases: [], planStart: null, planWeeks: 12 });
     expect(state.blockValues).toEqual([]);
     expect(state.batches).toBe(0);
+  });
+
+  it('guarda la duración del plan limitada a 1–52 y usa 12 si no es un número', async () => {
+    for (const [sent, saved] of [[26, 26], [999, 52], [0, 1], [-5, 1], [7.6, 8], ['x', 12], [null, 12], [undefined, 12]] as const) {
+      state.boardValues = [];
+      await savePhases(as({ phases: [], planStart: null, planWeeks: sent }));
+      expect(state.boardValues[0]).toMatchObject({ planWeeks: saved });
+    }
+  });
+
+  it('recorta las fases a la duración del plan y descarta las que empiezan fuera', async () => {
+    await savePhases(as({ phases: [phase(1, { startWeek: 0, weeks: 4 }), phase(2, { startWeek: 4, weeks: 4 }), phase(3, { startWeek: 8, weeks: 4 })], planStart: null, planWeeks: 6 }));
+    const rows = state.blockValues[0];
+    expect(rows.map((r) => [r.id, r.startWeek, r.weeks])).toEqual([[id(1), 0, 4], [id(2), 4, 2]]);
   });
 });
 

@@ -4,9 +4,11 @@ import React, { useMemo } from 'react';
 import { Minus, Plus, Trash2, X } from 'lucide-react';
 import { Button, Field, Input, Switch } from 'strata';
 
-import { MAX_PLAN_WEEKS, PHASE_TYPES, phaseType, projectPhase, type Phase, type PhaseKind } from '@/lib/board/phases';
+import { PHASE_TYPES, phaseType, projectPhase, type Phase, type PhaseKind } from '@/lib/board/phases';
 
 interface PhasePanelProps {
+  /** Duración total del plan: una fase no puede alargarse más allá. */
+  planWeeks: number;
   phase: Phase;
   /** Series de cada ejercicio del ciclo (base de la proyección). */
   exerciseSets: number[];
@@ -21,7 +23,7 @@ const sectionTitle = 'mb-1.5 block text-xs font-medium uppercase tracking-wide t
 const signed = (n: number, unit = '%') => `${n > 0 ? '+' : ''}${n}${unit}`;
 
 /** Panel de la fase seleccionada: tipo, duración, modificadores, rampa semanal y proyección semana a semana. */
-export default function PhasePanel({ phase, exerciseSets, onResize, onChange, onDelete, onClose }: PhasePanelProps) {
+export default function PhasePanel({ phase, planWeeks, exerciseSets, onResize, onChange, onDelete, onClose }: PhasePanelProps) {
   const projection = useMemo(() => projectPhase(phase, exerciseSets), [phase, exerciseSets]);
   const hasExercises = exerciseSets.length > 0;
 
@@ -84,7 +86,7 @@ export default function PhasePanel({ phase, exerciseSets, onResize, onChange, on
               <Minus className="h-4 w-4" />
             </button>
             <span className="iv-tabular w-10 text-center text-sm">{phase.weeks}</span>
-            <button aria-label="Añadir una semana" disabled={phase.weeks >= MAX_PLAN_WEEKS} className="rounded-lg border border-border p-1.5 text-muted hover:text-fg disabled:opacity-40" onClick={() => onResize(phase.weeks + 1)}>
+            <button aria-label="Añadir una semana" disabled={phase.startWeek + phase.weeks >= planWeeks} className="rounded-lg border border-border p-1.5 text-muted hover:text-fg disabled:opacity-40" onClick={() => onResize(phase.weeks + 1)}>
               <Plus className="h-4 w-4" />
             </button>
           </div>
