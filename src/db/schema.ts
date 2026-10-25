@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   date,
   doublePrecision,
@@ -176,4 +178,52 @@ export const mobileSessions = pgTable('mobile_sessions', {
   userId: text('user_id').notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Columnas comunes de lo que se sincroniza: la hora del teléfono decide qué edición gana y seq es el cursor de lectura. */
+const syncColumns = {
+  clientUpdatedAt: bigint('client_updated_at', { mode: 'number' }).notNull(),
+  deleted: boolean('deleted').notNull().default(false),
+  seq: bigint('seq', { mode: 'number' }).notNull().default(sql`nextval('wk_sync_seq')`),
+};
+
+export const wkWorkouts = pgTable('wk_workouts', {
+  id: uuid('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  note: text('note').notNull().default(''),
+  cycleId: uuid('cycle_id'),
+  planWeek: integer('plan_week'),
+  planDay: integer('plan_day'),
+  ...syncColumns,
+});
+
+export const wkWorkoutExercises = pgTable('wk_workout_exercises', {
+  id: uuid('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  workoutId: uuid('workout_id').notNull(),
+  exerciseId: uuid('exercise_id'),
+  name: text('name').notNull(),
+  position: integer('position').notNull(),
+  supersetGroup: integer('superset_group'),
+  targetSets: integer('target_sets'),
+  targetReps: text('target_reps'),
+  ...syncColumns,
+});
+
+export const wkSets = pgTable('wk_sets', {
+  id: uuid('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  workoutExerciseId: uuid('workout_exercise_id').notNull(),
+  position: integer('position').notNull(),
+  kind: text('kind').notNull(),
+  weightKg: doublePrecision('weight_kg'),
+  reps: integer('reps'),
+  rir: integer('rir'),
+  restS: integer('rest_s'),
+  inclinePct: doublePrecision('incline_pct'),
+  perSide: boolean('per_side').notNull().default(false),
+  doneAt: timestamp('done_at', { withTimezone: true }),
+  ...syncColumns,
 });
