@@ -1,7 +1,8 @@
 import 'server-only';
 
-import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 
+import { isUuid } from '@/lib/board/sanitize';
 import type { ExerciseSummary } from '@/app/actions/exercises';
 import { db } from '@/db/client';
 import { exercises } from '@/db/schema';
@@ -45,4 +46,14 @@ export async function runSearch(userId: string, input: unknown): Promise<{ items
     db.select({ total: sql<number>`count(*)::int` }).from(exercises).where(where),
   ]);
   return { items: rows.map(toSummary), total };
+}
+
+export const MAX_BY_IDS = 50;
+
+/** Ejercicios por id (biblioteca común y propios del usuario); ignora ids que no son uuid y no pasa de MAX_BY_IDS. */
+export async function runByIds(userId: string, ids: unknown[]): Promise<ExerciseSummary[]> {
+  const valid = [...new Set(ids.filter(isUuid).map((i) => i.toLowerCase()))].slice(0, MAX_BY_IDS);
+  if (valid.length === 0) return [];
+  const rows = await db.select().from(exercises).where(and(visibleTo(userId), inArray(exercises.id, valid)));
+  return rows.map(toSummary);
 }
