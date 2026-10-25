@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getMobileUserId = vi.fn();
 const runSearch = vi.fn();
+const runByIds = vi.fn();
 vi.mock('@/lib/auth/mobile', () => ({ getMobileUserId: (r: Request) => getMobileUserId(r) }));
-vi.mock('@/lib/exercises/query', () => ({ runSearch: (...a: unknown[]) => runSearch(...a) }));
+vi.mock('@/lib/exercises/query', () => ({ runSearch: (...a: unknown[]) => runSearch(...a), runByIds: (...a: unknown[]) => runByIds(...a) }));
 
 import { GET } from './route';
 
@@ -56,5 +57,18 @@ describe('POST /api/v1/exercises', () => {
     expect((await post('{no')).status).toBe(400);
     createCustom.mockResolvedValue(null);
     expect((await post({ name: 'X' })).status).toBe(409);
+  });
+});
+
+describe('GET /api/v1/exercises?ids', () => {
+  it('sin sesión da 401; con sesión busca por ids con el dueño del token y no por texto', async () => {
+    getMobileUserId.mockResolvedValue(null);
+    expect((await GET(new Request('http://x/api/v1/exercises?ids=a'))).status).toBe(401);
+    getMobileUserId.mockResolvedValue('u1');
+    runByIds.mockResolvedValue([{ id: 'e1' }]);
+    const res = await GET(new Request('http://x/api/v1/exercises?ids=a,b'));
+    expect(await res.json()).toEqual({ items: [{ id: 'e1' }] });
+    expect(runByIds).toHaveBeenCalledWith('u1', ['a', 'b']);
+    expect(runSearch).not.toHaveBeenCalled();
   });
 });
