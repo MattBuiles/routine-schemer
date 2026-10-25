@@ -45,6 +45,11 @@ describe('POST /api/v1/sync/push', () => {
     expect(await res.json()).toMatchObject({ rejected: [id(9)], invalid: [{ table: 'sets', index: 1 }], winners: { sets: [{ id: id(3) }] } });
   });
 
+  it('informa de todas las filas inválidas, no solo de las primeras (la app solo da por enviado lo que no aparece aquí)', async () => {
+    const res = await post({ sets: Array.from({ length: 120 }, (_, i) => set({ id: id(2000 + i), kind: 'raro' })) });
+    expect((await res.json()).invalid).toHaveLength(120);
+  });
+
   it('un JSON roto da 400 y un cuerpo demasiado grande 413, sin llegar a la base', async () => {
     expect((await post('{no es json')).status).toBe(400);
     expect((await post({ sets: [set()] }, { 'content-length': '5000000' })).status).toBe(413);

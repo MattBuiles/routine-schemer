@@ -27,5 +27,5 @@ export async function POST(request: Request) {
   if (tooMany) return Response.json({ error: 'too_many_rows', max: MAX_PUSH_ROWS }, { status: 413, headers });
 
   const { rejected, winners } = await pushChanges(userId, rows);
-  return Response.json({ rejected, invalid: invalid.slice(0, 50), winners }, { headers });
+  return Response.json({ rejected, invalid, winners }, { headers });
 }
