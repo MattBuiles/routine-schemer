@@ -159,3 +159,21 @@ export const boardPhases = pgTable('board_phases', {
   deloadLast: boolean('deload_last').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const mobileAuthCodes = pgTable('mobile_auth_codes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  codeHash: text('code_hash').notNull().unique(),
+  codeChallenge: text('code_challenge').notNull(),
+  userId: text('user_id').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const mobileSessions = pgTable('mobile_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  tokenHash: text('token_hash').notNull().unique(),
+  userId: text('user_id').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
