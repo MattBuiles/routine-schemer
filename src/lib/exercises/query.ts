@@ -45,7 +45,40 @@ export async function runSearch(userId: string, input: unknown): Promise<{ items
       .offset(offset),
     db.select({ total: sql<number>`count(*)::int` }).from(exercises).where(where),
   ]);
+  if (total === 0 && query.length >= MIN_FUZZY) {
+    const fuzzy = await fuzzySearch(userId, query, muscle, equipment, limit);
+    return { items: fuzzy, total: fuzzy.length };
+  }
   return { items: rows.map(toSummary), total };
+}
+
+const MIN_FUZZY = 3;
+const FUZZY_THRESHOLD = 0.3;
+
+/**
+ * Último recurso cuando la búsqueda normal no encuentra nada: parecido por trigramas (pg_trgm) con el nombre en inglés o español,
+ * de más a menos parecido. Si la extensión no está instalada devuelve vacío en vez de romper la búsqueda.
+ */
+async function fuzzySearch(userId: string, query: string, muscle: string | null, equipment: string | null, limit: number): Promise<ExerciseSummary[]> {
+  const score = sql<number>`greatest(word_similarity(${query}, ${exercises.nameEn}), coalesce(word_similarity(${query}, ${exercises.nameEs}), 0))`;
+  try {
+    const rows = await db
+      .select()
+      .from(exercises)
+      .where(
+        and(
+          visibleTo(userId),
+          sql`${score} > ${FUZZY_THRESHOLD}`,
+          muscle ? sql`${muscle} = any(${exercises.primaryMuscles})` : undefined,
+          equipment ? sql`${equipment} = any(${exercises.equipment})` : undefined,
+        ),
+      )
+      .orderBy(desc(score), asc(exercises.nameEn))
+      .limit(limit);
+    return rows.map(toSummary);
+  } catch {
+    return [];
+  }
 }
 
 export const MAX_BY_IDS = 50;
