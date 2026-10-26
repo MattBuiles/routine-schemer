@@ -61,6 +61,23 @@ describe('searchExercises', () => {
     expect(state.orderBy[0]).toHaveLength(2);
   });
 
+  it('si no encuentra nada y el texto tiene 3+ letras, prueba la búsqueda por parecido (sqat, dumbel curl)', async () => {
+    await searchExercises({ query: 'sqat' });
+    expect(state.orderBy).toHaveLength(2); // búsqueda normal + parecido
+    expect(state.orderBy[1]).toHaveLength(2); // más parecido primero, luego nombre
+  });
+
+  it('con menos de 3 letras no hace búsqueda por parecido', async () => {
+    await searchExercises({ query: 'sq' });
+    expect(state.orderBy).toHaveLength(1);
+  });
+
+  it('si encuentra resultados normales no hace la búsqueda por parecido', async () => {
+    state.rows = [row];
+    await searchExercises({ query: 'curl' });
+    expect(state.orderBy).toHaveLength(1);
+  });
+
   it('sin sesión no consulta', async () => {
     requireUserId.mockRejectedValueOnce(new Error('No autenticado'));
     await expect(searchExercises({})).rejects.toThrow('No autenticado');
