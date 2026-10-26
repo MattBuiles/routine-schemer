@@ -47,3 +47,33 @@ describe('planToday', () => {
     expect(bare.cycles[0].blocks[0].exercises[0].sets).toBe(3);
   });
 });
+
+import { mondayOf, planWeek } from './today';
+
+describe('planWeek', () => {
+  it('mondayOf da el lunes de cualquier día de la semana', () => {
+    expect(mondayOf('2026-10-25')).toBe('2026-10-19'); // domingo
+    expect(mondayOf('2026-10-19')).toBe('2026-10-19'); // lunes
+    expect(mondayOf('2026-10-22')).toBe('2026-10-19'); // jueves
+    expect(mondayOf('2026-11-01')).toBe('2026-10-26'); // cambio de mes
+  });
+
+  it('suma las series de los siete días por ejercicio, con la fase de cada semana', () => {
+    // Plan desde el lunes 5 oct, ciclo gym de 7 días: el bloque 'Empuje' (día 0) y 'Pierna' (día 2) caen lunes y miércoles.
+    const r = planWeek(plan, '2026-10-12'); // semana 1 de la fase: rampa +1 serie
+    expect(r.status).toBe('ok');
+    expect(r.weekStart).toBe('2026-10-12');
+    expect(r.exercises).toEqual([{ exerciseId: 'e1', name: 'Press banca', sets: 8 }]); // 4 + 4 (3 + rampa 1) en los dos días
+  });
+
+  it('sin plan anclado o con la semana entera antes del inicio no hay nada', () => {
+    expect(planWeek({ ...plan, planStart: null }, '2026-10-12')).toMatchObject({ status: 'no-plan', exercises: [] });
+    expect(planWeek(plan, '2026-09-21')).toMatchObject({ status: 'before-start', exercises: [] });
+  });
+
+  it('una semana que empieza antes del inicio solo cuenta los días ya dentro del plan', () => {
+    const r = planWeek({ ...plan, planStart: '2026-10-07' }, '2026-10-05'); // el plan empieza un miércoles
+    expect(r.status).toBe('ok');
+    expect(r.exercises[0].sets).toBeLessThan(8);
+  });
+});

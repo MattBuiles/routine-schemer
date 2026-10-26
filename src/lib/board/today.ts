@@ -1,6 +1,6 @@
 import type { BlockExercise, CycleBlock, CycleDef } from './cycle';
 import { exerciseSetsInWeek, type Phase } from './phases';
-import { blocksOnCycleDay, cycleDayOf, locateDate } from './plan';
+import { addDays, blocksOnCycleDay, cycleDayOf, locateDate } from './plan';
 
 export interface PlanInput {
   planStart: string | null;
@@ -68,4 +68,40 @@ export function planToday(plan: PlanInput, date: string): PlanToday {
       return { id: c.id, name: c.name, days: c.days, cycleDay, blocks };
     }),
   };
+}
+
+export interface PlanWeek {
+  status: 'ok' | 'no-plan' | 'before-start';
+  /** Lunes de la semana consultada (AAAA-MM-DD). */
+  weekStart: string;
+  /** Series planeadas por ejercicio durante los siete días (lunes a domingo), ya ajustadas por la fase de cada día. */
+  exercises: { exerciseId: string; name: string; sets: number }[];
+}
+
+/** Lunes (AAAA-MM-DD) de la semana de `date`. */
+export function mondayOf(date: string): string {
+  const dow = (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7; // lunes = 0
+  return addDays(date, -dow);
+}
+
+/**
+ * Lo que el plan pide en la semana (lunes a domingo) de `date`: suma, ejercicio a ejercicio, los siete días de todos los ciclos.
+ * Un día anterior al inicio del plan no aporta nada; si ninguno de los siete días está dentro del plan, el estado lo dice.
+ */
+export function planWeek(plan: PlanInput, date: string): PlanWeek {
+  const weekStart = mondayOf(date);
+  if (!plan.planStart) return { status: 'no-plan', weekStart, exercises: [] };
+  const byId = new Map<string, { exerciseId: string; name: string; sets: number }>();
+  let inside = false;
+  for (let i = 0; i < 7; i++) {
+    const day = planToday(plan, addDays(weekStart, i));
+    if (day.status !== 'ok') continue;
+    inside = true;
+    for (const c of day.cycles) for (const b of c.blocks) for (const e of b.exercises) {
+      const cur = byId.get(e.exerciseId) ?? { exerciseId: e.exerciseId, name: e.name, sets: 0 };
+      cur.sets += e.sets;
+      byId.set(e.exerciseId, cur);
+    }
+  }
+  return { status: inside ? 'ok' : 'before-start', weekStart, exercises: [...byId.values()] };
 }
