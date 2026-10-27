@@ -3,7 +3,7 @@ import 'server-only';
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import { isUuid } from '@/lib/board/sanitize';
-import type { ExerciseSummary } from '@/app/actions/exercises';
+import type { ExerciseDetail, ExerciseSummary } from '@/app/actions/exercises';
 import { db } from '@/db/client';
 import { exercises } from '@/db/schema';
 import { escapeLike, sanitizeSearch } from './search';
@@ -89,4 +89,20 @@ export async function runByIds(userId: string, ids: unknown[]): Promise<Exercise
   if (valid.length === 0) return [];
   const rows = await db.select().from(exercises).where(and(visibleTo(userId), inArray(exercises.id, valid)));
   return rows.map(toSummary);
+}
+
+/** Ficha completa de un ejercicio visible para el usuario (biblioteca común o propio), con instrucciones, imágenes y atribución. */
+export async function runDetail(userId: string, id: string): Promise<ExerciseDetail | null> {
+  if (!isUuid(id)) return null;
+  const [row] = await db.select().from(exercises).where(and(eq(exercises.id, id.toLowerCase()), visibleTo(userId)));
+  if (!row) return null;
+  return {
+    ...toSummary(row),
+    secondaryMuscles: row.secondaryMuscles,
+    instructionsEn: row.instructionsEn,
+    instructionsEs: row.instructionsEs,
+    images: row.images,
+    license: row.license,
+    attribution: row.attribution,
+  };
 }
