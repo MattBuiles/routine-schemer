@@ -25,11 +25,12 @@ export const visibleTo = (userId: string) => or(isNull(exercises.userId), eq(exe
 /** Busca por nombre (inglés o español) con filtros opcionales de músculo y equipamiento, entre la biblioteca común y los ejercicios de `userId`. */
 export async function runSearch(userId: string, input: unknown): Promise<{ items: ExerciseSummary[]; total: number }> {
   const { query, muscle, equipment, limit, offset } = sanitizeSearch(input);
-  const pattern = `%${escapeLike(query)}%`;
+  // Cada palabra debe aparecer en el nombre (en inglés o español), en cualquier orden: «press banca» encuentra «Press de banca».
+  const words = query.split(/\s+/).filter(Boolean).slice(0, 6);
 
   const where = and(
     visibleTo(userId),
-    query ? or(ilike(exercises.nameEn, pattern), ilike(exercises.nameEs, pattern)) : undefined,
+    ...words.map((w) => or(ilike(exercises.nameEn, `%${escapeLike(w)}%`), ilike(exercises.nameEs, `%${escapeLike(w)}%`))),
     muscle ? sql`${muscle} = any(${exercises.primaryMuscles})` : undefined,
     equipment ? sql`${equipment} = any(${exercises.equipment})` : undefined,
   );
