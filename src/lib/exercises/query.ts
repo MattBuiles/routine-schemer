@@ -39,8 +39,14 @@ export async function runSearch(userId: string, input: unknown): Promise<{ items
       .select()
       .from(exercises)
       .where(where)
-      // Con texto, primero los que empiezan por él; sin texto no hay nada que priorizar (Postgres no admite `ORDER BY true`).
-      .orderBy(...(query ? [desc(sql`lower(${exercises.nameEn}) like ${escapeLike(query.toLowerCase()) + '%'}`)] : []), asc(exercises.nameEn))
+      // Con texto, primero los que empiezan por él (en inglés o español); después los traducidos, los que tienen imágenes y los de nombre más corto (los básicos antes que las variantes).
+      .orderBy(
+        ...(query ? [desc(sql`(lower(${exercises.nameEn}) like ${escapeLike(query.toLowerCase()) + '%'} or lower(coalesce(${exercises.nameEs}, '')) like ${escapeLike(query.toLowerCase()) + '%'})`)] : []),
+        desc(sql`${exercises.nameEs} is not null`),
+        desc(sql`cardinality(${exercises.images}) > 0`),
+        asc(sql`length(coalesce(${exercises.nameEs}, ${exercises.nameEn}))`),
+        asc(exercises.nameEn),
+      )
       .limit(limit)
       .offset(offset),
     db.select({ total: sql<number>`count(*)::int` }).from(exercises).where(where),

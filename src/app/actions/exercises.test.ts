@@ -50,15 +50,15 @@ describe('searchExercises', () => {
     await expect(searchExercises({ query: 5, muscle: '; drop', limit: 'x' })).resolves.toEqual({ items: [], total: 0 });
   });
 
-  it('sin texto solo ordena por nombre: un ORDER BY con constante lo rechaza Postgres', async () => {
+  it('sin texto ordena por traducido, imagen, nombre corto y nombre: sin el término del prefijo (un ORDER BY con constante lo rechaza Postgres)', async () => {
     await searchExercises({ muscle: 'abductors' });
     expect(state.orderBy).toHaveLength(1);
-    expect(state.orderBy[0]).toHaveLength(1);
+    expect(state.orderBy[0]).toHaveLength(4);
   });
 
-  it('con texto prioriza los que empiezan por él y luego ordena por nombre', async () => {
+  it('con texto prioriza los que empiezan por él y luego el resto de criterios', async () => {
     await searchExercises({ query: 'curl' });
-    expect(state.orderBy[0]).toHaveLength(2);
+    expect(state.orderBy[0]).toHaveLength(5);
   });
 
   it('si no encuentra nada y el texto tiene 3+ letras, prueba la búsqueda por parecido (sqat, dumbel curl)', async () => {
