@@ -33,7 +33,7 @@ export async function pushChanges(userId: string, rows: Changes) {
     writes.push(
       db.insert(t).values(rows.workoutExercises.map((r) => toWorkoutExerciseDb(userId, r))).onConflictDoUpdate({
         target: t.id,
-        set: { workoutId: ex(t.workoutId), exerciseId: ex(t.exerciseId), name: ex(t.name), position: ex(t.position), supersetGroup: ex(t.supersetGroup), targetSets: ex(t.targetSets), targetReps: ex(t.targetReps), clientUpdatedAt: ex(t.clientUpdatedAt), deleted: ex(t.deleted), seq: nextSeq },
+        set: { workoutId: ex(t.workoutId), exerciseId: ex(t.exerciseId), name: ex(t.name), position: ex(t.position), supersetGroup: ex(t.supersetGroup), targetSets: ex(t.targetSets), targetReps: ex(t.targetReps), note: ex(t.note), restS: ex(t.restS), clientUpdatedAt: ex(t.clientUpdatedAt), deleted: ex(t.deleted), seq: nextSeq },
         setWhere: onlyIfNewer(t),
       }),
     );

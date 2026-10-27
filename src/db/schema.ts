@@ -209,6 +209,8 @@ export const wkWorkoutExercises = pgTable('wk_workout_exercises', {
   supersetGroup: integer('superset_group'),
   targetSets: integer('target_sets'),
   targetReps: text('target_reps'),
+  note: text('note'),
+  restS: integer('rest_s'),
   ...syncColumns,
 });
 

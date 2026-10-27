@@ -29,6 +29,8 @@ export interface WorkoutExerciseRow extends SyncMeta {
   supersetGroup: number | null;
   targetSets: number | null;
   targetReps: string | null;
+  note: string | null;
+  restS: number | null;
 }
 
 export interface SetRow extends SyncMeta {
@@ -106,6 +108,8 @@ const parsers = {
     supersetGroup: optInt(r.supersetGroup, 'supersetGroup', 0, 50),
     targetSets: optInt(r.targetSets, 'targetSets', 1, 50),
     targetReps: optText(r.targetReps, 'targetReps', 12),
+    note: optText(r.note, 'note', 300),
+    restS: optInt(r.restS, 'restS', 15, 600),
   }),
   sets: (r: Record<string, unknown>, now: number): SetRow => ({
     ...meta(r, now),
