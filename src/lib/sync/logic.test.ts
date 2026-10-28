@@ -5,7 +5,7 @@ import type { Changes, SetRow, WorkoutExerciseRow, WorkoutRow } from './sanitize
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const wk: WorkoutRow = { id: id(1), updatedAt: 1000, deleted: false, startedAt: '2026-10-25T17:00:00.000Z', endedAt: '2026-10-25T18:00:00.000Z', note: 'ok', cycleId: id(9), planWeek: 3, planDay: 2 };
-const ex: WorkoutExerciseRow = { id: id(2), updatedAt: 1000, deleted: false, workoutId: id(1), exerciseId: id(8), name: 'Press', position: 1, supersetGroup: 2, targetSets: 3, targetReps: '8-12' };
+const ex: WorkoutExerciseRow = { id: id(2), updatedAt: 1000, deleted: false, workoutId: id(1), exerciseId: id(8), name: 'Press', position: 1, supersetGroup: 2, targetSets: 3, targetReps: '8-12', note: 'agarre ancho', restS: 120 };
 const st: SetRow = { id: id(3), updatedAt: 1000, deleted: true, workoutExerciseId: id(2), position: 0, kind: 'failure', weightKg: 82.5, reps: 8, rir: 0, restS: 120, inclinePct: 5, perSide: true, doneAt: '2026-10-25T17:30:00.000Z' };
 const empty = (): Changes => ({ workouts: [], workoutExercises: [], sets: [] });
 

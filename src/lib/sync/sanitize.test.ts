@@ -15,7 +15,7 @@ describe('sanitizePush · lo válido', () => {
     expect(invalid).toEqual([]);
     expect(tooMany).toBe(false);
     expect(rows.workouts[0]).toEqual({ id: id(1), updatedAt: NOW, deleted: false, startedAt: '2026-10-25T17:00:00.000Z', endedAt: null, note: '', cycleId: null, planWeek: null, planDay: null });
-    expect(rows.workoutExercises[0]).toMatchObject({ exerciseId: null, supersetGroup: null, targetSets: null, targetReps: null, deleted: false });
+    expect(rows.workoutExercises[0]).toMatchObject({ exerciseId: null, supersetGroup: null, targetSets: null, targetReps: null, note: null, restS: null, deleted: false });
     expect(rows.sets[0]).toMatchObject({ weightKg: 80, reps: 8, rir: 2, restS: null, inclinePct: null, perSide: false, doneAt: null });
   });
 
@@ -56,7 +56,7 @@ describe('sanitizePush · lo inválido se descarta con su motivo y el resto sigu
       ['sets', { weightKg: Infinity }], ['sets', { reps: 1.5 }], ['sets', { reps: 1001 }], ['sets', { rir: 11 }], ['sets', { restS: 7201 }], ['sets', { inclinePct: 41 }],
       ['sets', { position: 201 }], ['sets', { perSide: 'si' }], ['sets', { deleted: 1 }], ['sets', { doneAt: 'ayer' }], ['sets', { workoutExerciseId: 'x' }],
       ['workoutExercises', { name: '' }], ['workoutExercises', { name: '   ' }], ['workoutExercises', { name: 'x'.repeat(121) }], ['workoutExercises', { position: -1 }],
-      ['workoutExercises', { targetSets: 0 }], ['workoutExercises', { targetReps: 'x'.repeat(13) }], ['workoutExercises', { workoutId: null }], ['workoutExercises', { exerciseId: 5 }],
+      ['workoutExercises', { targetSets: 0 }], ['workoutExercises', { note: 'x'.repeat(301) }], ['workoutExercises', { restS: 14 }], ['workoutExercises', { restS: 601 }], ['workoutExercises', { targetReps: 'x'.repeat(13) }], ['workoutExercises', { workoutId: null }], ['workoutExercises', { exerciseId: 5 }],
       ['workouts', { startedAt: undefined }], ['workouts', { startedAt: '1999-01-01' }], ['workouts', { startedAt: '2101-01-01' }], ['workouts', { note: 'x'.repeat(2001) }],
       ['workouts', { planWeek: 52 }], ['workouts', { planDay: 28 }], ['workouts', { cycleId: 'x' }], ['workouts', { endedAt: 'no' }],
     ];

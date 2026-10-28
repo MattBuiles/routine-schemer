@@ -14,7 +14,7 @@ export const toWorkoutDb = (userId: string, r: WorkoutRow) => ({
 });
 export const toWorkoutExerciseDb = (userId: string, r: WorkoutExerciseRow) => ({
   id: r.id, userId, workoutId: r.workoutId, exerciseId: r.exerciseId, name: r.name, position: r.position, supersetGroup: r.supersetGroup,
-  targetSets: r.targetSets, targetReps: r.targetReps, clientUpdatedAt: r.updatedAt, deleted: r.deleted,
+  targetSets: r.targetSets, targetReps: r.targetReps, note: r.note, restS: r.restS, clientUpdatedAt: r.updatedAt, deleted: r.deleted,
 });
 export const toSetDb = (userId: string, r: SetRow) => ({
   id: r.id, userId, workoutExerciseId: r.workoutExerciseId, position: r.position, kind: r.kind, weightKg: r.weightKg, reps: r.reps, rir: r.rir,
@@ -28,7 +28,7 @@ export const fromWorkoutDb = (r: DbWorkout): WorkoutRow => ({
 });
 export const fromWorkoutExerciseDb = (r: DbWorkoutExercise): WorkoutExerciseRow => ({
   id: r.id, updatedAt: r.clientUpdatedAt, deleted: r.deleted, workoutId: r.workoutId, exerciseId: r.exerciseId, name: r.name, position: r.position,
-  supersetGroup: r.supersetGroup, targetSets: r.targetSets, targetReps: r.targetReps,
+  supersetGroup: r.supersetGroup, targetSets: r.targetSets, targetReps: r.targetReps, note: r.note, restS: r.restS,
 });
 export const fromSetDb = (r: DbSet): SetRow => ({
   id: r.id, updatedAt: r.clientUpdatedAt, deleted: r.deleted, workoutExerciseId: r.workoutExerciseId, position: r.position, kind: r.kind as SetKind,
