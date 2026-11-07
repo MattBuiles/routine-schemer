@@ -13,11 +13,14 @@ export const useCanvasZoom = () => useContext(CanvasContext).zoom;
 function loadViewport(): Viewport {
   try {
     const raw = localStorage.getItem(VIEWPORT_KEY);
-    return raw ? sanitizeViewport(JSON.parse(raw)) : DEFAULT_VIEWPORT;
+    return raw ? sanitizeViewport(JSON.parse(raw)) : defaultViewport();
   } catch {
-    return DEFAULT_VIEWPORT;
+    return defaultViewport();
   }
 }
+
+/** En una pantalla estrecha se empieza alejado para que el tablero quepa; en escritorio, al 100 %. */
+const defaultViewport = (): Viewport => (typeof window !== 'undefined' && window.innerWidth < 768 ? { x: -86, y: 72, zoom: 0.4 } : DEFAULT_VIEWPORT);
 
 export interface CanvasApi {
   /** Convierte coordenadas de pantalla (clientX/Y) a coordenadas del lienzo. */

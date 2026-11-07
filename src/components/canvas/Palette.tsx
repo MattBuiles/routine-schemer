@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { GripVertical, X } from 'lucide-react';
+import { GripVertical, Plus, X } from 'lucide-react';
 
 import type { BlockTypeDef } from '@/lib/board/cycle';
 import type { PhaseTypeDef } from '@/lib/board/phases';
@@ -24,6 +24,7 @@ const DRAG_THRESHOLD = 6;
 export default function Palette({ types, onAdd, onDragMove, onDropType, onDeleteCustom, phaseTypes, onAddPhase }: PaletteProps) {
   const [ghost, setGhost] = useState<{ type: BlockTypeDef; x: number; y: number } | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const drag = useRef<{ type: BlockTypeDef; startX: number; startY: number; active: boolean } | null>(null);
   const callbacks = useRef({ onAdd, onDragMove, onDropType });
   callbacks.current = { onAdd, onDragMove, onDropType };
@@ -61,11 +62,26 @@ export default function Palette({ types, onAdd, onDragMove, onDropType, onDelete
 
   return (
     <>
+      <button
+        type="button"
+        aria-label={open ? 'Ocultar paleta de bloques' : 'Mostrar paleta de bloques'}
+        aria-expanded={open}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => setOpen((v) => !v)}
+        className="absolute bottom-4 left-4 z-20 flex items-center gap-2 rounded-full border border-border bg-surface/95 px-4 py-3 text-sm font-medium text-fg shadow-[var(--shadow)] backdrop-blur md:hidden"
+      >
+        {open ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+        Enfoques
+      </button>
       <div
         aria-label="Paleta de bloques"
-        className="absolute left-4 top-20 w-52 select-none rounded-2xl border border-border bg-surface/90 p-2 shadow-[var(--shadow)] backdrop-blur"
+        className={`absolute left-4 top-20 z-10 w-52 select-none rounded-2xl border border-border bg-surface/90 p-2 shadow-[var(--shadow)] backdrop-blur max-md:max-h-[60vh] max-md:overflow-y-auto ${open ? 'block' : 'max-md:hidden'}`}
         onPointerDown={(e) => e.stopPropagation()}
         onPointerLeave={() => setHover(null)}
+        onClickCapture={(e) => {
+          // En el móvil la paleta es un cajón: tras elegir un enfoque o una fase se cierra para dejar ver el tablero.
+          if (window.innerWidth < 768 && (e.target as HTMLElement).closest('[data-palette-type],[data-phase-type]')) setOpen(false);
+        }}
       >
         <p className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted">Enfoques</p>
         <div className="flex max-h-[calc(100vh-15rem)] flex-col gap-1 overflow-y-auto">
