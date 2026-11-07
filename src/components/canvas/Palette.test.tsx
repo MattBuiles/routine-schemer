@@ -71,4 +71,16 @@ describe('Palette', () => {
     fireEvent.click(document.querySelector('[data-phase-type="peaking"]')!);
     expect(onAddPhase).toHaveBeenCalledWith(expect.objectContaining({ kind: 'peaking' }));
   });
+
+  it('en el móvil la paleta es un cajón: se abre con el botón y se cierra al elegir un enfoque', () => {
+    window.innerWidth = 390;
+    setup();
+    const toggle = screen.getByRole('button', { name: 'Mostrar paleta de bloques' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ocultar paleta de bloques' }).getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: /Fuerza/ }));
+    expect(screen.getByRole('button', { name: 'Mostrar paleta de bloques' })).toBeTruthy();
+    window.innerWidth = 1024;
+  });
 });

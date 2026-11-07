@@ -61,7 +61,7 @@ export default function BlockPanel({ block, types, onChange, onChangeType, onDel
   return (
     <aside
       aria-label="Propiedades del bloque"
-      className="panel-in absolute bottom-4 right-4 top-16 z-10 flex w-80 flex-col rounded-2xl border border-border bg-surface/95 shadow-[var(--shadow-lg)] backdrop-blur"
+      className="panel-in absolute bottom-4 right-4 top-16 z-30 flex w-80 flex-col max-md:left-3 max-md:right-3 max-md:top-auto max-md:h-[62vh] max-md:w-auto rounded-2xl border border-border bg-surface/95 shadow-[var(--shadow-lg)] backdrop-blur"
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
