@@ -88,6 +88,9 @@ export function mondayOf(date: string): string {
  * Lo que el plan pide en la semana (lunes a domingo) de `date`: suma, ejercicio a ejercicio, los siete días de todos los ciclos.
  * Un día anterior al inicio del plan no aporta nada; si ninguno de los siete días está dentro del plan, el estado lo dice.
  */
+/** Calentamiento, estiramiento y rehabilitación se hacen desde la web: la app de entrenos no los cuenta en las series planeadas. */
+const NOT_GYM = new Set(['mobility', 'stretching', 'rehab']);
+
 export function planWeek(plan: PlanInput, date: string): PlanWeek {
   const weekStart = mondayOf(date);
   if (!plan.planStart) return { status: 'no-plan', weekStart, exercises: [] };
@@ -97,7 +100,7 @@ export function planWeek(plan: PlanInput, date: string): PlanWeek {
     const day = planToday(plan, addDays(weekStart, i));
     if (day.status !== 'ok') continue;
     inside = true;
-    for (const c of day.cycles) for (const b of c.blocks) for (const e of b.exercises) {
+    for (const c of day.cycles) for (const b of c.blocks.filter((x) => !NOT_GYM.has(x.blockType))) for (const e of b.exercises) {
       const cur = byId.get(e.exerciseId) ?? { exerciseId: e.exerciseId, name: e.name, sets: 0 };
       cur.sets += e.sets;
       byId.set(e.exerciseId, cur);
