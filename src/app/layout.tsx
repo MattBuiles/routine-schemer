@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import { Providers } from "@/app/providers";
 import "./globals.css";
@@ -8,7 +8,11 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swa
 const serif = Fraunces({ subsets: ["latin"], variable: "--font-fraunces", display: "swap" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
 
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#2e1065" };
+
 export const metadata: Metadata = {
+  applicationName: "Routine Schemer",
+  appleWebApp: { capable: true, title: "Schemer", statusBarStyle: "black-translucent" },
   title: "Routine Schemer - Planificación Integral de Entrenamientos",
   description: "Plataforma profesional para diseñar, estructurar y visualizar rutinas y planes de entrenamiento completos. Incluye hipertrofia, acondicionamiento, movilidad, hábitos saludables y calendario interactivo.",
 };

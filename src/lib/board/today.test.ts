@@ -66,6 +66,11 @@ describe('planWeek', () => {
     expect(r.exercises).toEqual([{ exerciseId: 'e1', name: 'Press banca', sets: 8 }]); // 4 + 4 (3 + rampa 1) en los dos días
   });
 
+  it('no cuenta calentamiento, estiramiento ni rehabilitación', () => {
+    const withExtras = { ...plan, blocks: [...plan.blocks, block({ id: 'w', blockType: 'mobility', lane: 1, exercises: [{ exerciseId: 'e9', name: 'Calentar', sets: 5, reps: '10', notes: '' }] }), block({ id: 'r', blockType: 'rehab', lane: 2, exercises: [{ exerciseId: 'e8', name: 'Rehab', sets: 3, reps: '10', notes: '' }] })] };
+    expect(planWeek(withExtras, '2026-10-12').exercises).toEqual([{ exerciseId: 'e1', name: 'Press banca', sets: 8 }]);
+  });
+
   it('sin plan anclado o con la semana entera antes del inicio no hay nada', () => {
     expect(planWeek({ ...plan, planStart: null }, '2026-10-12')).toMatchObject({ status: 'no-plan', exercises: [] });
     expect(planWeek(plan, '2026-09-21')).toMatchObject({ status: 'before-start', exercises: [] });

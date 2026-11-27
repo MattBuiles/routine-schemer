@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ListChecks, Plus, Redo2, StickyNote, Undo2, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ListChecks, Plus, Redo2, StickyNote, Undo2, type LucideIcon, CalendarRange } from 'lucide-react';
 import { Alert, Skeleton, ThemeToggle, useConfirm, useToast } from 'strata';
 
 import { authClient } from '@/lib/auth/client';
@@ -39,6 +39,7 @@ import { WIDGET_INFO, WIDGET_TYPES, defaultWidgetRect, type BoardWidget, type Wi
 import BlockPanel from './BlockPanel';
 import Canvas, { type CanvasApi } from './Canvas';
 import CycleZone, { ZONE_ORIGIN, type DropPreview } from './CycleZone';
+import AgendaView from './AgendaView';
 import Palette from './Palette';
 import PhasePanel from './PhasePanel';
 import PhaseStrip from './PhaseStrip';
@@ -96,6 +97,18 @@ export default function BoardEngine() {
   const [customTypes, setCustomTypes] = useState<CustomBlockType[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // En el móvil se empieza en la agenda (el tablero no se lee); se recuerda la elección.
+  const [view, setViewState] = useState<'board' | 'agenda'>('board');
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem('rs:view'); } catch { /* sin almacenamiento */ }
+    setViewState(saved === 'board' || saved === 'agenda' ? saved : window.innerWidth < 768 ? 'agenda' : 'board');
+  }, []);
+  const setView = (v: 'board' | 'agenda') => {
+    setViewState(v);
+    setSelectedId(null);
+    try { localStorage.setItem('rs:view', v); } catch { /* sin almacenamiento */ }
+  };
   const [status, setStatus] = useState<SaveStatus>('idle');
   const apiRef = useRef<CanvasApi | null>(null);
   const lastSaved = useRef({ cycle: '', widgets: '', phases: '' });
@@ -521,7 +534,15 @@ export default function BoardEngine() {
         })}
       </Canvas>
 
-      <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} phaseTypes={PHASE_TYPES} onAddPhase={addPhase} />
+      {view === 'agenda' && (
+        <AgendaView
+          plan={{ planStart: present.planStart, planWeeks: present.planWeeks, phases: present.phases, cycles: present.cycles, blocks: present.blocks }}
+          onOpenBlock={setSelectedId}
+          onShowBoard={() => setView('board')}
+        />
+      )}
+
+      {view === 'board' && <Palette types={types} onAdd={onAddType} onDragMove={onDragMove} onDropType={onDropType} onDeleteCustom={removeCustomType} phaseTypes={PHASE_TYPES} onAddPhase={addPhase} />}
 
       <div className="absolute left-4 top-4 flex items-center gap-1 rounded-xl border border-border bg-surface/90 p-1 shadow-[var(--shadow)] backdrop-blur">
         <button aria-label="Deshacer" disabled={!history.past.length} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-fg disabled:opacity-40" onClick={() => setHistory((h) => (h ? undo(h) : h))}>
@@ -534,6 +555,9 @@ export default function BoardEngine() {
           {STATUS_LABEL[status]}
         </span>
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+        <button aria-label="Ver agenda" title="Agenda" className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg" onClick={() => setView('agenda')}>
+          <CalendarRange className="h-4 w-4" />
+        </button>
         {WIDGET_TYPES.map((type) => {
           const Icon = WIDGET_ICONS[type];
           const on = present.widgets.some((w) => w.type === type);
